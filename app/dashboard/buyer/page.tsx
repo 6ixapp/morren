@@ -452,17 +452,28 @@ export default function BuyerDashboard() {
     };
 
     useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/auth?role=buyer');
+        // Wait for auth to finish loading
+        if (authLoading) {
             return;
         }
-        if (user && user.role !== 'buyer') {
-            router.push(`/dashboard/${user.role}`);
+        
+        // If no user after auth is done loading, redirect to login
+        if (!user) {
+            console.log('No user found, redirecting to auth');
+            router.replace('/auth?role=buyer');
             return;
         }
-        if (user) {
-            fetchData();
+        
+        // If user is not a buyer, redirect to their dashboard
+        if (user.role !== 'buyer') {
+            console.log('User is not a buyer, redirecting to:', user.role);
+            router.replace(`/dashboard/${user.role}`);
+            return;
         }
+        
+        // User is authenticated and is a buyer, fetch data
+        console.log('Buyer authenticated, fetching data');
+        fetchData();
     }, [user, authLoading, router]);
 
     const fetchData = async () => {

@@ -35,7 +35,8 @@ function AuthForm() {
     // Redirect if already logged in
     useEffect(() => {
         if (user && !authLoading) {
-            router.push(`/dashboard/${user.role}`);
+            console.log('User logged in, redirecting to:', `/dashboard/${user.role}`);
+            router.replace(`/dashboard/${user.role}`);
         }
     }, [user, authLoading, router]);
 
@@ -80,6 +81,7 @@ function AuthForm() {
                     setError(error.message || 'Failed to sign in');
                 } else {
                     // Redirect will happen via useEffect when user is set
+                    console.log('Sign in successful, waiting for redirect...');
                 }
             }
         } catch (err: any) {

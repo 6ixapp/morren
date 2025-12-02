@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Package, DollarSign, TrendingUp, Users, Send, Calendar, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Package, DollarSign, TrendingUp, Users, Send, Calendar, ShoppingCart, RefreshCw, BarChart3, PieChart, Activity } from 'lucide-react';
 import { Order, Bid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
@@ -18,6 +18,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 export default function SellerDashboard() {
     const { user, loading: authLoading } = useAuth();
@@ -96,8 +98,91 @@ export default function SellerDashboard() {
         totalOrders: orders.length,
         pendingBids: bids.filter(b => b.status === 'pending').length,
         acceptedBids: bids.filter(b => b.status === 'accepted').length,
+        rejectedBids: bids.filter(b => b.status === 'rejected').length,
         potentialRevenue: bids.filter(b => b.status === 'accepted').reduce((sum, b) => sum + b.bidAmount, 0),
+        totalBidValue: bids.reduce((sum, b) => sum + b.bidAmount, 0),
     };
+
+    // Chart configurations
+    const bidStatusChartConfig = {
+        pending: { label: 'Pending', color: '#eab308' },
+        accepted: { label: 'Accepted', color: '#22c55e' },
+        rejected: { label: 'Rejected', color: '#ef4444' },
+    };
+
+    const revenueChartConfig = {
+        revenue: { label: 'Revenue', color: '#10b981' },
+        bids: { label: 'Bids', color: '#3b82f6' },
+    };
+
+    // Prepare pie chart data for bid status
+    const bidStatusData = useMemo(() => {
+        const pending = bids.filter(b => b.status === 'pending').length;
+        const accepted = bids.filter(b => b.status === 'accepted').length;
+        const rejected = bids.filter(b => b.status === 'rejected').length;
+        return [
+            { name: 'Pending', value: pending, fill: '#eab308' },
+            { name: 'Accepted', value: accepted, fill: '#22c55e' },
+            { name: 'Rejected', value: rejected, fill: '#ef4444' },
+        ].filter(item => item.value > 0);
+    }, [bids]);
+
+    // Prepare monthly revenue data from bids
+    const monthlyRevenueData = useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const currentYear = new Date().getFullYear();
+        
+        const monthlyData = months.map((month, index) => {
+            const monthBids = bids.filter(b => {
+                const bidDate = new Date(b.createdAt);
+                return bidDate.getMonth() === index && bidDate.getFullYear() === currentYear;
+            });
+            
+            const acceptedRevenue = monthBids
+                .filter(b => b.status === 'accepted')
+                .reduce((sum, b) => sum + b.bidAmount, 0);
+            
+            const totalBidValue = monthBids.reduce((sum, b) => sum + b.bidAmount, 0);
+            
+            return {
+                month,
+                revenue: acceptedRevenue,
+                bids: totalBidValue,
+                bidCount: monthBids.length,
+            };
+        });
+        
+        return monthlyData;
+    }, [bids]);
+
+    // Prepare bid performance data (last 7 days or recent activity)
+    const recentBidActivity = useMemo(() => {
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toLocaleDateString('en-US', { weekday: 'short' });
+            
+            const dayBids = bids.filter(b => {
+                const bidDate = new Date(b.createdAt);
+                return bidDate.toDateString() === date.toDateString();
+            });
+            
+            last7Days.push({
+                day: dateStr,
+                bids: dayBids.length,
+                value: dayBids.reduce((sum, b) => sum + b.bidAmount, 0),
+            });
+        }
+        return last7Days;
+    }, [bids]);
+
+    // Calculate success rate
+    const successRate = useMemo(() => {
+        const totalDecided = stats.acceptedBids + stats.rejectedBids;
+        if (totalDecided === 0) return 0;
+        return Math.round((stats.acceptedBids / totalDecided) * 100);
+    }, [stats.acceptedBids, stats.rejectedBids]);
 
     const getStatusColor = (status: string) => {
         const colors: Record<string, string> = {
@@ -281,11 +366,242 @@ export default function SellerDashboard() {
                         </Card>
                     </div>
 
-                    <Tabs defaultValue="orders" className="space-y-6">
+                    <Tabs defaultValue="analytics" className="space-y-6">
                         <TabsList className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-1 border border-gray-200 dark:border-gray-800 rounded-xl">
+                            <TabsTrigger value="analytics" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">
+                                <BarChart3 className="h-4 w-4 mr-2" />
+                                Analytics
+                            </TabsTrigger>
                             <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">Buyer Orders</TabsTrigger>
                             <TabsTrigger value="mybids" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">My Bids</TabsTrigger>
                         </TabsList>
+
+                        {/* Analytics Tab */}
+                        <TabsContent value="analytics" className="space-y-6">
+                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                                {/* Bid Status Pie Chart */}
+                                <Card className="border-none shadow-lg bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <PieChart className="h-5 w-5 text-emerald-600" />
+                                            Bid Status Distribution
+                                        </CardTitle>
+                                        <CardDescription>Overview of your bid outcomes</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {bidStatusData.length > 0 ? (
+                                            <ChartContainer config={bidStatusChartConfig} className="h-[220px] w-full">
+                                                <RechartsPieChart>
+                                                    <Pie
+                                                        data={bidStatusData}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={50}
+                                                        outerRadius={80}
+                                                        paddingAngle={2}
+                                                        dataKey="value"
+                                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                                        labelLine={false}
+                                                    >
+                                                        {bidStatusData.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                        ))}
+                                                    </Pie>
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                </RechartsPieChart>
+                                            </ChartContainer>
+                                        ) : (
+                                            <div className="h-[220px] flex items-center justify-center text-muted-foreground">
+                                                <div className="text-center">
+                                                    <PieChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                                    <p>No bid data available</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-center gap-4 mt-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                                                <span className="text-xs text-muted-foreground">Pending ({stats.pendingBids})</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-3 w-3 rounded-full bg-green-500" />
+                                                <span className="text-xs text-muted-foreground">Accepted ({stats.acceptedBids})</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-3 w-3 rounded-full bg-red-500" />
+                                                <span className="text-xs text-muted-foreground">Rejected ({stats.rejectedBids})</span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Success Rate Card */}
+                                <Card className="border-none shadow-lg bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <TrendingUp className="h-5 w-5 text-emerald-600" />
+                                            Performance Metrics
+                                        </CardTitle>
+                                        <CardDescription>Your overall success rate</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-6">
+                                        {/* Success Rate Circular */}
+                                        <div className="flex flex-col items-center">
+                                            <div className="relative h-32 w-32">
+                                                <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
+                                                    <circle
+                                                        cx="50"
+                                                        cy="50"
+                                                        r="40"
+                                                        stroke="currentColor"
+                                                        strokeWidth="8"
+                                                        fill="none"
+                                                        className="text-gray-200 dark:text-gray-700"
+                                                    />
+                                                    <circle
+                                                        cx="50"
+                                                        cy="50"
+                                                        r="40"
+                                                        stroke="currentColor"
+                                                        strokeWidth="8"
+                                                        fill="none"
+                                                        strokeDasharray={`${successRate * 2.51} 251`}
+                                                        className="text-emerald-500"
+                                                        strokeLinecap="round"
+                                                    />
+                                                </svg>
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                    <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{successRate}%</span>
+                                                </div>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mt-2">Bid Success Rate</p>
+                                        </div>
+
+                                        {/* Quick Stats */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                                                <p className="text-2xl font-bold text-emerald-600">{bids.length}</p>
+                                                <p className="text-xs text-muted-foreground">Total Bids</p>
+                                            </div>
+                                            <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                <p className="text-2xl font-bold text-blue-600">${stats.totalBidValue.toFixed(0)}</p>
+                                                <p className="text-xs text-muted-foreground">Total Value</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Revenue Summary */}
+                                <Card className="border-none shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg text-white">
+                                            <DollarSign className="h-5 w-5" />
+                                            Revenue Summary
+                                        </CardTitle>
+                                        <CardDescription className="text-emerald-100">Your earnings overview</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center p-3 bg-white/10 rounded-lg">
+                                                <span className="text-emerald-100">Total Potential</span>
+                                                <span className="text-xl font-bold">${stats.totalBidValue.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 rounded-lg">
+                                                <span className="text-emerald-100">Confirmed Revenue</span>
+                                                <span className="text-xl font-bold">${stats.potentialRevenue.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-white/10 rounded-lg">
+                                                <span className="text-emerald-100">Avg. Bid Value</span>
+                                                <span className="text-xl font-bold">
+                                                    ${bids.length > 0 ? (stats.totalBidValue / bids.length).toFixed(2) : '0.00'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </div>
+
+                            {/* Full Width Charts */}
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                {/* Monthly Revenue Area Chart */}
+                                <Card className="border-none shadow-lg bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <Activity className="h-5 w-5 text-emerald-600" />
+                                            Monthly Revenue Trends
+                                        </CardTitle>
+                                        <CardDescription>Your earnings from accepted bids over time</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChartContainer config={revenueChartConfig} className="h-[250px] w-full">
+                                            <AreaChart data={monthlyRevenueData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                                                    </linearGradient>
+                                                    <linearGradient id="colorBids" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                                <XAxis dataKey="month" tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                                                <YAxis tick={{ fontSize: 12 }} className="text-muted-foreground" tickFormatter={(value) => `$${value}`} />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" name="Accepted Revenue" />
+                                                <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" name="Total Bid Value" />
+                                            </AreaChart>
+                                        </ChartContainer>
+                                        <div className="flex justify-center gap-6 mt-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                                                <span className="text-xs text-muted-foreground">Accepted Revenue</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-3 w-3 rounded-full bg-blue-500" />
+                                                <span className="text-xs text-muted-foreground">Total Bid Value</span>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Recent Activity Bar Chart */}
+                                <Card className="border-none shadow-lg bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <BarChart3 className="h-5 w-5 text-emerald-600" />
+                                            Last 7 Days Activity
+                                        </CardTitle>
+                                        <CardDescription>Your recent bidding activity</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChartContainer config={{ bids: { label: 'Bids', color: '#10b981' } }} className="h-[250px] w-full">
+                                            <BarChart data={recentBidActivity} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                                <XAxis dataKey="day" tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                                                <YAxis tick={{ fontSize: 12 }} className="text-muted-foreground" />
+                                                <ChartTooltip 
+                                                    content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            return (
+                                                                <div className="bg-background border rounded-lg p-2 shadow-lg">
+                                                                    <p className="text-sm font-medium">{payload[0].payload.day}</p>
+                                                                    <p className="text-xs text-muted-foreground">Bids: {payload[0].payload.bids}</p>
+                                                                    <p className="text-xs text-emerald-600">Value: ${payload[0].payload.value.toFixed(2)}</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }}
+                                                />
+                                                <Bar dataKey="bids" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ChartContainer>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </TabsContent>
 
                         <TabsContent value="orders" className="space-y-6">
                             <Card className="border-none shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white overflow-hidden relative">

@@ -20,7 +20,14 @@ export async function getUserById(id: string): Promise<User | null> {
         .eq('id', id)
         .single();
 
-    if (error) throw error;
+    if (error) {
+        // PGRST116 means no rows returned - user doesn't exist yet
+        if (error.code === 'PGRST116') {
+            return null;
+        }
+        console.error('Error fetching user:', error);
+        throw error;
+    }
     return data;
 }
 

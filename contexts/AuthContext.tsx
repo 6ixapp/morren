@@ -28,28 +28,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     try {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
+      console.log('Auth session:', currentSession ? 'exists' : 'null');
       setSession(currentSession);
       setSupabaseUser(currentSession?.user ?? null);
 
       if (currentSession?.user) {
+        console.log('User ID:', currentSession.user.id);
+        
         // Fetch user profile from users table
-        const profile = await getUserById(currentSession.user.id);
+        let profile = await getUserById(currentSession.user.id);
+        console.log('User profile:', profile);
+        
         if (profile) {
           setUser(profile);
         } else {
           // If profile doesn't exist, create it from auth metadata
+          console.log('Creating user profile with metadata:', currentSession.user.user_metadata);
+          
+          // Use upsert to handle race conditions
           const { data: profileData, error } = await supabase
             .from('users')
-            .insert({
+            .upsert({
               id: currentSession.user.id,
               email: currentSession.user.email!,
               name: currentSession.user.user_metadata?.name || currentSession.user.email?.split('@')[0] || 'User',
               role: currentSession.user.user_metadata?.role || 'buyer',
-            })
+            }, { onConflict: 'id' })
             .select()
             .single();
 
-          if (!error && profileData) {
+          if (error) {
+            console.error('Error creating/updating user profile:', error);
+          } else if (profileData) {
+            console.log('Created/updated user profile:', profileData);
             setUser(profileData);
           }
         }
