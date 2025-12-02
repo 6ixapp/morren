@@ -15,7 +15,7 @@ import {
   type Supplier,
   type SupplierInvite,
   type BuyerProfile,
-} from "@/lib/store"
+} from "@/lib/supabase-api"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,33 +64,53 @@ export default function SupplierPortalPage() {
     notes: "",
   })
 
-  const loadData = useCallback(() => {
-    const data = getRFQByInviteToken(token)
-    if (data) {
-      setRfq(data.rfq)
-      setSupplier(data.supplier)
-      setInvite(data.invite)
-      setBuyerProfile(getBuyerProfile())
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true)
+      const data = await getRFQByInviteToken(token)
+      if (data) {
+        setRfq(data.rfq)
+        setSupplier(data.supplier)
+        setInvite(data.invite)
 
-      // Mark as viewed if first time
-      if (data.invite.status === "INVITE_SENT") {
-        markInviteViewed(token)
-      }
+        // Fetch buyer profile
+        try {
+          const profile = await getBuyerProfile(data.rfq.buyerId)
+          if (profile) {
+            setBuyerProfile(profile)
+          }
+        } catch (error) {
+          console.error('Error fetching buyer profile:', error)
+        }
 
-      // Pre-fill form if already quoted
-      const existingQuote = data.rfq.quotes.find((q) => q.supplierId === data.supplier.id)
-      if (existingQuote) {
-        setFormData({
-          pricePerUnit: existingQuote.pricePerUnit.toString(),
-          totalPrice: existingQuote.totalPrice.toString(),
-          deliveryDays: existingQuote.deliveryDays.toString(),
-          validityDays: existingQuote.validityDays.toString(),
-          notes: existingQuote.notes || "",
-        })
+        // Mark as viewed if first time
+        if (data.invite.status === "INVITE_SENT") {
+          await markInviteViewed(token)
+        }
+
+        // Pre-fill form if already quoted
+        const existingQuote = data.rfq.quotes.find((q) => q.supplierId === data.supplier.id)
+        if (existingQuote) {
+          setFormData({
+            pricePerUnit: existingQuote.pricePerUnit.toString(),
+            totalPrice: existingQuote.totalPrice.toString(),
+            deliveryDays: existingQuote.deliveryDays.toString(),
+            validityDays: existingQuote.validityDays.toString(),
+            notes: existingQuote.notes || "",
+          })
+        }
       }
+    } catch (error) {
+      console.error('Error loading RFQ:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load RFQ. The invite link may be invalid.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }, [token])
+  }, [token, toast])
 
   useEffect(() => {
     loadData()
@@ -113,21 +133,27 @@ export default function SupplierPortalPage() {
 
     setSubmitting(true)
     try {
-      submitQuote(rfq.id, supplier.id, supplier.name, {
-        pricePerUnit: Number.parseFloat(formData.pricePerUnit),
-        totalPrice: Number.parseFloat(formData.totalPrice),
-        deliveryDays: Number.parseInt(formData.deliveryDays),
-        validityDays: Number.parseInt(formData.validityDays),
-        notes: formData.notes || undefined,
-      })
+      await submitQuote(
+        rfq.id,
+        supplier.id,
+        supplier.name,
+        {
+          pricePerUnit: Number.parseFloat(formData.pricePerUnit),
+          totalPrice: Number.parseFloat(formData.totalPrice),
+          deliveryDays: Number.parseInt(formData.deliveryDays),
+          validityDays: Number.parseInt(formData.validityDays),
+          notes: formData.notes || undefined,
+        }
+      )
 
-      loadData()
+      await loadData()
       setEditMode(false)
       toast({
         title: hasQuoted ? "Quote Updated" : "Quote Submitted",
         description: "Your quote has been submitted successfully.",
       })
     } catch (error) {
+      console.error('Error submitting quote:', error)
       toast({
         title: "Error",
         description: "Failed to submit quote. Please try again.",
@@ -140,9 +166,9 @@ export default function SupplierPortalPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse space-y-4 text-center">
-          <div className="h-12 w-12 bg-muted rounded-full mx-auto" />
-          <div className="h-4 bg-muted rounded w-32 mx-auto" />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading RFQ...</p>
         </div>
       </div>
     )
@@ -185,8 +211,8 @@ export default function SupplierPortalPage() {
                 <Building2 className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <div className="font-semibold text-foreground">{buyerProfile?.companyName}</div>
-                <div className="text-sm text-muted-foreground">RFQ Portal</div>
+                <div className="font-semibold text-foreground">{buyerProfile?.companyName || "RFQ Portal"}</div>
+                <div className="text-sm text-muted-foreground">Supplier Portal</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -293,20 +319,13 @@ export default function SupplierPortalPage() {
               <div className="text-foreground bg-muted/50 p-3 rounded-lg whitespace-pre-wrap">{rfq.specs}</div>
             </div>
 
-            {rfq.notes && (
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Additional Notes</div>
-                <div className="text-foreground bg-muted/50 p-3 rounded-lg whitespace-pre-wrap">{rfq.notes}</div>
-              </div>
-            )}
-
             <div className="flex items-start gap-3 pt-2">
               <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Buyer</div>
-                <div className="font-medium text-foreground">{buyerProfile?.companyName}</div>
+                <div className="font-medium text-foreground">{buyerProfile?.companyName || "Buyer"}</div>
               </div>
             </div>
           </CardContent>

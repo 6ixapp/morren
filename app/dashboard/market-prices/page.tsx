@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getMarketPrices, addMarketPrice, getRFQs, type MarketPrice, type RFQ } from "@/lib/store"
+import { getMarketPrices, addMarketPrice, getRFQs, type MarketPrice, type RFQ } from "@/lib/supabase-api"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,8 +40,11 @@ import { useTheme } from "@/components/theme-provider"
 export default function MarketPricesPage() {
   const { toast } = useToast()
   const { resolvedTheme } = useTheme()
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [prices, setPrices] = useState<MarketPrice[]>([])
   const [rfqs, setRfqs] = useState<RFQ[]>([])
+  const [loading, setLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState<string>("All Products")
   const [dialogOpen, setDialogOpen] = useState(false)
   const [newPrice, setNewPrice] = useState({ productName: "", price: "" })
@@ -47,9 +52,40 @@ export default function MarketPricesPage() {
   const isDark = resolvedTheme === "dark"
 
   useEffect(() => {
-    setPrices(getMarketPrices())
-    setRfqs(getRFQs())
-  }, [])
+    if (!authLoading && !user) {
+      router.push('/auth?role=buyer')
+      return
+    }
+    if (user && user.role !== 'buyer') {
+      router.push(`/dashboard/${user.role}`)
+      return
+    }
+    if (user) {
+      fetchData()
+    }
+  }, [user, authLoading, router])
+
+  const fetchData = async () => {
+    if (!user) return
+    try {
+      setLoading(true)
+      const [pricesData, rfqsData] = await Promise.all([
+        getMarketPrices(),
+        getRFQs(user.id),
+      ])
+      setPrices(pricesData)
+      setRfqs(rfqsData)
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load market prices.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Get unique product names from both prices and RFQs
   const productNames = [...new Set([...prices.map((p) => p.productName), ...rfqs.map((r) => r.productName)])]
@@ -84,7 +120,7 @@ export default function MarketPricesPage() {
             })),
           )
 
-  const handleAddPrice = () => {
+  const handleAddPrice = async () => {
     if (!newPrice.productName || !newPrice.price) {
       toast({
         title: "Error",
@@ -94,24 +130,41 @@ export default function MarketPricesPage() {
       return
     }
 
-    addMarketPrice(newPrice.productName, Number.parseFloat(newPrice.price))
-    setPrices(getMarketPrices())
-    setNewPrice({ productName: "", price: "" })
-    setDialogOpen(false)
-    toast({
-      title: "Price Added",
-      description: "Market price has been recorded.",
-    })
+    try {
+      await addMarketPrice(newPrice.productName, Number.parseFloat(newPrice.price))
+      await fetchData()
+      setNewPrice({ productName: "", price: "" })
+      setDialogOpen(false)
+      toast({
+        title: "Price Added",
+        description: `Successfully added market price for ${newPrice.productName}.`,
+      })
+    } catch (error) {
+      console.error('Error adding market price:', error)
+      toast({
+        title: "Error",
+        description: "Failed to add market price. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
-  // Calculate stats
-  const avgPrice =
-    filteredPrices.length > 0 ? filteredPrices.reduce((sum, p) => sum + p.price, 0) / filteredPrices.length : 0
-  const latestPrice =
-    filteredPrices.length > 0
-      ? filteredPrices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]?.price
-      : 0
-  const lowestQuote = rfqQuotes.length > 0 ? Math.min(...rfqQuotes.map((q) => q.price)) : null
+  if (authLoading || loading) {
+    return (
+      <div className="p-6 lg:p-8">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading market prices...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
+  }
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
@@ -120,20 +173,20 @@ export default function MarketPricesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Market Price History</h1>
-          <p className="text-muted-foreground mt-1">Track and compare market prices with RFQ quotes</p>
+          <h1 className="text-2xl font-bold text-foreground">Market Prices</h1>
+          <p className="text-muted-foreground mt-1">Track and analyze market price trends</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Add Daily Price
+              Add Market Price
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add Market Price</DialogTitle>
-              <DialogDescription>Record today's market price for a product.</DialogDescription>
+              <DialogDescription>Record a new market price for a product</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -141,26 +194,19 @@ export default function MarketPricesPage() {
                 <Input
                   id="productName"
                   value={newPrice.productName}
-                  onChange={(e) => setNewPrice((prev) => ({ ...prev, productName: e.target.value }))}
-                  placeholder="e.g., Wheat, Steel, Cotton"
-                  list="product-suggestions"
+                  onChange={(e) => setNewPrice({ ...newPrice, productName: e.target.value })}
+                  placeholder="e.g., Wheat, Steel Bars"
                 />
-                <datalist id="product-suggestions">
-                  {productNames.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="price">Price per Unit (₹)</Label>
+                <Label htmlFor="price">Price (₹)</Label>
                 <Input
                   id="price"
                   type="number"
                   step="0.01"
-                  min="0"
                   value={newPrice.price}
-                  onChange={(e) => setNewPrice((prev) => ({ ...prev, price: e.target.value }))}
-                  placeholder="e.g., 2500"
+                  onChange={(e) => setNewPrice({ ...newPrice, price: e.target.value })}
+                  placeholder="0.00"
                 />
               </div>
             </div>
@@ -177,221 +223,76 @@ export default function MarketPricesPage() {
       {/* Product Filter */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex-1">
-              <Label htmlFor="product-filter" className="text-sm text-muted-foreground mb-2 block">
-                Filter by Product
-              </Label>
-              <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                <SelectTrigger id="product-filter" className="w-full sm:w-64">
-                  <SelectValue placeholder="All Products" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All Products">All Products</SelectItem>
-                  {productNames.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {selectedProduct !== "All Products" && (
-              <div className="flex gap-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">Latest Market Price</div>
-                  <div className="text-xl font-bold text-foreground">
-                    {latestPrice ? `₹${latestPrice.toLocaleString()}` : "-"}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Avg (30 days)</div>
-                  <div className="text-xl font-bold text-foreground">
-                    {avgPrice ? `₹${avgPrice.toLocaleString()}` : "-"}
-                  </div>
-                </div>
-                {lowestQuote && (
-                  <div>
-                    <div className="text-sm text-muted-foreground">Lowest RFQ Quote</div>
-                    <div className="text-xl font-bold text-success">₹{lowestQuote.toLocaleString()}</div>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="flex items-center gap-4">
+            <Label htmlFor="productFilter">Filter by Product:</Label>
+            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+              <SelectTrigger id="productFilter" className="w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All Products">All Products</SelectItem>
+                {productNames.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-foreground">{prices.length}</div>
-                <div className="text-sm text-muted-foreground">Price Records</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-foreground">{productNames.length}</div>
-                <div className="text-sm text-muted-foreground">Products Tracked</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-warning" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-foreground">{chartData.length}</div>
-                <div className="text-sm text-muted-foreground">Last 30 Days</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold text-foreground">{rfqQuotes.length}</div>
-                <div className="text-sm text-muted-foreground">RFQ Quotes</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Price Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Price Trend (Last 30 Days)</CardTitle>
-          <CardDescription>
-            {selectedProduct !== "All Products"
-              ? `Market prices for ${selectedProduct}`
-              : "Select a product to view price trends"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {chartData.length === 0 ? (
-            <div className="text-center py-12">
-              <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No price data</h3>
-              <p className="text-muted-foreground">
-                {selectedProduct !== "All Products"
-                  ? `No price records found for ${selectedProduct}.`
-                  : "Select a product or add price records to see the trend."}
-              </p>
-            </div>
-          ) : (
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e2e8f0"} />
-                  <XAxis dataKey="date" stroke={isDark ? "#9ca3af" : "#64748b"} fontSize={12} />
-                  <YAxis stroke={isDark ? "#9ca3af" : "#64748b"} fontSize={12} tickFormatter={(value) => `₹${value}`} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: isDark ? "#1f2937" : "#ffffff",
-                      border: `1px solid ${isDark ? "#374151" : "#e2e8f0"}`,
-                      borderRadius: "8px",
-                      color: isDark ? "#f9fafb" : "#1f2937",
-                    }}
-                    formatter={(value: number) => [`₹${value.toLocaleString()}`, "Market Price"]}
-                    labelFormatter={(label) => `Date: ${label}`}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="price"
-                    stroke={isDark ? "#60a5fa" : "#0066cc"}
-                    strokeWidth={2}
-                    dot={{ fill: isDark ? "#60a5fa" : "#0066cc", strokeWidth: 2 }}
-                    name="Market Price"
-                  />
-                  {lowestQuote && (
-                    <ReferenceLine
-                      y={lowestQuote}
-                      stroke="#16a34a"
-                      strokeDasharray="5 5"
-                      label={{ value: `Lowest Quote: ₹${lowestQuote}`, fill: "#16a34a", fontSize: 12 }}
-                    />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* RFQ Quotes Comparison */}
-      {selectedProduct !== "All Products" && rfqQuotes.length > 0 && (
+      {/* Chart */}
+      {chartData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>RFQ Quotes vs Market Price</CardTitle>
-            <CardDescription>Compare supplier quotes with current market prices</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Price Trend (Last 30 Days)
+            </CardTitle>
+            <CardDescription>
+              {selectedProduct === "All Products" ? "All products" : selectedProduct}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead className="text-right">Quote Price</TableHead>
-                  <TableHead className="text-right">vs Market</TableHead>
-                  <TableHead className="text-right">Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rfqQuotes
-                  .sort((a, b) => a.price - b.price)
-                  .map((quote, idx) => {
-                    const diff = latestPrice ? ((quote.price - latestPrice) / latestPrice) * 100 : 0
-                    return (
-                      <TableRow key={idx}>
-                        <TableCell className="font-medium">{quote.supplier}</TableCell>
-                        <TableCell className="text-right">₹{quote.price.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">
-                          {latestPrice ? (
-                            <Badge
-                              variant={diff < 0 ? "default" : "secondary"}
-                              className={diff < 0 ? "bg-success text-success-foreground" : ""}
-                            >
-                              {diff > 0 ? "+" : ""}
-                              {diff.toFixed(1)}%
-                            </Badge>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {format(quote.date, "MMM dd")}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-              </TableBody>
-            </Table>
+            <ResponsiveContainer width="100%" height={400}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
+                <XAxis dataKey="date" stroke={isDark ? "#9ca3af" : "#6b7280"} />
+                <YAxis stroke={isDark ? "#9ca3af" : "#6b7280"} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: isDark ? "#1f2937" : "#ffffff",
+                    border: `1px solid ${isDark ? "#374151" : "#e5e7eb"}`,
+                    borderRadius: "8px",
+                  }}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="price"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  name="Market Price (₹)"
+                  dot={{ fill: "#3b82f6", r: 4 }}
+                />
+                {rfqQuotes.length > 0 && (
+                  <Line
+                    type="monotone"
+                    dataKey="quotePrice"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    name="RFQ Quotes (₹)"
+                    dot={{ fill: "#10b981", r: 4 }}
+                  />
+                )}
+              </LineChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       )}
 
-      {/* Price History Table */}
+      {/* Price Table */}
       <Card>
         <CardHeader>
           <CardTitle>Price History</CardTitle>
@@ -399,28 +300,35 @@ export default function MarketPricesPage() {
         </CardHeader>
         <CardContent>
           {filteredPrices.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No price records found.</p>
+            <div className="text-center py-12">
+              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No prices recorded</h3>
+              <p className="text-muted-foreground mb-4">Start tracking market prices by adding your first entry.</p>
+              <Button onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Market Price
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
                     <TableHead>Product</TableHead>
-                    <TableHead className="text-right">Price (₹/unit)</TableHead>
+                    <TableHead>Price (₹)</TableHead>
+                    <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredPrices
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .slice(0, 20)
                     .map((price) => (
                       <TableRow key={price.id}>
-                        <TableCell>{format(new Date(price.date), "MMM dd, yyyy")}</TableCell>
                         <TableCell className="font-medium">{price.productName}</TableCell>
-                        <TableCell className="text-right">₹{price.price.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <span className="font-bold text-primary">₹{price.price.toLocaleString()}</span>
+                        </TableCell>
+                        <TableCell>{format(new Date(price.date), "MMM dd, yyyy")}</TableCell>
                       </TableRow>
                     ))}
                 </TableBody>

@@ -8,13 +8,13 @@ import {
   getSuppliers,
   addInviteToRFQ,
   awardRFQ,
-  generateInviteUrl,
   getLowestQuote,
   calculatePercentageDiff,
   type RFQ,
   type Supplier,
   type Quote,
-} from "@/lib/store"
+} from "@/lib/supabase-api"
+import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -56,10 +56,16 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   UPDATED: { label: "Updated", color: "bg-purple-100 text-purple-700" },
 }
 
+function generateInviteUrl(token: string): string {
+  if (typeof window === "undefined") return ""
+  return `${window.location.origin}/supplier/${token}`
+}
+
 export default function RFQDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
+  const { user, loading: authLoading } = useAuth()
   const [rfq, setRfq] = useState<RFQ | null>(null)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,26 +75,65 @@ export default function RFQDetailPage() {
   const [selectedWinner, setSelectedWinner] = useState<Quote | null>(null)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
 
-  const loadData = useCallback(() => {
-    const rfqData = getRFQById(params.id as string)
-    if (!rfqData) {
-      router.push("/dashboard")
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth?role=buyer')
       return
     }
-    setRfq(rfqData)
-    setSuppliers(getSuppliers())
-    setLoading(false)
-  }, [params.id, router])
+    if (user && user.role !== 'buyer') {
+      router.push(`/dashboard/${user.role}`)
+      return
+    }
+    if (user) {
+      loadData()
+    }
+  }, [user, authLoading, router, params.id])
+
+  const loadData = useCallback(async () => {
+    if (!user || !params.id) return
+    try {
+      setLoading(true)
+      const [rfqData, suppliersData] = await Promise.all([
+        getRFQById(params.id as string),
+        getSuppliers(),
+      ])
+      
+      if (!rfqData) {
+        router.push("/dashboard")
+        return
+      }
+
+      // Check if user owns this RFQ
+      if (rfqData.buyerId !== user.id) {
+        router.push("/dashboard")
+        return
+      }
+
+      setRfq(rfqData)
+      setSuppliers(suppliersData)
+    } catch (error) {
+      console.error('Error loading RFQ:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load RFQ details.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [params.id, user, router, toast])
 
   useEffect(() => {
-    loadData()
-    // Simulate live updates by polling every 5 seconds
-    const interval = setInterval(loadData, 5000)
-    return () => clearInterval(interval)
-  }, [loadData])
+    if (user) {
+      loadData()
+      // Poll for updates every 5 seconds
+      const interval = setInterval(loadData, 5000)
+      return () => clearInterval(interval)
+    }
+  }, [loadData, user])
 
-  const handleInviteSuppliers = () => {
-    if (selectedSuppliers.length < 3 || selectedSuppliers.length > 5) {
+  const handleInviteSuppliers = async () => {
+    if (!rfq || selectedSuppliers.length < 3 || selectedSuppliers.length > 5) {
       toast({
         title: "Invalid Selection",
         description: "Please select 3-5 suppliers to invite.",
@@ -97,17 +142,26 @@ export default function RFQDetailPage() {
       return
     }
 
-    selectedSuppliers.forEach((supplierId) => {
-      addInviteToRFQ(rfq!.id, supplierId)
-    })
+    try {
+      for (const supplierId of selectedSuppliers) {
+        await addInviteToRFQ(rfq.id, supplierId)
+      }
 
-    loadData()
-    setSelectedSuppliers([])
-    setInviteDialogOpen(false)
-    toast({
-      title: "Invites Sent",
-      description: `Successfully invited ${selectedSuppliers.length} suppliers.`,
-    })
+      await loadData()
+      setSelectedSuppliers([])
+      setInviteDialogOpen(false)
+      toast({
+        title: "Invites Sent",
+        description: `Successfully invited ${selectedSuppliers.length} suppliers.`,
+      })
+    } catch (error) {
+      console.error('Error inviting suppliers:', error)
+      toast({
+        title: "Error",
+        description: "Failed to send invites. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const copyInviteLink = async (token: string) => {
@@ -121,27 +175,42 @@ export default function RFQDetailPage() {
     })
   }
 
-  const handleAwardRFQ = () => {
+  const handleAwardRFQ = async () => {
     if (!selectedWinner || !rfq) return
 
-    awardRFQ(rfq.id, selectedWinner.supplierId, selectedWinner.supplierName, selectedWinner.pricePerUnit)
-    loadData()
-    setAwardDialogOpen(false)
-    toast({
-      title: "RFQ Awarded",
-      description: `Successfully awarded to ${selectedWinner.supplierName}.`,
-    })
+    try {
+      await awardRFQ(rfq.id, selectedWinner.supplierId, selectedWinner.supplierName, selectedWinner.pricePerUnit)
+      await loadData()
+      setAwardDialogOpen(false)
+      toast({
+        title: "RFQ Awarded",
+        description: `Successfully awarded to ${selectedWinner.supplierName}.`,
+      })
+    } catch (error) {
+      console.error('Error awarding RFQ:', error)
+      toast({
+        title: "Error",
+        description: "Failed to award RFQ. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
-  if (loading || !rfq) {
+  if (authLoading || loading || !rfq) {
     return (
       <div className="p-6 lg:p-8">
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-muted rounded w-48" />
-          <div className="h-64 bg-muted rounded-lg" />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading RFQ details...</p>
+          </div>
         </div>
       </div>
     )
+  }
+
+  if (!user) {
+    return null
   }
 
   const lowestQuote = getLowestQuote(rfq.quotes)
@@ -550,12 +619,6 @@ export default function RFQDetailPage() {
                 <div className="text-sm text-muted-foreground mb-1">Specifications</div>
                 <div className="font-medium text-foreground whitespace-pre-wrap">{rfq.specs}</div>
               </div>
-              {rfq.notes && (
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">Additional Notes</div>
-                  <div className="font-medium text-foreground whitespace-pre-wrap">{rfq.notes}</div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>

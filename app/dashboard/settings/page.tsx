@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getBuyerProfile, updateBuyerProfile, type BuyerProfile } from "@/lib/store"
+import { getBuyerProfile, updateBuyerProfile, type BuyerProfile } from "@/lib/supabase-api"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +14,8 @@ import { Building2, User, Save, LogOut } from "lucide-react"
 
 export default function SettingsPage() {
   const { toast } = useToast()
+  const { user, loading: authLoading, signOut } = useAuth()
+  const router = useRouter()
   const [profile, setProfile] = useState<BuyerProfile>({
     companyName: "",
     buyerName: "",
@@ -20,19 +24,57 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const storedProfile = getBuyerProfile()
-    setProfile(storedProfile)
-  }, [])
+    if (!authLoading && !user) {
+      router.push('/auth?role=buyer')
+      return
+    }
+    if (user && user.role !== 'buyer') {
+      router.push(`/dashboard/${user.role}`)
+      return
+    }
+    if (user) {
+      fetchProfile()
+    }
+  }, [user, authLoading, router])
 
-  const handleSave = () => {
+  const fetchProfile = async () => {
+    if (!user) return
+    try {
+      const profileData = await getBuyerProfile(user.id)
+      if (profileData) {
+        setProfile(profileData)
+      } else {
+        // Set default from user data
+        setProfile({
+          companyName: "Morera Ventures LLP",
+          buyerName: user.name,
+          email: user.email,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching profile:', error)
+      // Set default from user data
+      if (user) {
+        setProfile({
+          companyName: "Morera Ventures LLP",
+          buyerName: user.name,
+          email: user.email,
+        })
+      }
+    }
+  }
+
+  const handleSave = async () => {
+    if (!user) return
     setLoading(true)
     try {
-      updateBuyerProfile(profile)
+      await updateBuyerProfile(user.id, profile)
       toast({
         title: "Settings Saved",
         description: "Your profile has been updated successfully.",
       })
     } catch (error) {
+      console.error('Error saving profile:', error)
       toast({
         title: "Error",
         description: "Failed to save settings.",
@@ -42,12 +84,26 @@ export default function SettingsPage() {
     setLoading(false)
   }
 
-  const handleLogout = () => {
-    // Clear all local storage
-    if (typeof window !== "undefined") {
-      localStorage.clear()
-      window.location.href = "/"
-    }
+  const handleLogout = async () => {
+    await signOut()
+    router.push('/')
+  }
+
+  if (authLoading) {
+    return (
+      <div className="p-6 lg:p-8 max-w-2xl mx-auto">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading settings...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
@@ -122,19 +178,9 @@ export default function SettingsPage() {
         </Button>
         <Button variant="destructive" onClick={handleLogout} className="flex-1">
           <LogOut className="h-4 w-4 mr-2" />
-          Logout & Clear Data
+          Logout
         </Button>
       </div>
-
-      {/* Info */}
-      <Card className="bg-muted/50">
-        <CardContent className="p-4">
-          <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> This application stores data locally in your browser. Logging out will clear all your
-            RFQs, quotes, and settings.
-          </p>
-        </CardContent>
-      </Card>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,20 +11,29 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Package, ShoppingCart, TrendingUp, Users, Plus, Edit, Trash2, Eye, BarChart3, Shield } from 'lucide-react';
-import { mockItems, mockOrders, mockBids, mockUsers, getItemsWithSeller, getOrdersWithDetails, getBidsWithDetails } from '@/lib/mock-data';
+import { Package, ShoppingCart, TrendingUp, Users, Plus, Edit, Trash2, Eye, BarChart3, Shield, UserPlus } from 'lucide-react';
 import { Item, Order, Bid, User } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
+import { useAuth } from '@/contexts/AuthContext';
+import { getItems, getOrders, getBids, getUsers, createItem, updateItem, deleteItem, deleteOrder, getAdminStats, createSellerAccount } from '@/lib/supabase-api';
+import { useToast } from '@/hooks/use-toast';
+import { Toaster } from '@/components/ui/toaster';
+import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
-    const [items, setItems] = useState<Item[]>(getItemsWithSeller());
-    const [orders, setOrders] = useState<Order[]>(getOrdersWithDetails());
-    const [bids, setBids] = useState<Bid[]>(getBidsWithDetails());
-    const [users, setUsers] = useState<User[]>(mockUsers);
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
+    const [items, setItems] = useState<Item[]>([]);
+    const [orders, setOrders] = useState<Order[]>([]);
+    const [bids, setBids] = useState<Bid[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
     const [isEditItemDialogOpen, setIsEditItemDialogOpen] = useState(false);
+    const [isAddSellerDialogOpen, setIsAddSellerDialogOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
     const [itemForm, setItemForm] = useState({
@@ -37,6 +46,14 @@ export default function AdminDashboard() {
         quantity: '',
         specifications: {} as Record<string, string>,
     });
+
+    const [sellerForm, setSellerForm] = useState({
+        name: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+    });
+    const [isCreatingSeller, setIsCreatingSeller] = useState(false);
 
     const [specKey, setSpecKey] = useState('');
     const [specValue, setSpecValue] = useState('');
@@ -66,46 +83,106 @@ export default function AdminDashboard() {
         return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-200';
     };
 
-    const handleAddItem = () => {
-        const newItem: Item = {
-            id: (items.length + 1).toString(),
-            name: itemForm.name,
-            description: itemForm.description,
-            image: '/api/placeholder/400/300',
-            price: parseFloat(itemForm.price),
-            size: itemForm.size,
-            category: itemForm.category,
-            condition: itemForm.condition,
-            quantity: parseInt(itemForm.quantity),
-            specifications: itemForm.specifications,
-            sellerId: '2',
-            status: 'active',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
-        setItems([...items, newItem]);
-        setIsAddItemDialogOpen(false);
-        resetItemForm();
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/auth?role=admin');
+            return;
+        }
+        if (user && user.role !== 'admin') {
+            router.push(`/dashboard/${user.role}`);
+            return;
+        }
+        if (user) {
+            fetchData();
+        }
+    }, [user, authLoading, router]);
+
+    const fetchData = async () => {
+        if (!user) return;
+        try {
+            setLoading(true);
+            const [itemsData, ordersData, bidsData, usersData] = await Promise.all([
+                getItems(),
+                getOrders(),
+                getBids(),
+                getUsers(),
+            ]);
+            setItems(itemsData);
+            setOrders(ordersData);
+            setBids(bidsData);
+            setUsers(usersData);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleEditItem = () => {
+    const handleAddItem = async () => {
+        if (!user) return;
+        try {
+            await createItem({
+                name: itemForm.name,
+                description: itemForm.description,
+                image: '/api/placeholder/400/300',
+                price: parseFloat(itemForm.price),
+                size: itemForm.size,
+                category: itemForm.category,
+                condition: itemForm.condition,
+                quantity: parseInt(itemForm.quantity),
+                specifications: itemForm.specifications,
+                sellerId: user.id, // Admin can create items
+                status: 'active',
+            });
+            setIsAddItemDialogOpen(false);
+            resetItemForm();
+            await fetchData();
+        } catch (error) {
+            console.error('Error creating item:', error);
+            alert('Failed to create item. Please try again.');
+        }
+    };
+
+    const handleEditItem = async () => {
         if (!selectedItem) return;
-        const updatedItems = items.map(item =>
-            item.id === selectedItem.id
-                ? { ...item, ...itemForm, price: parseFloat(itemForm.price), quantity: parseInt(itemForm.quantity), updatedAt: new Date() }
-                : item
-        );
-        setItems(updatedItems);
-        setIsEditItemDialogOpen(false);
-        resetItemForm();
+        try {
+            await updateItem(selectedItem.id, {
+                name: itemForm.name,
+                description: itemForm.description,
+                price: parseFloat(itemForm.price),
+                size: itemForm.size,
+                category: itemForm.category,
+                condition: itemForm.condition,
+                quantity: parseInt(itemForm.quantity),
+                specifications: itemForm.specifications,
+            });
+            setIsEditItemDialogOpen(false);
+            resetItemForm();
+            await fetchData();
+        } catch (error) {
+            console.error('Error updating item:', error);
+            alert('Failed to update item. Please try again.');
+        }
     };
 
-    const handleDeleteItem = (id: string) => {
-        setItems(items.filter(item => item.id !== id));
+    const handleDeleteItem = async (id: string) => {
+        try {
+            await deleteItem(id);
+            await fetchData();
+        } catch (error) {
+            console.error('Error deleting item:', error);
+            alert('Failed to delete item. Please try again.');
+        }
     };
 
-    const handleDeleteOrder = (id: string) => {
-        setOrders(orders.filter(order => order.id !== id));
+    const handleDeleteOrder = async (id: string) => {
+        try {
+            await deleteOrder(id);
+            await fetchData();
+        } catch (error) {
+            console.error('Error deleting order:', error);
+            alert('Failed to delete order. Please try again.');
+        }
     };
 
     const resetItemForm = () => {
@@ -154,6 +231,85 @@ export default function AdminDashboard() {
         setItemForm({ ...itemForm, specifications: newSpecs });
     };
 
+    const handleAddSeller = async () => {
+        if (!sellerForm.name || !sellerForm.email || !sellerForm.password) {
+            toast({
+                title: 'Error',
+                description: 'Please fill in all required fields',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        if (sellerForm.password !== sellerForm.confirmPassword) {
+            toast({
+                title: 'Error',
+                description: 'Passwords do not match',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        if (sellerForm.password.length < 6) {
+            toast({
+                title: 'Error',
+                description: 'Password must be at least 6 characters',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setIsCreatingSeller(true);
+        try {
+            const { user: newSeller, error } = await createSellerAccount(
+                sellerForm.email,
+                sellerForm.password,
+                sellerForm.name
+            );
+
+            if (error) {
+                toast({
+                    title: 'Error',
+                    description: error.message || 'Failed to create seller account',
+                    variant: 'destructive',
+                });
+            } else {
+                toast({
+                    title: 'Success',
+                    description: `Seller account created for ${sellerForm.name}. They can now login with their email and password.`,
+                });
+                setIsAddSellerDialogOpen(false);
+                setSellerForm({ name: '', email: '', password: '', confirmPassword: '' });
+                await fetchData();
+            }
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message || 'Failed to create seller account',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsCreatingSeller(false);
+        }
+    };
+
+    if (authLoading || loading) {
+        return (
+            <DashboardLayout role="admin">
+                <div className="flex items-center justify-center min-h-[60vh]">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto"></div>
+                        <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+                    </div>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    if (!user) {
+        return null;
+    }
+
     return (
         <DashboardLayout role="admin">
             <div className="relative min-h-[calc(100vh-4rem)]">
@@ -171,13 +327,23 @@ export default function AdminDashboard() {
                             </h1>
                             <p className="text-muted-foreground mt-1">Complete control over marketplace operations</p>
                         </div>
-                        <Button
-                            className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20 transition-all hover:scale-105"
-                            onClick={() => setIsAddItemDialogOpen(true)}
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add New Item
-                        </Button>
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all hover:scale-105"
+                                onClick={() => setIsAddSellerDialogOpen(true)}
+                            >
+                                <UserPlus className="mr-2 h-4 w-4 text-rose-600" />
+                                Add Seller
+                            </Button>
+                            <Button
+                                className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20 transition-all hover:scale-105"
+                                onClick={() => setIsAddItemDialogOpen(true)}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Add New Item
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Stats Cards */}
@@ -628,6 +794,90 @@ export default function AdminDashboard() {
                                 >
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Item
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Add Seller Dialog */}
+                    <Dialog open={isAddSellerDialogOpen} onOpenChange={setIsAddSellerDialogOpen}>
+                        <DialogContent className="max-w-md">
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <UserPlus className="h-5 w-5 text-rose-600" />
+                                    Add New Seller
+                                </DialogTitle>
+                                <DialogDescription>
+                                    Create a seller account. The seller will be able to login with these credentials.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <div>
+                                    <Label htmlFor="seller-name">Full Name *</Label>
+                                    <Input
+                                        id="seller-name"
+                                        value={sellerForm.name}
+                                        onChange={(e) => setSellerForm({ ...sellerForm, name: e.target.value })}
+                                        placeholder="John Doe"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="seller-email">Email Address *</Label>
+                                    <Input
+                                        id="seller-email"
+                                        type="email"
+                                        value={sellerForm.email}
+                                        onChange={(e) => setSellerForm({ ...sellerForm, email: e.target.value })}
+                                        placeholder="seller@example.com"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="seller-password">Password *</Label>
+                                    <Input
+                                        id="seller-password"
+                                        type="password"
+                                        value={sellerForm.password}
+                                        onChange={(e) => setSellerForm({ ...sellerForm, password: e.target.value })}
+                                        placeholder="Min. 6 characters"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="seller-confirm-password">Confirm Password *</Label>
+                                    <Input
+                                        id="seller-confirm-password"
+                                        type="password"
+                                        value={sellerForm.confirmPassword}
+                                        onChange={(e) => setSellerForm({ ...sellerForm, confirmPassword: e.target.value })}
+                                        placeholder="Confirm password"
+                                    />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => {
+                                        setIsAddSellerDialogOpen(false);
+                                        setSellerForm({ name: '', email: '', password: '', confirmPassword: '' });
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20"
+                                    onClick={handleAddSeller}
+                                    disabled={isCreatingSeller}
+                                >
+                                    {isCreatingSeller ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                                            Creating...
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <UserPlus className="mr-2 h-4 w-4" />
+                                            Create Seller
+                                        </>
+                                    )}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

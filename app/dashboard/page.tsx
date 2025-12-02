@@ -4,13 +4,15 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { getRFQs, type RFQ, getLowestQuote } from "@/lib/store"
+import { getRFQs as getRFQsFromSupabase, getLowestQuote, type RFQ } from "@/lib/supabase-api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Eye, FileText, Clock, CheckCircle2, Award } from "lucide-react"
 import { format } from "date-fns"
+import { useAuth } from "@/contexts/AuthContext"
+import { useRouter } from "next/navigation"
 
 const statusConfig: Record<
   string,
@@ -23,13 +25,33 @@ const statusConfig: Record<
 }
 
 export default function DashboardPage() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
   const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setRfqs(getRFQs())
-    setLoading(false)
-  }, [])
+    if (!authLoading && !user) {
+      router.push('/auth?role=buyer')
+      return
+    }
+    if (user) {
+      fetchRFQs()
+    }
+  }, [user, authLoading, router])
+
+  const fetchRFQs = async () => {
+    if (!user) return
+    try {
+      setLoading(true)
+      const data = await getRFQsFromSupabase(user.id)
+      setRfqs(data)
+    } catch (error) {
+      console.error('Error fetching RFQs:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const stats = {
     total: rfqs.length,

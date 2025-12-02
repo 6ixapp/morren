@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
@@ -16,11 +16,22 @@ import {
     TrendingUp,
     Shield,
     Store,
-    ShoppingCart
+    ShoppingCart,
+    ChevronDown,
+    FileText,
+    BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -28,10 +39,15 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, role }: DashboardLayoutProps) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const pathname = usePathname();
+    const router = useRouter();
+    const { user, signOut } = useAuth();
 
-    const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+    const handleLogout = async () => {
+        await signOut();
+        router.push('/');
+    };
 
     const navItems = {
         buyer: [
@@ -74,96 +90,159 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 flex">
-            {/* Sidebar */}
-            <aside
-                className={cn(
-                    "fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 transition-transform duration-300 ease-in-out",
-                    !isSidebarOpen && "-translate-x-full"
-                )}
-            >
-                <div className="h-full flex flex-col">
-                    {/* Logo */}
-                    <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-gray-800">
-                        <div className={`h-8 w-8 rounded-lg bg-gradient-to-br ${getRoleGradient()} flex items-center justify-center mr-3`}>
-                            {role === 'buyer' && <ShoppingBag className="h-5 w-5 text-white" />}
-                            {role === 'seller' && <Store className="h-5 w-5 text-white" />}
-                            {role === 'admin' && <Shield className="h-5 w-5 text-white" />}
-                        </div>
-                        <span className="font-bold text-xl tracking-tight">MarketPlace</span>
-                    </div>
+        <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900 flex flex-col">
+            {/* Navbar */}
+            <header className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex justify-between h-16">
+                        {/* Logo and Desktop Nav */}
+                        <div className="flex">
+                            <div className="flex-shrink-0 flex items-center">
+                                <div className={`h-8 w-8 rounded-lg bg-gradient-to-br ${getRoleGradient()} flex items-center justify-center mr-3`}>
+                                    {role === 'buyer' && <ShoppingBag className="h-5 w-5 text-white" />}
+                                    {role === 'seller' && <Store className="h-5 w-5 text-white" />}
+                                    {role === 'admin' && <Shield className="h-5 w-5 text-white" />}
+                                </div>
+                                <span className="font-bold text-xl tracking-tight hidden md:block">MarketPlace</span>
+                            </div>
 
-                    {/* Nav Items */}
-                    <div className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-                        <div className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Menu
-                        </div>
-                        {currentNavItems.map((item) => (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className={cn(
-                                    "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors",
-                                    pathname === item.href || (pathname === item.href.split('?')[0] && !item.href.includes('?'))
-                                        ? `bg-gray-100 dark:bg-gray-800 ${getRoleColor()}`
-                                        : "text-gray-700 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                                )}
-                            >
-                                <item.icon className={cn("h-5 w-5 mr-3",
-                                    pathname === item.href ? getRoleColor() : "text-gray-400 group-hover:text-gray-500"
-                                )} />
-                                {item.label}
-                            </Link>
-                        ))}
-                    </div>
-
-                    {/* User Profile */}
-                    <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-                        <div className="flex items-center gap-3 mb-4">
-                            <Avatar>
-                                <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${role}`} />
-                                <AvatarFallback>{role[0].toUpperCase()}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate capitalize">
-                                    {role} User
-                                </p>
-                                <p className="text-xs text-gray-500 truncate">
-                                    {role}@example.com
-                                </p>
+                            {/* Desktop Navigation */}
+                            <div className="hidden md:ml-8 md:flex md:space-x-4 items-center">
+                                {currentNavItems.map((item) => (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className={cn(
+                                            "inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                                            pathname === item.href || (pathname === item.href.split('?')[0] && !item.href.includes('?'))
+                                                ? `bg-gray-100 dark:bg-gray-800 ${getRoleColor()}`
+                                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
+                                        )}
+                                    >
+                                        <item.icon className={cn("h-4 w-4 mr-2",
+                                            pathname === item.href ? getRoleColor() : "text-gray-400 group-hover:text-gray-500"
+                                        )} />
+                                        {item.label}
+                                    </Link>
+                                ))}
                             </div>
                         </div>
-                        <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20">
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Sign Out
-                        </Button>
+
+                        {/* Right Side: User Profile & Mobile Menu Button */}
+                        <div className="flex items-center">
+                            {/* User Dropdown */}
+                            <div className="hidden md:flex items-center ml-4">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                                            <Avatar className="h-8 w-8">
+                                                <AvatarImage src={user?.avatar} />
+                                                <AvatarFallback>{user?.name?.charAt(0)?.toUpperCase() || role[0].toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex flex-col items-start mr-2">
+                                                <span className="text-sm font-medium leading-none">{user?.name || 'User'}</span>
+                                                <span className="text-xs text-muted-foreground">{role}</span>
+                                            </div>
+                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => router.push('/dashboard/rfq')}>
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            <span>RFQs</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push('/dashboard/market-prices')}>
+                                            <BarChart3 className="mr-2 h-4 w-4" />
+                                            <span>Market Prices</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/${role}/settings`)}>
+                                            <Settings className="mr-2 h-4 w-4" />
+                                            <span>Settings</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={handleLogout}>
+                                            <LogOut className="mr-2 h-4 w-4" />
+                                            <span>Sign out</span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            {/* Mobile menu button */}
+                            <div className="flex items-center md:hidden">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                                >
+                                    <span className="sr-only">Open main menu</span>
+                                    {isMobileMenuOpen ? (
+                                        <X className="block h-6 w-6" aria-hidden="true" />
+                                    ) : (
+                                        <Menu className="block h-6 w-6" aria-hidden="true" />
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </aside>
+
+                {/* Mobile Menu */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden border-t border-gray-200 dark:border-gray-800">
+                        <div className="pt-2 pb-3 space-y-1 px-2">
+                            {currentNavItems.map((item) => (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={cn(
+                                        "flex items-center px-3 py-2 rounded-md text-base font-medium",
+                                        pathname === item.href
+                                            ? `bg-gray-100 dark:bg-gray-800 ${getRoleColor()}`
+                                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
+                                    )}
+                                    onClick={() => setIsMobileMenuOpen(false)}
+                                >
+                                    <item.icon className="h-5 w-5 mr-3" />
+                                    {item.label}
+                                </Link>
+                            ))}
+                        </div>
+                        <div className="pt-4 pb-4 border-t border-gray-200 dark:border-gray-800">
+                            <div className="flex items-center px-4">
+                                <div className="flex-shrink-0">
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={user?.avatar} />
+                                        <AvatarFallback>{user?.name?.charAt(0)?.toUpperCase() || role[0].toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                </div>
+                                <div className="ml-3">
+                                    <div className="text-base font-medium text-gray-800 dark:text-gray-200">{user?.name || 'User'}</div>
+                                    <div className="text-sm font-medium text-gray-500">{user?.email}</div>
+                                </div>
+                            </div>
+                            <div className="mt-3 px-2 space-y-1">
+                                <Button
+                                    variant="ghost"
+                                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={handleLogout}
+                                >
+                                    <LogOut className="mr-2 h-5 w-5" />
+                                    Sign out
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </header>
 
             {/* Main Content */}
-            <div className={cn(
-                "flex-1 flex flex-col min-h-screen transition-all duration-300",
-                isSidebarOpen ? "ml-64" : "ml-0"
-            )}>
-                {/* Top Header */}
-                <header className="h-16 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 sticky top-0 z-40 px-6 flex items-center justify-between">
-                    <Button variant="ghost" size="icon" onClick={toggleSidebar} className="-ml-2">
-                        {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                    </Button>
-
-                    <div className="flex items-center gap-4">
-                        <Button variant="ghost" size="icon">
-                            <Settings className="h-5 w-5 text-gray-500" />
-                        </Button>
-                    </div>
-                </header>
-
-                {/* Page Content */}
-                <main className="flex-1 p-6 overflow-x-hidden">
-                    {children}
-                </main>
-            </div>
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {children}
+            </main>
         </div>
     );
 }

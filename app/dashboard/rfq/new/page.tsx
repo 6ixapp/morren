@@ -2,9 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createRFQ } from "@/lib/store"
+import { createRFQ } from "@/lib/supabase-api"
+import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +19,7 @@ const units = ["kg", "pcs", "mt", "liters", "tons", "units", "boxes", "bags"]
 
 export default function CreateRFQPage() {
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     productName: "",
@@ -28,24 +30,54 @@ export default function CreateRFQPage() {
     notes: "",
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth?role=buyer')
+      return
+    }
+    if (user && user.role !== 'buyer') {
+      router.push(`/dashboard/${user.role}`)
+    }
+  }, [user, authLoading, router])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return
+
     setLoading(true)
 
     try {
-      const rfq = createRFQ({
+      const rfq = await createRFQ({
+        buyerId: user.id,
         productName: formData.productName,
         specs: formData.specs,
         quantity: Number.parseFloat(formData.quantity),
         unit: formData.unit,
         requiredByDate: new Date(formData.requiredByDate),
-        notes: formData.notes || undefined,
       })
       router.push(`/dashboard/rfq/${rfq.id}`)
     } catch (error) {
       console.error("Error creating RFQ:", error)
+      alert("Failed to create RFQ. Please try again.")
       setLoading(false)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="p-6 lg:p-8 max-w-2xl mx-auto">
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null
   }
 
   return (

@@ -70,4 +70,72 @@ export interface DashboardStats {
   pendingOrders?: number;
   activeItems?: number;
   totalUsers?: number;
+  activeBids?: number;
+}
+
+// RFQ Types
+export interface Supplier {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  contactPerson?: string;
+}
+
+export interface SupplierInvite {
+  id: string;
+  rfqId: string;
+  supplierId: string;
+  status: 'INVITE_SENT' | 'VIEWED' | 'QUOTED' | 'UPDATED';
+  inviteToken: string;
+  sentAt: Date;
+  viewedAt?: Date;
+  quotedAt?: Date;
+}
+
+export interface Quote {
+  id: string;
+  rfqId: string;
+  supplierId: string;
+  supplierName: string;
+  pricePerUnit: number;
+  totalPrice: number;
+  deliveryDays: number;
+  validityDays: number;
+  notes?: string;
+  submittedAt: Date;
+  updatedAt?: Date;
+}
+
+export interface RFQ {
+  id: string;
+  buyerId: string;
+  productName: string;
+  specs: string;
+  quantity: number;
+  unit: string;
+  requiredByDate: Date;
+  status: 'DRAFT' | 'OPEN' | 'CLOSED' | 'AWARDED';
+  invites: SupplierInvite[];
+  quotes: Quote[];
+  awardedTo?: {
+    supplierId: string;
+    supplierName: string;
+    price: number;
+    awardedAt: Date;
+  };
+  createdAt: Date;
+}
+
+export interface MarketPrice {
+  id: string;
+  productName: string;
+  price: number;
+  date: Date;
+}
+
+export interface BuyerProfile {
+  companyName: string;
+  buyerName: string;
+  email: string;
 }

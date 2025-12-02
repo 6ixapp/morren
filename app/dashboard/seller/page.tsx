@@ -5,20 +5,28 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Package, DollarSign, TrendingUp, Users, Send, Eye, Calendar, ShoppingCart } from 'lucide-react';
+import { Package, DollarSign, TrendingUp, Users, Send, Calendar, ShoppingCart, RefreshCw } from 'lucide-react';
 import { Order, Bid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
-import { getOrdersWithDetails, getBidsWithDetails, createBid } from '@/lib/supabase-api';
+import { getOrdersBySeller, getBidsBySeller, createBid } from '@/lib/supabase-api';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { Toaster } from '@/components/ui/toaster';
 
 export default function SellerDashboard() {
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
     const [orders, setOrders] = useState<Order[]>([]);
     const [bids, setBids] = useState<Bid[]>([]);
     const [loading, setLoading] = useState(true);
+    const [submittingBid, setSubmittingBid] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isBidDialogOpen, setIsBidDialogOpen] = useState(false);
     const [bidForm, setBidForm] = useState({
@@ -27,29 +35,63 @@ export default function SellerDashboard() {
         message: '',
     });
 
-    // Hardcoded seller ID (will be replaced with auth later)
-    const sellerId = '2';
-
     useEffect(() => {
-        async function fetchData() {
-            try {
+        if (!authLoading && !user) {
+            router.push('/auth?role=seller');
+            return;
+        }
+        if (user && user.role !== 'seller') {
+            router.push(`/dashboard/${user.role}`);
+            return;
+        }
+    }, [user, authLoading, router]);
+
+    const fetchData = async (silent = false) => {
+        if (!user) return;
+        try {
+            if (!silent) {
                 setLoading(true);
-                const [ordersData, bidsData] = await Promise.all([
-                    getOrdersWithDetails(),
-                    getBidsWithDetails(),
-                ]);
-                setOrders(ordersData);
-                setBids(bidsData.filter(b => b.sellerId === sellerId));
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
+            }
+            const [ordersData, bidsData] = await Promise.all([
+                getOrdersBySeller(user.id),
+                getBidsBySeller(user.id),
+            ]);
+            setOrders(ordersData);
+            setBids(bidsData);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            if (!silent) {
+                toast({
+                    title: "Error",
+                    description: "Failed to load orders. Please refresh the page.",
+                    variant: "destructive",
+                });
+            }
+        } finally {
+            if (!silent) {
                 setLoading(false);
             }
         }
-        fetchData();
-    }, [sellerId]);
+    };
 
-    // Stats
+    // Initial data fetch
+    useEffect(() => {
+        if (user) {
+            fetchData(false);
+        }
+    }, [user]);
+
+    // Auto-refresh orders every 10 seconds (silent updates)
+    useEffect(() => {
+        if (!user || submittingBid) return;
+
+        const interval = setInterval(() => {
+            fetchData(true); // Silent refresh
+        }, 10000); // Poll every 10 seconds
+
+        return () => clearInterval(interval);
+    }, [user, submittingBid]);
+
     const stats = {
         totalOrders: orders.length,
         pendingBids: bids.filter(b => b.status === 'pending').length,
@@ -71,7 +113,7 @@ export default function SellerDashboard() {
     const handlePlaceBid = (order: Order) => {
         setSelectedOrder(order);
         setBidForm({
-            bidAmount: order.totalPrice.toString(),
+            bidAmount: (order.totalPrice || 0).toString(),
             estimatedDelivery: '',
             message: '',
         });
@@ -79,31 +121,69 @@ export default function SellerDashboard() {
     };
 
     const submitBid = async () => {
-        if (!selectedOrder) return;
+        if (!selectedOrder || !user) {
+            toast({
+                title: "Error",
+                description: "Please select an order to bid on.",
+                variant: "destructive",
+            });
+            return;
+        }
 
+        if (!bidForm.bidAmount || !bidForm.estimatedDelivery) {
+            toast({
+                title: "Validation Error",
+                description: "Please fill in bid amount and delivery date.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        const bidAmount = parseFloat(bidForm.bidAmount);
+        if (isNaN(bidAmount) || bidAmount <= 0) {
+            toast({
+                title: "Validation Error",
+                description: "Please enter a valid bid amount.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setSubmittingBid(true);
         try {
             await createBid({
                 orderId: selectedOrder.id,
-                sellerId,
-                bidAmount: parseFloat(bidForm.bidAmount),
+                sellerId: user.id,
+                bidAmount: bidAmount,
                 estimatedDelivery: new Date(bidForm.estimatedDelivery),
-                message: bidForm.message,
+                message: bidForm.message || undefined,
                 status: 'pending',
             });
 
-            // Refresh bids
-            const updatedBids = await getBidsWithDetails();
-            setBids(updatedBids.filter(b => b.sellerId === sellerId));
+            toast({
+                title: "Bid Submitted Successfully! 🎉",
+                description: `Your bid of $${bidAmount.toFixed(2)} has been sent to the buyer.`,
+            });
 
             setIsBidDialogOpen(false);
             setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
-        } catch (error) {
+            setSelectedOrder(null);
+
+            // Refresh data immediately
+            await fetchData(false);
+        } catch (error: any) {
             console.error('Error creating bid:', error);
-            alert('Failed to create bid. Please try again.');
+            toast({
+                title: "Error",
+                description: error?.message || "Failed to create bid. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setSubmittingBid(false);
         }
     };
 
-    if (loading) {
+    if (authLoading || loading) {
         return (
             <DashboardLayout role="seller">
                 <div className="flex items-center justify-center min-h-[60vh]">
@@ -116,26 +196,37 @@ export default function SellerDashboard() {
         );
     }
 
+    if (!user) {
+        return null;
+    }
+
     return (
         <DashboardLayout role="seller">
+            <Toaster />
             <div className="relative min-h-[calc(100vh-4rem)]">
-                {/* Background Effect */}
                 <div className="fixed inset-0 z-0 pointer-events-none opacity-50">
                     <BackgroundBeams />
                 </div>
 
                 <div className="relative z-10 space-y-8">
-                    {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                                Seller Dashboard
+                                Welcome back, {user.name}
                             </h1>
                             <p className="text-muted-foreground mt-1">View buyer orders and place competitive bids</p>
                         </div>
+                        <Button
+                            variant="outline"
+                            onClick={() => fetchData(false)}
+                            disabled={loading}
+                            className="gap-2"
+                        >
+                            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                            {loading ? "Refreshing..." : "Refresh"}
+                        </Button>
                     </div>
 
-                    {/* Stats Cards */}
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <Card className="border-none shadow-lg bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-900/80 transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -190,14 +281,12 @@ export default function SellerDashboard() {
                         </Card>
                     </div>
 
-                    {/* Main Content */}
                     <Tabs defaultValue="orders" className="space-y-6">
                         <TabsList className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-1 border border-gray-200 dark:border-gray-800 rounded-xl">
                             <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">Buyer Orders</TabsTrigger>
                             <TabsTrigger value="mybids" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">My Bids</TabsTrigger>
                         </TabsList>
 
-                        {/* Buyer Orders Tab */}
                         <TabsContent value="orders" className="space-y-6">
                             <Card className="border-none shadow-lg bg-gradient-to-r from-emerald-500 to-teal-500 text-white overflow-hidden relative">
                                 <div className="absolute inset-0 bg-white/10 backdrop-blur-sm" />
@@ -235,7 +324,7 @@ export default function SellerDashboard() {
                                                                 <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{order.item?.category}</Badge>
                                                             </CardTitle>
                                                             <CardDescription>
-                                                                Order #{order.id} • Buyer: {order.buyer?.name} • {new Date(order.createdAt).toLocaleDateString()}
+                                                                Order #{order.id.slice(0, 8)} • Buyer: {order.buyer?.name} • {new Date(order.createdAt).toLocaleDateString()}
                                                             </CardDescription>
                                                         </div>
                                                     </div>
@@ -306,7 +395,6 @@ export default function SellerDashboard() {
                             </div>
                         </TabsContent>
 
-                        {/* My Bids Tab */}
                         <TabsContent value="mybids" className="space-y-6">
                             <div className="grid gap-6">
                                 {bids.length === 0 ? (
@@ -320,7 +408,7 @@ export default function SellerDashboard() {
                                             <CardHeader>
                                                 <div className="flex items-center justify-between">
                                                     <div>
-                                                        <CardTitle>Bid for Order #{bid.orderId}</CardTitle>
+                                                        <CardTitle>Bid for Order #{bid.orderId.slice(0, 8)}</CardTitle>
                                                         <CardDescription>
                                                             Placed on {new Date(bid.createdAt).toLocaleDateString()}
                                                         </CardDescription>
@@ -360,7 +448,6 @@ export default function SellerDashboard() {
                         </TabsContent>
                     </Tabs>
 
-                    {/* Place Bid Dialog */}
                     <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>
                         <DialogContent className="sm:max-w-[500px]">
                             <DialogHeader>
@@ -416,9 +503,10 @@ export default function SellerDashboard() {
                                 <Button
                                     className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20"
                                     onClick={submitBid}
+                                    disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
                                 >
                                     <Send className="mr-2 h-4 w-4" />
-                                    Submit Bid
+                                    {submittingBid ? "Submitting..." : "Submit Bid"}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
