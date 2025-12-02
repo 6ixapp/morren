@@ -260,18 +260,25 @@ export async function getOrdersByBuyer(buyerId: string): Promise<Order[]> {
 
 export async function getOrdersBySeller(sellerId: string): Promise<Order[]> {
     // Get all orders (not just seller's items) so sellers can bid on any order
+    // Note: We fetch buyer info but mask it for privacy
     const { data, error } = await supabase
         .from('orders')
         .select(`
       *,
-      item:items(*),
-      buyer:users!buyer_id(*)
+      item:items(*)
     `)
         .eq('status', 'pending') // Only show pending orders available for bidding
         .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []).map(transformOrder);
+    
+    // Transform and mask buyer info for seller privacy
+    return (data || []).map(order => {
+        const transformed = transformOrder({ ...order, buyer: null });
+        // Mask buyer info - seller should not see buyer details
+        transformed.buyer = undefined;
+        return transformed;
+    });
 }
 
 // Get orders for seller's own items (for tracking their sales)
@@ -407,19 +414,27 @@ export async function getBidById(id: string): Promise<Bid | null> {
     return data;
 }
 
-export async function getBidsByOrder(orderId: string): Promise<Bid[]> {
+export async function getBidsByOrder(orderId: string, maskSellerInfo: boolean = true): Promise<Bid[]> {
     const { data, error } = await supabase
         .from('bids')
         .select(`
       *,
-      order:orders(*),
-      seller:users!seller_id(*)
+      order:orders(*)
     `)
         .eq('order_id', orderId)
         .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return (data || []).map(transformBid);
+    
+    // Transform and optionally mask seller info for buyer privacy
+    return (data || []).map(bid => {
+        const transformed = transformBid({ ...bid, seller: null });
+        if (maskSellerInfo) {
+            // Mask seller info - buyer should not see seller details
+            transformed.seller = undefined;
+        }
+        return transformed;
+    });
 }
 
 export async function getBidsBySeller(sellerId: string): Promise<Bid[]> {

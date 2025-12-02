@@ -591,7 +591,7 @@ export default function BuyerDashboard() {
             
             toast({
                 title: "Bid Accepted! ✅",
-                description: `You've accepted the bid from ${bid.seller?.name || 'the seller'}.`,
+                description: `You've accepted the bid. The vendor will be notified.`,
             });
             
             await fetchData();
@@ -1032,7 +1032,7 @@ export default function BuyerDashboard() {
                                         <CardHeader>
                                             <div className="flex items-center justify-between">
                                                 <div>
-                                                    <CardTitle>Bid from {bid.seller?.name || 'Unknown Seller'}</CardTitle>
+                                                    <CardTitle>Bid from Vendor #{bid.id.slice(0, 6).toUpperCase()}</CardTitle>
                                                     <CardDescription>
                                                         Order #{bid.orderId.slice(0, 8)} • {new Date(bid.createdAt).toLocaleDateString()}
                                                     </CardDescription>
@@ -1184,8 +1184,8 @@ export default function BuyerDashboard() {
                                         <p className="text-lg font-medium">{selectedItem?.quantity} units</p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Seller</Label>
-                                        <p className="text-lg font-medium">{selectedItem?.seller?.name || 'Unknown'}</p>
+                                        <Label className="text-muted-foreground">Listed By</Label>
+                                        <p className="text-lg font-medium">Verified Vendor</p>
                                     </div>
                                 </div>
 

@@ -9,11 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Package, DollarSign, TrendingUp, Users, Send, Calendar, ShoppingCart, RefreshCw, BarChart3, PieChart, Activity } from 'lucide-react';
+import { Package, DollarSign, TrendingUp, Users, Send, Calendar, ShoppingCart, RefreshCw, BarChart3, PieChart, Activity, ArrowUp, ArrowDown, Minus, Trophy, AlertTriangle } from 'lucide-react';
 import { Order, Bid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
-import { getOrdersBySeller, getBidsBySeller, createBid } from '@/lib/supabase-api';
+import { getOrdersBySeller, getBidsBySeller, createBid, getBidsByOrder } from '@/lib/supabase-api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,7 @@ export default function SellerDashboard() {
     const { toast } = useToast();
     const [orders, setOrders] = useState<Order[]>([]);
     const [bids, setBids] = useState<Bid[]>([]);
+    const [allOrderBids, setAllOrderBids] = useState<Record<string, Bid[]>>({});
     const [loading, setLoading] = useState(true);
     const [submittingBid, setSubmittingBid] = useState(false);
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -60,6 +61,20 @@ export default function SellerDashboard() {
             ]);
             setOrders(ordersData);
             setBids(bidsData);
+
+            // Fetch all bids for each order to compare
+            const orderBidsMap: Record<string, Bid[]> = {};
+            await Promise.all(
+                ordersData.map(async (order) => {
+                    try {
+                        const orderBids = await getBidsByOrder(order.id);
+                        orderBidsMap[order.id] = orderBids;
+                    } catch (err) {
+                        orderBidsMap[order.id] = [];
+                    }
+                })
+            );
+            setAllOrderBids(orderBidsMap);
         } catch (error) {
             console.error('Error fetching data:', error);
             if (!silent) {
@@ -184,6 +199,183 @@ export default function SellerDashboard() {
         return Math.round((stats.acceptedBids / totalDecided) * 100);
     }, [stats.acceptedBids, stats.rejectedBids]);
 
+    // Helper function to get bid comparison info for an order
+    const getBidComparison = (orderId: string) => {
+        if (!user) return null;
+        
+        const orderBids = allOrderBids[orderId] || [];
+        const myBid = orderBids.find(b => b.sellerId === user.id);
+        
+        if (!myBid) return null;
+        
+        // If only one bid (mine), show that I'm the only bidder
+        if (orderBids.length === 1) {
+            return {
+                myBid: myBid.bidAmount,
+                lowestBid: myBid.bidAmount,
+                highestBid: myBid.bidAmount,
+                avgBid: myBid.bidAmount,
+                diffFromLowest: 0,
+                diffFromHighest: 0,
+                myPosition: 1,
+                totalBidders: 1,
+                isLowest: true,
+                isHighest: true,
+                competitorCount: 0,
+                isOnlyBidder: true,
+            };
+        }
+        
+        const otherBids = orderBids.filter(b => b.sellerId !== user.id);
+        
+        // Find lowest bid (best for buyer - seller wants to be lowest or close to it)
+        const allBidAmounts = orderBids.map(b => b.bidAmount);
+        const lowestBid = Math.min(...allBidAmounts);
+        const highestBid = Math.max(...allBidAmounts);
+        const avgBid = allBidAmounts.reduce((sum, b) => sum + b, 0) / allBidAmounts.length;
+        
+        const diffFromLowest = lowestBid > 0 ? ((myBid.bidAmount - lowestBid) / lowestBid) * 100 : 0;
+        const diffFromHighest = highestBid > 0 ? ((myBid.bidAmount - highestBid) / highestBid) * 100 : 0;
+        
+        // Position: where does my bid stand? (1 = lowest/best, higher = worse)
+        const sortedBids = [...allBidAmounts].sort((a, b) => a - b);
+        const myPosition = sortedBids.indexOf(myBid.bidAmount) + 1;
+        const totalBidders = orderBids.length;
+        
+        const isLowest = myBid.bidAmount <= lowestBid;
+        const isHighest = myBid.bidAmount >= highestBid;
+        
+        return {
+            myBid: myBid.bidAmount,
+            lowestBid,
+            highestBid,
+            avgBid,
+            diffFromLowest,
+            diffFromHighest,
+            myPosition,
+            totalBidders,
+            isLowest,
+            isHighest,
+            competitorCount: otherBids.length,
+            isOnlyBidder: false,
+        };
+    };
+
+    // Bid comparison indicator component
+    const BidComparisonIndicator = ({ orderId }: { orderId: string }) => {
+        const comparison = getBidComparison(orderId);
+        
+        if (!comparison) return null;
+        
+        const { myBid, lowestBid, highestBid, diffFromLowest, myPosition, totalBidders, isLowest, competitorCount, isOnlyBidder } = comparison;
+        
+        // If only bidder, show a special message
+        if (isOnlyBidder) {
+            return (
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 border rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-medium">
+                            <Trophy className="h-4 w-4" />
+                            <span>🎯 You're the only bidder so far!</span>
+                        </div>
+                        <Badge variant="outline" className="text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                            Leading
+                        </Badge>
+                    </div>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                        Your bid of <span className="font-bold">${myBid.toFixed(2)}</span> is currently the only offer for this order.
+                    </p>
+                </div>
+            );
+        }
+        
+        // Calculate position percentage (0% = best/lowest, 100% = worst/highest)
+        const positionPercent = totalBidders > 1 ? ((myPosition - 1) / (totalBidders - 1)) * 100 : 0;
+        
+        // Determine color and message
+        let bgColor = 'bg-yellow-500';
+        let textColor = 'text-yellow-700 dark:text-yellow-300';
+        let bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
+        let borderColor = 'border-yellow-200 dark:border-yellow-800';
+        let icon = <Minus className="h-4 w-4" />;
+        let message = '';
+        
+        if (isLowest) {
+            bgColor = 'bg-emerald-500';
+            textColor = 'text-emerald-700 dark:text-emerald-300';
+            bgLight = 'bg-emerald-50 dark:bg-emerald-900/20';
+            borderColor = 'border-emerald-200 dark:border-emerald-800';
+            icon = <Trophy className="h-4 w-4" />;
+            message = "🏆 You have the lowest bid!";
+        } else if (diffFromLowest <= 5) {
+            bgColor = 'bg-emerald-400';
+            textColor = 'text-emerald-700 dark:text-emerald-300';
+            bgLight = 'bg-emerald-50 dark:bg-emerald-900/20';
+            borderColor = 'border-emerald-200 dark:border-emerald-800';
+            icon = <ArrowDown className="h-4 w-4" />;
+            message = `Only ${diffFromLowest.toFixed(1)}% above the lowest bid`;
+        } else if (diffFromLowest <= 15) {
+            bgColor = 'bg-yellow-500';
+            textColor = 'text-yellow-700 dark:text-yellow-300';
+            bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
+            borderColor = 'border-yellow-200 dark:border-yellow-800';
+            icon = <AlertTriangle className="h-4 w-4" />;
+            message = `${diffFromLowest.toFixed(1)}% higher than the lowest bid`;
+        } else {
+            bgColor = 'bg-red-500';
+            textColor = 'text-red-700 dark:text-red-300';
+            bgLight = 'bg-red-50 dark:bg-red-900/20';
+            borderColor = 'border-red-200 dark:border-red-800';
+            icon = <ArrowUp className="h-4 w-4" />;
+            message = `${diffFromLowest.toFixed(1)}% higher than the lowest bid`;
+        }
+        
+        return (
+            <div className={`${bgLight} ${borderColor} border rounded-lg p-3 mb-4`}>
+                <div className="flex items-center justify-between mb-2">
+                    <div className={`flex items-center gap-2 ${textColor} font-medium`}>
+                        {icon}
+                        <span>{message}</span>
+                    </div>
+                    <Badge variant="outline" className={`${textColor} ${borderColor}`}>
+                        #{myPosition} of {totalBidders} bids
+                    </Badge>
+                </div>
+                
+                {/* Horizontal position indicator */}
+                <div className="relative mt-3">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Lowest: ${lowestBid.toFixed(2)}</span>
+                        <span>Highest: ${highestBid.toFixed(2)}</span>
+                    </div>
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                            className={`h-full ${bgColor} rounded-full transition-all duration-500`}
+                            style={{ width: `${Math.max(5, Math.min(100, positionPercent))}%` }}
+                        />
+                    </div>
+                    {/* My bid marker */}
+                    <div 
+                        className="absolute -top-1 transform -translate-x-1/2 flex flex-col items-center"
+                        style={{ left: `${Math.max(5, Math.min(95, positionPercent))}%` }}
+                    >
+                        <div className={`w-4 h-4 ${bgColor} rounded-full border-2 border-white dark:border-gray-800 shadow-md`} />
+                        <span className={`text-xs font-bold mt-1 ${textColor}`}>${myBid.toFixed(0)}</span>
+                    </div>
+                </div>
+                
+                <div className="flex items-center justify-between mt-4 text-xs">
+                    <span className="text-muted-foreground">{competitorCount} other seller{competitorCount !== 1 ? 's' : ''} bidding</span>
+                    {!isLowest && (
+                        <span className={textColor}>
+                            Lower by ${(myBid - lowestBid).toFixed(2)} to be lowest
+                        </span>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const getStatusColor = (status: string) => {
         const colors: Record<string, string> = {
             pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-200',
@@ -247,7 +439,7 @@ export default function SellerDashboard() {
 
             toast({
                 title: "Bid Submitted Successfully! 🎉",
-                description: `Your bid of $${bidAmount.toFixed(2)} has been sent to the buyer.`,
+                description: `Your bid of $${bidAmount.toFixed(2)} has been submitted for this order.`,
             });
 
             setIsBidDialogOpen(false);
@@ -299,7 +491,7 @@ export default function SellerDashboard() {
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
                                 Welcome back, {user.name}
                             </h1>
-                            <p className="text-muted-foreground mt-1">View buyer orders and place competitive bids</p>
+                            <p className="text-muted-foreground mt-1">View available orders and place competitive bids</p>
                         </div>
                         <Button
                             variant="outline"
@@ -322,7 +514,7 @@ export default function SellerDashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalOrders}</div>
-                                <p className="text-xs text-muted-foreground mt-1">Buyer orders to bid on</p>
+                                <p className="text-xs text-muted-foreground mt-1">Orders available for bidding</p>
                             </CardContent>
                         </Card>
 
@@ -335,7 +527,7 @@ export default function SellerDashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.pendingBids}</div>
-                                <p className="text-xs text-muted-foreground mt-1">Awaiting buyer response</p>
+                                <p className="text-xs text-muted-foreground mt-1">Awaiting response</p>
                             </CardContent>
                         </Card>
 
@@ -372,7 +564,7 @@ export default function SellerDashboard() {
                                 <BarChart3 className="h-4 w-4 mr-2" />
                                 Analytics
                             </TabsTrigger>
-                            <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">Buyer Orders</TabsTrigger>
+                            <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">Available Orders</TabsTrigger>
                             <TabsTrigger value="mybids" className="rounded-lg data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-700">My Bids</TabsTrigger>
                         </TabsList>
 
@@ -614,7 +806,7 @@ export default function SellerDashboard() {
                                         Bidding Tips
                                     </CardTitle>
                                     <CardDescription className="text-white/90 text-base">
-                                        Review buyer orders carefully and place competitive bids. Include delivery estimates and personalized messages to increase your chances.
+                                        Review orders carefully and place competitive bids. Include delivery estimates and personalized messages to increase your chances.
                                     </CardDescription>
                                 </CardHeader>
                             </Card>
@@ -640,7 +832,7 @@ export default function SellerDashboard() {
                                                                 <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{order.item?.category}</Badge>
                                                             </CardTitle>
                                                             <CardDescription>
-                                                                Order #{order.id.slice(0, 8)} • Buyer: {order.buyer?.name} • {new Date(order.createdAt).toLocaleDateString()}
+                                                                Order #{order.id.slice(0, 8)} • Customer #{order.buyerId?.slice(0, 6).toUpperCase() || 'N/A'} • {new Date(order.createdAt).toLocaleDateString()}
                                                             </CardDescription>
                                                         </div>
                                                     </div>
@@ -654,7 +846,7 @@ export default function SellerDashboard() {
                                                         <p className="text-lg font-bold">{order.quantity} units</p>
                                                     </div>
                                                     <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                        <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Buyer's Budget</Label>
+                                                        <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Order Budget</Label>
                                                         <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">${order.totalPrice.toFixed(2)}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
@@ -676,7 +868,7 @@ export default function SellerDashboard() {
                                                     </div>
                                                     {order.notes && (
                                                         <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Buyer Notes</Label>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Customer Notes</Label>
                                                             <p className="font-medium italic text-gray-600 dark:text-gray-400">"{order.notes}"</p>
                                                         </div>
                                                     )}
@@ -733,6 +925,9 @@ export default function SellerDashboard() {
                                                 </div>
                                             </CardHeader>
                                             <CardContent className="space-y-3">
+                                                {/* Bid Comparison Indicator */}
+                                                <BidComparisonIndicator orderId={bid.orderId} />
+                                                
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                                     <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
                                                         <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Your Bid Amount</Label>
@@ -769,7 +964,7 @@ export default function SellerDashboard() {
                             <DialogHeader>
                                 <DialogTitle>Place Your Bid</DialogTitle>
                                 <DialogDescription>
-                                    Submit a competitive bid for <span className="font-semibold text-emerald-600">{selectedOrder?.item?.name}</span>
+                                    Submit a competitive bid for <span className="font-semibold text-emerald-600">{selectedOrder?.item?.name}</span> (Order #{selectedOrder?.id.slice(0, 8)})
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-6 py-4">
@@ -788,7 +983,7 @@ export default function SellerDashboard() {
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                        Buyer's budget: <span className="font-semibold">${selectedOrder?.totalPrice.toFixed(2)}</span>
+                                        Order budget: <span className="font-semibold">${selectedOrder?.totalPrice.toFixed(2)}</span>
                                     </p>
                                 </div>
                                 <div className="space-y-2">
@@ -801,7 +996,7 @@ export default function SellerDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="message" className="text-sm font-medium">Message to Buyer (Optional)</Label>
+                                    <Label htmlFor="message" className="text-sm font-medium">Message (Optional)</Label>
                                     <Textarea
                                         id="message"
                                         placeholder="Add a personalized message to increase your chances..."
