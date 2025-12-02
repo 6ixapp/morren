@@ -295,7 +295,7 @@ export default function SellerDashboard() {
                         </Badge>
                     </div>
                     <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                        Your bid of <span className="font-bold">${myBid.toFixed(2)}</span> is currently the only offer for this order.
+                        Your bid is currently the only offer for this order. Stay competitive!
                     </p>
                 </div>
             );
@@ -357,8 +357,8 @@ export default function SellerDashboard() {
                 {/* Horizontal position indicator */}
                 <div className="relative mt-3">
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Lowest: ${lowestBid.toFixed(2)}</span>
-                        <span>Highest: ${highestBid.toFixed(2)}</span>
+                        <span>Lowest bid</span>
+                        <span>Highest bid</span>
                     </div>
                     <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
@@ -372,7 +372,7 @@ export default function SellerDashboard() {
                         style={{ left: `${Math.max(5, Math.min(95, positionPercent))}%` }}
                     >
                         <div className={`w-4 h-4 ${bgColor} rounded-full border-2 border-white dark:border-gray-800 shadow-md`} />
-                        <span className={`text-xs font-bold mt-1 ${textColor}`}>${myBid.toFixed(0)}</span>
+                        <span className={`text-xs font-bold mt-1 ${textColor}`}>You</span>
                     </div>
                 </div>
                 
@@ -380,7 +380,7 @@ export default function SellerDashboard() {
                     <span className="text-muted-foreground">{competitorCount} other seller{competitorCount !== 1 ? 's' : ''} bidding</span>
                     {!isLowest && (
                         <span className={textColor}>
-                            Lower by ${(myBid - lowestBid).toFixed(2)} to be lowest
+                            Lower by {diffFromLowest.toFixed(1)}% to be competitive
                         </span>
                     )}
                 </div>
