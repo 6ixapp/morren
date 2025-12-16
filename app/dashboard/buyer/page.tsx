@@ -1997,19 +1997,10 @@ function BuyerDashboardContent() {
                                                         {product.category}
                                                     </p>
                                                 </div>
-                                                <div className="flex gap-2 mt-3">
+                                                <div className="mt-3">
                                                     <Button
                                                         size="sm"
-                                                        variant="outline"
-                                                        className="flex-1 text-xs"
-                                                        onClick={() => selectCatalogProductForList(product)}
-                                                    >
-                                                        <List className="h-3 w-3 mr-1" />
-                                                        Add to List
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        className="flex-1 text-xs bg-purple-600 hover:bg-purple-700"
+                                                        className="w-full text-xs bg-purple-600 hover:bg-purple-700"
                                                         onClick={() => selectCatalogProductForBid(product)}
                                                     >
                                                         <Send className="h-3 w-3 mr-1" />
