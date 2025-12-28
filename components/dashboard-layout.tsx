@@ -19,7 +19,8 @@ import {
     ShoppingCart,
     ChevronDown,
     FileText,
-    BarChart3
+    BarChart3,
+    Truck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,7 +37,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
-    role: "buyer" | "seller" | "admin";
+    role: "buyer" | "seller" | "admin" | "shipping_provider";
 }
 
 export function DashboardLayout({ children, role }: DashboardLayoutProps) {
@@ -61,6 +62,11 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
             { href: "/dashboard/seller?tab=orders", label: "Buyer Orders", icon: ShoppingCart },
             { href: "/dashboard/seller?tab=mybids", label: "My Bids", icon: TrendingUp },
         ],
+        shipping_provider: [
+            { href: "/dashboard/shipping-provider", label: "Dashboard", icon: LayoutDashboard },
+            { href: "/dashboard/shipping-provider?tab=orders", label: "Available Orders", icon: ShoppingCart },
+            { href: "/dashboard/shipping-provider?tab=mybids", label: "My Shipping Bids", icon: TrendingUp },
+        ],
         admin: [
             { href: "/dashboard/admin", label: "Overview", icon: Shield },
             { href: "/dashboard/admin?tab=items", label: "Manage Items", icon: Package },
@@ -75,6 +81,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
         switch (role) {
             case "buyer": return "text-purple-600";
             case "seller": return "text-emerald-600";
+            case "shipping_provider": return "text-blue-600";
             case "admin": return "text-rose-600";
             default: return "text-gray-600";
         }
@@ -84,6 +91,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
         switch (role) {
             case "buyer": return "from-purple-600 to-blue-600";
             case "seller": return "from-emerald-600 to-teal-600";
+            case "shipping_provider": return "from-blue-600 to-cyan-600";
             case "admin": return "from-rose-600 to-orange-600";
             default: return "from-gray-600 to-gray-800";
         }
@@ -106,6 +114,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                 <span className="font-bold text-xl tracking-tight hidden md:block">
                                     {role === 'buyer' && 'Buyer Dashboard'}
                                     {role === 'seller' && 'Seller Dashboard'}
+                                    {role === 'shipping_provider' && 'Shipping Provider Dashboard'}
                                     {role === 'admin' && 'Admin Dashboard'}
                                 </span>
                             </div>

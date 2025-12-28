@@ -1,6 +1,6 @@
 // Core Types for Marketplace System
 
-export type UserRole = 'buyer' | 'seller' | 'admin';
+export type UserRole = 'buyer' | 'seller' | 'admin' | 'shipping_provider';
 
 export interface User {
   id: string;
@@ -54,6 +54,20 @@ export interface Bid {
   order?: Order;
   sellerId: string;
   seller?: User;
+  bidAmount: number;
+  estimatedDelivery: string;
+  message?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ShippingBid {
+  id: string;
+  orderId: string;
+  order?: Order;
+  shippingProviderId: string;
+  shippingProvider?: User;
   bidAmount: number;
   estimatedDelivery: string;
   message?: string;

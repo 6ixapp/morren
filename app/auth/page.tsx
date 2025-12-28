@@ -10,6 +10,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { getDashboardRoute } from "@/lib/utils";
 
 function AuthForm() {
     const router = useRouter();
@@ -28,15 +29,16 @@ function AuthForm() {
         confirmPassword: '',
     });
 
-    // Block seller signup - sellers can only be created by admin
-    const isSellerRole = redirectRole === 'seller';
-    const canSignUp = !isSellerRole; // Sellers cannot sign up themselves
+    // Block seller and admin signup - only buyers and shipping providers can sign up
+    const isRestrictedRole = redirectRole === 'seller' || redirectRole === 'admin';
+    const canSignUp = !isRestrictedRole; // Only buyers and shipping providers can sign up themselves
 
     // Redirect if already logged in
     useEffect(() => {
         if (user && !authLoading) {
-            console.log('User logged in, redirecting to:', `/dashboard/${user.role}`);
-            router.replace(`/dashboard/${user.role}`);
+            const route = getDashboardRoute(user.role);
+            console.log('User logged in, redirecting to:', route);
+            router.replace(route);
         }
     }, [user, authLoading, router]);
 
@@ -47,9 +49,10 @@ function AuthForm() {
 
         try {
             if (isSignUp) {
-                // Completely block seller signup - sellers can only be created by admin
-                if (isSellerRole) {
-                    setError('Seller accounts can only be created by administrators. Please contact your admin for access.');
+                // Block seller and admin signup - only buyers and shipping providers can sign up
+                if (isRestrictedRole) {
+                    const roleName = redirectRole === 'seller' ? 'Seller' : 'Admin';
+                    setError(`${roleName} accounts can only be created by administrators. Please contact your admin for access.`);
                     setIsLoading(false);
                     return;
                 }
@@ -68,12 +71,16 @@ function AuthForm() {
                     formData.email,
                     formData.password,
                     `${formData.firstName} ${formData.lastName}`,
-                    redirectRole as 'buyer' | 'seller' | 'admin'
+                    redirectRole as 'buyer' | 'seller' | 'admin' | 'shipping_provider'
                 );
                 if (error) {
-                    setError(error.message || 'Failed to sign up');
+                    console.error('Signup error:', error);
+                    // Show more detailed error message
+                    const errorMessage = error.message || error.error_description || 'Failed to sign up';
+                    setError(errorMessage);
                 } else {
-                    router.push(`/dashboard/${redirectRole}`);
+                    const route = getDashboardRoute(redirectRole);
+                    router.push(route);
                 }
             } else {
                 const { error } = await signIn(formData.email, formData.password);
@@ -107,17 +114,20 @@ function AuthForm() {
                 Welcome to Morera Ventures
             </h2>
             <p className="text-neutral-600 text-sm max-w-sm mt-2 dark:text-neutral-300">
-                {isSellerRole 
-                    ? 'Login to access your seller dashboard' 
+                {isRestrictedRole 
+                    ? `Login to access your ${redirectRole} dashboard` 
                     : (isSignUp ? `Sign up to access your ${redirectRole} dashboard` : `Login to access your ${redirectRole} dashboard`)
                 }
             </p>
 
-            {/* Show info message for sellers about signup restriction */}
-            {isSellerRole && !isSignUp && (
+            {/* Show info message for restricted roles about signup restriction */}
+            {isRestrictedRole && !isSignUp && (
                 <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                     <p className="text-sm text-blue-600 dark:text-blue-400">
-                        Seller accounts are created by administrators only. If you don't have an account, please contact your admin.
+                        {redirectRole === 'seller' 
+                            ? 'Seller accounts are created by administrators only. If you don\'t have an account, please contact your admin.'
+                            : 'Admin accounts are created by administrators only. If you don\'t have an account, please contact your admin.'
+                        }
                     </p>
                 </div>
             )}

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Item, Order, Bid, User, DashboardStats, RFQ, Supplier, Quote, SupplierInvite, MarketPrice, BuyerProfile } from './types';
+import { Item, Order, Bid, ShippingBid, User, DashboardStats, RFQ, Supplier, Quote, SupplierInvite, MarketPrice, BuyerProfile } from './types';
 
 // Re-export types for use in other files
 export type { RFQ, Supplier, Quote, SupplierInvite, MarketPrice, BuyerProfile } from './types';
@@ -501,6 +501,139 @@ export async function updateBid(id: string, updates: Partial<Bid>): Promise<Bid>
 export async function deleteBid(id: string): Promise<void> {
     const { error } = await supabase
         .from('bids')
+        .delete()
+        .eq('id', id);
+
+    if (error) throw error;
+}
+
+// ============= SHIPPING BIDS =============
+
+function transformShippingBid(data: any): ShippingBid {
+    return {
+        id: data.id,
+        orderId: data.order_id,
+        shippingProviderId: data.shipping_provider_id,
+        bidAmount: data.bid_amount,
+        estimatedDelivery: data.estimated_delivery,
+        message: data.message,
+        status: data.status,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        order: data.order ? transformOrder(data.order) : undefined,
+        shippingProvider: data.shipping_provider,
+    };
+}
+
+export async function getShippingBids(): Promise<ShippingBid[]> {
+    const { data, error } = await supabase
+        .from('shipping_bids')
+        .select(`
+      *,
+      order:orders(id, item_id, buyer_id, quantity, total_price, status, shipping_address, notes, created_at, updated_at),
+      shipping_provider:users!shipping_provider_id(id, name, email, role, avatar)
+    `)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map(transformShippingBid);
+}
+
+export async function getShippingBidById(id: string): Promise<ShippingBid | null> {
+    const { data, error } = await supabase
+        .from('shipping_bids')
+        .select(`
+      *,
+      order:orders(id, item_id, buyer_id, quantity, total_price, status, shipping_address, notes, created_at, updated_at),
+      shipping_provider:users!shipping_provider_id(id, name, email, role, avatar)
+    `)
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        if (error.code === 'PGRST116') {
+            return null;
+        }
+        throw error;
+    }
+    return transformShippingBid(data);
+}
+
+export async function getShippingBidsByOrder(orderId: string, maskProviderInfo: boolean = true): Promise<ShippingBid[]> {
+    const { data, error } = await supabase
+        .from('shipping_bids')
+        .select(`
+      *,
+      order:orders(id, item_id, buyer_id, quantity, total_price, status, shipping_address, notes, created_at, updated_at)
+    `)
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    
+    return (data || []).map(bid => {
+        const transformed = transformShippingBid({ ...bid, shipping_provider: null });
+        if (maskProviderInfo) {
+            transformed.shippingProvider = undefined;
+        }
+        return transformed;
+    });
+}
+
+export async function getShippingBidsByProvider(shippingProviderId: string): Promise<ShippingBid[]> {
+    const { data, error } = await supabase
+        .from('shipping_bids')
+        .select(`
+      *,
+      order:orders(id, item_id, buyer_id, quantity, total_price, status, shipping_address, notes, created_at, updated_at),
+      shipping_provider:users!shipping_provider_id(id, name, email, role, avatar)
+    `)
+        .eq('shipping_provider_id', shippingProviderId)
+        .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []).map(transformShippingBid);
+}
+
+export async function createShippingBid(bid: Omit<ShippingBid, 'id' | 'createdAt' | 'updatedAt'>): Promise<ShippingBid> {
+    const { data, error } = await supabase
+        .from('shipping_bids')
+        .insert([{
+            order_id: bid.orderId,
+            shipping_provider_id: bid.shippingProviderId,
+            bid_amount: bid.bidAmount,
+            estimated_delivery: bid.estimatedDelivery,
+            message: bid.message,
+            status: bid.status,
+        }])
+        .select()
+        .single();
+
+    if (error) throw error;
+    return transformShippingBid(data);
+}
+
+export async function updateShippingBid(id: string, updates: Partial<ShippingBid>): Promise<ShippingBid> {
+    const updateData: any = {};
+    if (updates.bidAmount !== undefined) updateData.bid_amount = updates.bidAmount;
+    if (updates.estimatedDelivery !== undefined) updateData.estimated_delivery = updates.estimatedDelivery;
+    if (updates.message !== undefined) updateData.message = updates.message;
+    if (updates.status !== undefined) updateData.status = updates.status;
+
+    const { data, error } = await supabase
+        .from('shipping_bids')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (error) throw error;
+    return transformShippingBid(data);
+}
+
+export async function deleteShippingBid(id: string): Promise<void> {
+    const { error } = await supabase
+        .from('shipping_bids')
         .delete()
         .eq('id', id);
 

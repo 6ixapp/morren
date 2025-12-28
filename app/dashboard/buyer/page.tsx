@@ -10,15 +10,17 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ShoppingCart, Package, DollarSign, TrendingUp, Eye, Plus, Check, X, Clock, Search, Leaf, Wheat, Apple, Nut, List, Trash2, Send } from 'lucide-react';
-import { Item, Order, Bid } from '@/lib/types';
+import { ShoppingCart, Package, DollarSign, TrendingUp, Eye, Plus, Check, X, Clock, Search, Leaf, Wheat, Apple, Nut, List, Trash2, Send, MoreHorizontal, Copy, Edit, Filter, SortAsc, SortDesc, ChevronDown, ChevronUp } from 'lucide-react';
+import { Item, Order, Bid, ShippingBid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { CardContainer, CardBody, CardItem } from '@/components/ui/aceternity/3d-card';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
+import { ClockTimer } from '@/components/ui/clock-timer';
 import { useAuth } from '@/contexts/AuthContext';
-import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid } from '@/lib/supabase-api';
+import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrder, updateShippingBid } from '@/lib/supabase-api';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -404,6 +406,7 @@ function BuyerDashboardContent() {
     const [items, setItems] = useState<Item[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [bids, setBids] = useState<Bid[]>([]);
+    const [shippingBids, setShippingBids] = useState<ShippingBid[]>([]);
     const [loading, setLoading] = useState(true);
     const [placingOrder, setPlacingOrder] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
@@ -477,6 +480,154 @@ function BuyerDashboardContent() {
 
     // "My Bids" pagination
     const [myBidsVisibleCount, setMyBidsVisibleCount] = useState(10);
+    const [openDropdowns, setOpenDropdowns] = useState<{ [key: string]: boolean }>({});
+
+    // Enhanced search and filtering states for My Bids
+    const [myBidsSearchQuery, setMyBidsSearchQuery] = useState('');
+    const [myBidsSortBy, setMyBidsSortBy] = useState<'date' | 'quantity' | 'ending' | 'name'>('date');
+    const [myBidsSortDirection, setMyBidsSortDirection] = useState<'asc' | 'desc'>('desc');
+    const [myBidsShowAll, setMyBidsShowAll] = useState(false);
+
+    // Enhanced search and filtering states for Live Bids
+    const [liveBidsSearchQuery, setLiveBidsSearchQuery] = useState('');
+    const [liveBidsSortBy, setLiveBidsSortBy] = useState<'date' | 'amount' | 'ending' | 'delivery'>('ending');
+    const [liveBidsSortDirection, setLiveBidsSortDirection] = useState<'asc' | 'desc'>('asc');
+    const [liveBidsShowAll, setLiveBidsShowAll] = useState(false);
+
+    // Filter and sort Live Bids
+    const filteredAndSortedLiveBids = useMemo(() => {
+        const liveBidsData = Object.values(
+            bids.filter(b => b.status === 'pending').reduce((acc, bid) => {
+                if (!acc[bid.orderId] || bid.bidAmount < acc[bid.orderId].bidAmount) {
+                    acc[bid.orderId] = bid;
+                }
+                return acc;
+            }, {} as Record<string, Bid>)
+        );
+
+        let filtered = liveBidsData.filter(bid => {
+            if (!liveBidsSearchQuery) return true;
+            const query = liveBidsSearchQuery.toLowerCase();
+            const order = orders.find(o => o.id === bid.orderId);
+            return (
+                order?.item?.name?.toLowerCase().includes(query) ||
+                bid.orderId.toLowerCase().includes(query) ||
+                bid.sellerId?.toLowerCase().includes(query) ||
+                order?.shippingAddress?.toLowerCase().includes(query)
+            );
+        });
+
+        // Sort Live Bids by total cost (seller bid + shipping bid)
+        filtered.sort((a, b) => {
+            let aValue: any, bValue: any;
+            const aOrder = orders.find(o => o.id === a.orderId);
+            const bOrder = orders.find(o => o.id === b.orderId);
+            
+            // Get shipping bids for each order
+            const aShippingBids = shippingBids.filter(sb => sb.orderId === a.orderId && sb.status === 'pending');
+            const bShippingBids = shippingBids.filter(sb => sb.orderId === b.orderId && sb.status === 'pending');
+            const aLowestShipping = aShippingBids.length > 0 ? Math.min(...aShippingBids.map(sb => sb.bidAmount)) : 0;
+            const bLowestShipping = bShippingBids.length > 0 ? Math.min(...bShippingBids.map(sb => sb.bidAmount)) : 0;
+            const aTotalCost = a.bidAmount + aLowestShipping;
+            const bTotalCost = b.bidAmount + bLowestShipping;
+            
+            switch (liveBidsSortBy) {
+                case 'date':
+                    aValue = new Date(a.createdAt);
+                    bValue = new Date(b.createdAt);
+                    break;
+                case 'amount':
+                    // Sort by total cost (seller bid + shipping bid)
+                    aValue = aTotalCost;
+                    bValue = bTotalCost;
+                    break;
+                case 'delivery':
+                    aValue = new Date(a.estimatedDelivery);
+                    bValue = new Date(b.estimatedDelivery);
+                    break;
+                case 'ending':
+                    const aSpecs = aOrder?.item?.specifications as any;
+                    const bSpecs = bOrder?.item?.specifications as any;
+                    const aBidTime = aSpecs?.['Bid Running Time (days)'] || '0';
+                    const bBidTime = bSpecs?.['Bid Running Time (days)'] || '0';
+                    aValue = new Date(new Date(aOrder?.createdAt || a.createdAt).getTime() + (parseInt(aBidTime) * 24 * 60 * 60 * 1000));
+                    bValue = new Date(new Date(bOrder?.createdAt || b.createdAt).getTime() + (parseInt(bBidTime) * 24 * 60 * 60 * 1000));
+                    break;
+                default:
+                    aValue = new Date(a.createdAt);
+                    bValue = new Date(b.createdAt);
+            }
+            
+            if (liveBidsSortDirection === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+
+        return filtered;
+    }, [bids, shippingBids, orders, liveBidsSearchQuery, liveBidsSortBy, liveBidsSortDirection]);
+
+    // Reset filter functions
+    const resetMyBidsFilters = () => {
+        setMyBidsSearchQuery('');
+        setMyBidsSortBy('date');
+        setMyBidsSortDirection('desc');
+    };
+
+    const resetLiveBidsFilters = () => {
+        setLiveBidsSearchQuery('');
+        setLiveBidsSortBy('ending');
+        setLiveBidsSortDirection('asc');
+    };
+
+    // Calculate bid end time based on order creation and bid running time
+    const calculateBidEndTime = (order: Order | undefined) => {
+        if (!order) return new Date();
+        
+        const createdAt = new Date(order.createdAt);
+        const bidRunningDays = 7; // Default 7 days if not specified
+        
+        // Try to get bid running time from specifications
+        const specs = order.item?.specifications as any;
+        const specifiedDays = specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
+        const daysToAdd = specifiedDays ? parseInt(specifiedDays.toString()) : bidRunningDays;
+        
+        const endTime = new Date(createdAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+        return endTime;
+    };
+
+    // Function to calculate remaining time for bids
+    const calculateRemainingTime = (createdAt: string, bidRunningTimeDays: string | number) => {
+        if (!createdAt || !bidRunningTimeDays) return 'N/A';
+
+        try {
+            const createdDate = new Date(createdAt);
+            const bidDays = typeof bidRunningTimeDays === 'string' ? parseInt(bidRunningTimeDays) : bidRunningTimeDays;
+
+            if (isNaN(bidDays)) return 'N/A';
+
+            const endDate = new Date(createdDate.getTime() + (bidDays * 24 * 60 * 60 * 1000));
+            const now = new Date();
+            const remainingMs = endDate.getTime() - now.getTime();
+
+            if (remainingMs <= 0) return 'Expired';
+
+            const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
+            const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+            const remainingMinutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+
+            if (remainingDays > 0) {
+                return `${remainingDays}d ${remainingHours}h`;
+            } else if (remainingHours > 0) {
+                return `${remainingHours}h ${remainingMinutes}m`;
+            } else {
+                return `${remainingMinutes}m`;
+            }
+        } catch (error) {
+            return 'N/A';
+        }
+    };
 
     const myBidOrders = useMemo(() => {
         // Treat orders with totalPrice === 0 or notes mentioning "bid request" as bid requests created by the buyer
@@ -487,6 +638,59 @@ function BuyerDashboardContent() {
             return isBidRequestPrice || isBidRequestNotes;
         });
     }, [orders]);
+
+    // Filter and sort My Bids (must come after myBidOrders)
+    const filteredAndSortedMyBids = useMemo(() => {
+        let filtered = myBidOrders.filter(order => {
+            if (!myBidsSearchQuery) return true;
+            const query = myBidsSearchQuery.toLowerCase();
+            return (
+                order.item?.name?.toLowerCase().includes(query) ||
+                order.id.toLowerCase().includes(query) ||
+                (order.item?.specifications as any)?.['HSN Code']?.toLowerCase().includes(query) ||
+                order.shippingAddress?.toLowerCase().includes(query)
+            );
+        });
+
+        // Sort My Bids
+        filtered.sort((a, b) => {
+            let aValue: any, bValue: any;
+            
+            switch (myBidsSortBy) {
+                case 'date':
+                    aValue = new Date(a.createdAt);
+                    bValue = new Date(b.createdAt);
+                    break;
+                case 'quantity':
+                    aValue = a.quantity || 0;
+                    bValue = b.quantity || 0;
+                    break;
+                case 'name':
+                    aValue = (a.item?.name || '').toLowerCase();
+                    bValue = (b.item?.name || '').toLowerCase();
+                    break;
+                case 'ending':
+                    const aSpecs = a.item?.specifications as any;
+                    const bSpecs = b.item?.specifications as any;
+                    const aBidTime = aSpecs?.['Bid Running Time (days)'] || '0';
+                    const bBidTime = bSpecs?.['Bid Running Time (days)'] || '0';
+                    aValue = new Date(new Date(a.createdAt).getTime() + (parseInt(aBidTime) * 24 * 60 * 60 * 1000));
+                    bValue = new Date(new Date(b.createdAt).getTime() + (parseInt(bBidTime) * 24 * 60 * 60 * 1000));
+                    break;
+                default:
+                    aValue = new Date(a.createdAt);
+                    bValue = new Date(b.createdAt);
+            }
+            
+            if (myBidsSortDirection === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+
+        return filtered;
+    }, [myBidOrders, myBidsSearchQuery, myBidsSortBy, myBidsSortDirection]);
 
     const getBidTimeLeftLabel = (order: Order | undefined) => {
         if (!order) return 'N/A';
@@ -615,7 +819,7 @@ function BuyerDashboardContent() {
 
     // Add item to saved list AND create in database
     const [addingToList, setAddingToList] = useState(false);
-    
+
     const handleAddToList = async () => {
         if (!user) {
             toast({
@@ -738,10 +942,15 @@ function BuyerDashboardContent() {
             setItems(itemsData);
             setOrders(ordersData);
 
-            // Fetch bids for all orders
+            // Fetch bids for all orders (both seller bids and shipping bids)
             const bidsPromises = ordersData.map(order => getBidsByOrder(order.id));
-            const bidsArrays = await Promise.all(bidsPromises);
+            const shippingBidsPromises = ordersData.map(order => getShippingBidsByOrder(order.id));
+            const [bidsArrays, shippingBidsArrays] = await Promise.all([
+                Promise.all(bidsPromises),
+                Promise.all(shippingBidsPromises)
+            ]);
             setBids(bidsArrays.flat());
+            setShippingBids(shippingBidsArrays.flat());
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
@@ -968,13 +1177,36 @@ function BuyerDashboardContent() {
                 return;
             }
 
+            // Find the lowest shipping bid for this order
+            const orderShippingBids = shippingBids.filter(sb => sb.orderId === bid.orderId && sb.status === 'pending');
+            const lowestShippingBid = orderShippingBids.length > 0 
+                ? orderShippingBids.reduce((lowest, sb) => sb.bidAmount < lowest.bidAmount ? sb : lowest)
+                : null;
+
+            // Accept the seller bid
             await updateBid(bidId, { status: 'accepted' });
+            
+            // Accept the lowest shipping bid if available
+            if (lowestShippingBid) {
+                await updateShippingBid(lowestShippingBid.id, { status: 'accepted' });
+            }
+            
+            // Reject all other bids for this order
+            const otherSellerBids = bids.filter(b => b.orderId === bid.orderId && b.id !== bidId && b.status === 'pending');
+            const otherShippingBids = shippingBids.filter(sb => sb.orderId === bid.orderId && sb.id !== lowestShippingBid?.id && sb.status === 'pending');
+            
+            await Promise.all([
+                ...otherSellerBids.map(b => updateBid(b.id, { status: 'rejected' })),
+                ...otherShippingBids.map(sb => updateShippingBid(sb.id, { status: 'rejected' }))
+            ]);
+            
             // Also update the order status to accepted
             await updateOrder(bid.orderId, { status: 'accepted' });
 
+            const totalCost = bid.bidAmount + (lowestShippingBid?.bidAmount || 0);
             toast({
                 title: "Bid Accepted! ✅",
-                description: `You've accepted the bid. The vendor will be notified.`,
+                description: `You've accepted the seller bid ($${bid.bidAmount.toFixed(2)})${lowestShippingBid ? ` and shipping bid ($${lowestShippingBid.bidAmount.toFixed(2)})` : ''}. Total: $${totalCost.toFixed(2)}`,
             });
 
             await fetchData();
@@ -1390,15 +1622,85 @@ function BuyerDashboardContent() {
                                 {/* My Bids (below the search/filter card, above Live Bids) */}
                                 {myBidOrders.length > 0 && (
                                     <Card className="border border-dashed border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10">
-                                        <CardContent className="p-4 space-y-2">
+                                        <CardContent className="p-4 space-y-4">
                                             <div className="flex items-center justify-between">
                                                 <p className="text-sm font-semibold text-purple-800 dark:text-purple-200">My Bids</p>
-                                                <span className="text-xs text-muted-foreground">
-                                                    Showing {Math.min(myBidsVisibleCount, myBidOrders.length)} of {myBidOrders.length}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Showing {Math.min(myBidsShowAll ? filteredAndSortedMyBids.length : 10, filteredAndSortedMyBids.length)} of {filteredAndSortedMyBids.length}
+                                                    </span>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={resetMyBidsFilters}
+                                                        className="text-xs text-muted-foreground hover:text-foreground"
+                                                    >
+                                                        <X className="h-3 w-3 mr-1" />
+                                                        Clear
+                                                    </Button>
+                                                </div>
                                             </div>
+                                            
+                                            {/* Enhanced Search and Filter Controls for My Bids */}
+                                            <div className="space-y-3">
+                                                {/* Search Bar */}
+                                                <div className="relative">
+                                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                        <Search className="h-4 w-4 text-gray-400" />
+                                                    </div>
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="Search by product name, order ID, HSN code..."
+                                                        className="pl-10 h-8 text-sm"
+                                                        value={myBidsSearchQuery}
+                                                        onChange={(e) => setMyBidsSearchQuery(e.target.value)}
+                                                    />
+                                                    {myBidsSearchQuery && (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="absolute inset-y-0 right-0 pr-2 h-full"
+                                                            onClick={() => setMyBidsSearchQuery('')}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
+                                                </div>
+
+                                                {/* Sort Controls */}
+                                                <div className="flex flex-wrap gap-2 items-center text-xs">
+                                                    <Filter className="h-3 w-3 text-muted-foreground" />
+                                                    <span className="text-muted-foreground">Sort by:</span>
+                                                    <Select value={myBidsSortBy} onValueChange={(value: any) => setMyBidsSortBy(value)}>
+                                                        <SelectTrigger className="w-[110px] h-6 text-xs">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="date">Date Created</SelectItem>
+                                                            <SelectItem value="quantity">Quantity</SelectItem>
+                                                            <SelectItem value="ending">Ending Time</SelectItem>
+                                                            <SelectItem value="name">Product Name</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setMyBidsSortDirection(myBidsSortDirection === 'asc' ? 'desc' : 'asc')}
+                                                        className="p-1 h-6"
+                                                    >
+                                                        {myBidsSortDirection === 'asc' ? <SortAsc className="h-3 w-3" /> : <SortDesc className="h-3 w-3" />}
+                                                    </Button>
+                                                </div>
+                                            </div>
+
                                             <div className="space-y-1">
-                                                {myBidOrders.slice(0, myBidsVisibleCount).map((order, index) => {
+                                                {filteredAndSortedMyBids.length === 0 ? (
+                                                    <div className="text-center py-4 text-muted-foreground text-sm">
+                                                        {myBidOrders.length === 0 ? 'No bids found' : 'No bids match your search'}
+                                                    </div>
+                                                ) : (
+                                                    (myBidsShowAll ? filteredAndSortedMyBids : filteredAndSortedMyBids.slice(0, 10)).map((order, index) => {
                                                     const serial = index + 1;
                                                     const specifications = order.item?.specifications || {};
                                                     const hsnCode = (specifications as any)['HSN Code'] || '-';
@@ -1406,6 +1708,7 @@ function BuyerDashboardContent() {
                                                     const size = order.item?.size || '-';
                                                     const expectedDelivery = (specifications as any)['Expected Delivery'] || '-';
                                                     const bidRunningTime = (specifications as any)['Bid Running Time (days)'] || '-';
+                                                    const remainingTime = calculateRemainingTime(order.createdAt, bidRunningTime);
                                                     const pincodeMatch = order.shippingAddress?.match(/(\d{6})(?!.*\d{6})/);
                                                     const pincode = pincodeMatch ? pincodeMatch[1] : '-';
 
@@ -1427,51 +1730,109 @@ function BuyerDashboardContent() {
                                                                         <span>Size: <span className="font-medium text-foreground">{size}</span></span>
                                                                         <span>Expected: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
                                                                         <span>Pincode: <span className="font-medium text-foreground">{pincode}</span></span>
-                                                                        <span>Bid Time: <span className="font-medium text-foreground">{bidRunningTime}</span></span>
+                                                                        <span className="flex items-center gap-1">
+                                                                            Time Remaining: 
+                                                                            <ClockTimer 
+                                                                                endTime={calculateBidEndTime(order)} 
+                                                                                size={16}
+                                                                            />
+                                                                        </span>
                                                                     </div>
                                                                 </div>
                                                             </div>
                                                             <div className="flex justify-end">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="text-[11px] md:text-xs"
-                                                                    onClick={() => {
-                                                                        const specs = order.item?.specifications || {};
-                                                                        setBidForm({
-                                                                            productName: order.item?.name || '',
-                                                                            hsnCode: (specs as any)['HSN Code'] || '',
-                                                                            size: order.item?.size || '',
-                                                                            specification: (specs as any)['Specification'] || '',
-                                                                            quality: '',
-                                                                            quantity: String(order.quantity || ''),
-                                                                            expectedDeliveryDate: (specs as any)['Expected Delivery'] || '',
-                                                                            pincode,
-                                                                            city: '',
-                                                                            state: '',
-                                                                            shippingAddress: order.shippingAddress || '',
-                                                                            notes: order.notes || '',
-                                                                            bidRunningTime: (specs as any)['Bid Running Time (days)'] || '',
-                                                                        });
-                                                                        setIsPlaceBidDialogOpen(true);
-                                                                    }}
+                                                                <DropdownMenu
+                                                                    open={openDropdowns[order.id] || false}
+                                                                    onOpenChange={(isOpen) =>
+                                                                        setOpenDropdowns(prev => ({ ...prev, [order.id]: isOpen }))
+                                                                    }
                                                                 >
-                                                                    Add New
-                                                                </Button>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            className="h-8 w-8 p-0"
+                                                                        >
+                                                                            <MoreHorizontal className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end" className="w-48">
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => {
+                                                                                const specs = order.item?.specifications || {};
+                                                                                setBidForm({
+                                                                                    productName: order.item?.name || '',
+                                                                                    hsnCode: (specs as any)['HSN Code'] || '',
+                                                                                    size: order.item?.size || '',
+                                                                                    specification: (specs as any)['Specification'] || '',
+                                                                                    quality: '',
+                                                                                    quantity: String(order.quantity || ''),
+                                                                                    expectedDeliveryDate: (specs as any)['Expected Delivery'] || '',
+                                                                                    pincode,
+                                                                                    city: '',
+                                                                                    state: '',
+                                                                                    shippingAddress: order.shippingAddress || '',
+                                                                                    notes: order.notes || '',
+                                                                                    bidRunningTime: (specs as any)['Bid Running Time (days)'] || '',
+                                                                                });
+                                                                                setIsPlaceBidDialogOpen(true);
+                                                                                setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
+                                                                            }}
+                                                                        >
+                                                                            <Copy className="mr-2 h-4 w-4" />
+                                                                            Duplicate
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() => {
+                                                                                const specs = order.item?.specifications || {};
+                                                                                setBidForm({
+                                                                                    productName: order.item?.name || '',
+                                                                                    hsnCode: (specs as any)['HSN Code'] || '',
+                                                                                    size: order.item?.size || '',
+                                                                                    specification: (specs as any)['Specification'] || '',
+                                                                                    quality: '',
+                                                                                    quantity: String(order.quantity || ''),
+                                                                                    expectedDeliveryDate: (specs as any)['Expected Delivery'] || '',
+                                                                                    pincode,
+                                                                                    city: '',
+                                                                                    state: '',
+                                                                                    shippingAddress: order.shippingAddress || '',
+                                                                                    notes: order.notes || '',
+                                                                                    bidRunningTime: (specs as any)['Bid Running Time (days)'] || '',
+                                                                                });
+                                                                                setIsPlaceBidDialogOpen(true);
+                                                                                setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
+                                                                            }}
+                                                                        >
+                                                                            <Edit className="mr-2 h-4 w-4" />
+                                                                            Modify
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
                                                             </div>
                                                         </div>
                                                     );
-                                                })}
+                                                }))}
                                             </div>
-                                            {myBidOrders.length > myBidsVisibleCount && (
+                                            {filteredAndSortedMyBids.length > 10 && (
                                                 <div className="flex justify-center pt-1">
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
                                                         className="text-xs"
-                                                        onClick={() => setMyBidsVisibleCount((prev) => prev + 4)}
+                                                        onClick={() => setMyBidsShowAll(!myBidsShowAll)}
                                                     >
-                                                        Load more
+                                                        {myBidsShowAll ? (
+                                                            <>
+                                                                <ChevronUp className="mr-1 h-3 w-3" />
+                                                                Show less
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <ChevronDown className="mr-1 h-3 w-3" />
+                                                                Show {filteredAndSortedMyBids.length - 10} more
+                                                            </>
+                                                        )}
                                                     </Button>
                                                 </div>
                                             )}
@@ -1712,22 +2073,102 @@ function BuyerDashboardContent() {
                                 <div className="flex items-center gap-2">
                                     <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse" />
                                     <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Live Bids</h2>
-                                    <Badge variant="secondary" className="ml-2">{bids.filter(b => b.status === 'pending').length} active</Badge>
+                                    <Badge variant="secondary" className="ml-2">{filteredAndSortedLiveBids.length} active</Badge>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={resetLiveBidsFilters}
+                                    className="text-muted-foreground hover:text-foreground"
+                                >
+                                    <X className="mr-1 h-4 w-4" />
+                                    Clear Filters
+                                </Button>
+                            </div>
+
+                            {/* Enhanced Search and Filter Controls for Live Bids */}
+                            <div className="space-y-4">
+                                {/* Search Bar */}
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Search className="h-5 w-5 text-gray-400" />
+                                    </div>
+                                    <Input
+                                        type="text"
+                                        placeholder="Search by product name, order ID, or seller ID..."
+                                        className="pl-10 h-10 text-sm"
+                                        value={liveBidsSearchQuery}
+                                        onChange={(e) => setLiveBidsSearchQuery(e.target.value)}
+                                    />
+                                    {liveBidsSearchQuery && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="absolute inset-y-0 right-0 pr-3 h-full"
+                                            onClick={() => setLiveBidsSearchQuery('')}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    )}
+                                </div>
+
+                                {/* Sort Controls */}
+                                <div className="flex flex-wrap gap-4 items-center">
+                                    <div className="flex items-center gap-2">
+                                        <Filter className="h-4 w-4 text-muted-foreground" />
+                                        <span className="text-sm text-muted-foreground">Sort by:</span>
+                                        <Select value={liveBidsSortBy} onValueChange={(value: any) => setLiveBidsSortBy(value)}>
+                                            <SelectTrigger className="w-[140px] h-8">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ending">Ending Time</SelectItem>
+                                                <SelectItem value="date">Date Created</SelectItem>
+                                                <SelectItem value="amount">Bid Amount</SelectItem>
+                                                <SelectItem value="delivery">Delivery Date</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setLiveBidsSortDirection(liveBidsSortDirection === 'asc' ? 'desc' : 'asc')}
+                                            className="p-2 h-8"
+                                        >
+                                            {liveBidsSortDirection === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
 
                             <div className="grid gap-4">
-                                {Object.values(
-                                    bids.filter(b => b.status === 'pending').reduce((acc, bid) => {
-                                        if (!acc[bid.orderId] || bid.bidAmount < acc[bid.orderId].bidAmount) {
-                                            acc[bid.orderId] = bid;
-                                        }
-                                        return acc;
-                                    }, {} as Record<string, Bid>)
-                                ).map((bid) => {
+                                {filteredAndSortedLiveBids.length === 0 ? (
+                                    <Card className="p-8 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                        <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse mx-auto mb-4" />
+                                        <p className="text-muted-foreground">
+                                            {bids.filter(b => b.status === 'pending').length === 0 ? 'No live bids available' : 'No bids match your search'}
+                                        </p>
+                                        {liveBidsSearchQuery && (
+                                            <Button 
+                                                variant="outline" 
+                                                className="mt-4" 
+                                                onClick={resetLiveBidsFilters}
+                                            >
+                                                Clear Filters
+                                            </Button>
+                                        )}
+                                    </Card>
+                                ) : (
+                                    (liveBidsShowAll ? filteredAndSortedLiveBids : filteredAndSortedLiveBids.slice(0, 5)).map((bid) => {
                                     const order = orders.find(o => o.id === bid.orderId);
                                     const timeLeftLabel = getBidTimeLeftLabel(order);
                                     const isExpired = timeLeftLabel === 'Expired';
+                                    // Find the lowest shipping bid for this order
+                                    const orderShippingBids = shippingBids.filter(sb => sb.orderId === bid.orderId && sb.status === 'pending');
+                                    const lowestShippingBid = orderShippingBids.length > 0 
+                                        ? orderShippingBids.reduce((lowest, sb) => sb.bidAmount < lowest.bidAmount ? sb : lowest)
+                                        : null;
+                                    const totalCost = bid.bidAmount + (lowestShippingBid?.bidAmount || 0);
                                     return (
                                         <Card key={bid.id} className="border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-900 overflow-hidden relative">
                                             <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-blue-500" />
@@ -1738,7 +2179,7 @@ function BuyerDashboardContent() {
                                                             {order?.item?.name || `Order #${bid.orderId.slice(0, 8)}`}
                                                         </CardTitle>
                                                         <CardDescription>
-                                                            Bid from Vendor #{bid.sellerId?.slice(0, 6).toUpperCase() || bid.id.slice(0, 6).toUpperCase()} • {new Date(bid.createdAt).toLocaleDateString()}
+                                                            Enquiry Number #{bid.sellerId?.slice(0, 6).toUpperCase() || bid.id.slice(0, 6).toUpperCase()} • {new Date(bid.createdAt).toLocaleDateString()}
                                                         </CardDescription>
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1">
@@ -1746,29 +2187,43 @@ function BuyerDashboardContent() {
                                                             <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
                                                             <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Live</Badge>
                                                         </div>
-                                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                            <Clock className={`h-5 w-5 ${isExpired ? 'text-red-500' : 'text-orange-500'}`} />
-                                                            <span className={isExpired ? 'text-red-600 font-medium' : ''}>
-                                                                {timeLeftLabel}
-                                                            </span>
+                                                        <div className={`flex items-center gap-2 mt-1 px-3 py-1.5 rounded-full border shadow-sm backdrop-blur-md ${isExpired ? 'bg-red-500/10 border-red-500/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
+                                                            <ClockTimer 
+                                                                endTime={order ? calculateBidEndTime(order) : new Date()} 
+                                                                size={18}
+                                                                className="font-extrabold text-sm tracking-wide"
+                                                            />
                                                         </div>
                                                     </div>
                                                 </div>
                                             </CardHeader>
                                             <CardContent className="space-y-3">
-                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-900/20">
-                                                        <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">Bid Amount</Label>
+                                                        <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">Seller Bid</Label>
                                                         <p className="text-xl font-bold text-purple-600">${bid.bidAmount.toFixed(2)}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
-                                                        <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
+                                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
+                                                        <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Shipping Cost</Label>
+                                                        <p className="text-xl font-bold text-blue-600">
+                                                            {lowestShippingBid ? `$${lowestShippingBid.bidAmount.toFixed(2)}` : 'No bid yet'}
+                                                        </p>
+                                                        {orderShippingBids.length > 1 && (
+                                                            <p className="text-xs text-muted-foreground mt-1">{orderShippingBids.length} shipping bids</p>
+                                                        )}
+                                                    </div>
+                                                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
+                                                        <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Cost</Label>
+                                                        <p className="text-2xl font-bold text-emerald-600">${totalCost.toFixed(2)}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
                                                         <p className="font-medium">{order?.quantity || 'N/A'} units</p>
                                                     </div>
+                                                </div>
+                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
+                                                    <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                 </div>
                                             </CardContent>
                                             <CardFooter className="gap-3 bg-gray-50/50 dark:bg-gray-900/50 p-4">
@@ -1798,7 +2253,30 @@ function BuyerDashboardContent() {
                                             </CardFooter>
                                         </Card>
                                     );
-                                })}
+                                }))}
+                                
+                                {/* Load More button for Live Bids */}
+                                {filteredAndSortedLiveBids.length > 5 && (
+                                    <div className="flex justify-center">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full max-w-xs border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                                            onClick={() => setLiveBidsShowAll(!liveBidsShowAll)}
+                                        >
+                                            {liveBidsShowAll ? (
+                                                <>
+                                                    <ChevronUp className="mr-2 h-4 w-4" />
+                                                    Show Less
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <ChevronDown className="mr-2 h-4 w-4" />
+                                                    Show {filteredAndSortedLiveBids.length - 5} More
+                                                </>
+                                            )}
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
