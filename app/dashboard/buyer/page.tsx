@@ -397,6 +397,138 @@ const INDIAN_STATES = [
     'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry'
 ];
 
+const COUNTRIES = [
+    'India',
+    'United States',
+    'United Kingdom',
+    'China',
+    'Germany',
+    'Japan',
+    'France',
+    'Italy',
+    'Canada',
+    'Australia',
+    'Brazil',
+    'South Korea',
+    'Netherlands',
+    'Spain',
+    'Russia',
+    'Mexico',
+    'Indonesia',
+    'Turkey',
+    'Saudi Arabia',
+    'Switzerland',
+    'Belgium',
+    'Argentina',
+    'Sweden',
+    'Ireland',
+    'Israel',
+    'Norway',
+    'United Arab Emirates',
+    'South Africa',
+    'Egypt',
+    'Bangladesh',
+    'Vietnam',
+    'Philippines',
+    'Chile',
+    'Finland',
+    'Romania',
+    'Czech Republic',
+    'New Zealand',
+    'Peru',
+    'Iraq',
+    'Portugal',
+    'Greece',
+    'Qatar',
+    'Algeria',
+    'Kazakhstan',
+    'Hungary',
+    'Kuwait',
+    'Morocco',
+    'Ecuador',
+    'Ukraine',
+    'Slovakia',
+    'Dominican Republic',
+    'Kenya',
+    'Ethiopia',
+    'Guatemala',
+    'Oman',
+    'Bulgaria',
+    'Ghana',
+    'Venezuela',
+    'Croatia',
+    'Luxembourg',
+    'Uruguay',
+    'Costa Rica',
+    'Panama',
+    'Lithuania',
+    'Slovenia',
+    'Tunisia',
+    'Tanzania',
+    'Belarus',
+    'Serbia',
+    'Azerbaijan',
+    'Jordan',
+    'Paraguay',
+    'Latvia',
+    'Estonia',
+    'Uganda',
+    'Lebanon',
+    'Cameroon',
+    'Bolivia',
+    'Libya',
+    'Nepal',
+    'Nicaragua',
+    'El Salvador',
+    'Honduras',
+    'Senegal',
+    'Zimbabwe',
+    'Zambia',
+    'Mali',
+    'Rwanda',
+    'Guinea',
+    'Benin',
+    'Burundi',
+    'Tunisia',
+    'Cuba',
+    'Haiti',
+    'Chad',
+    'Sierra Leone',
+    'Togo',
+    'Libya',
+    'Liberia',
+    'Central African Republic',
+    'Mauritania',
+    'Eritrea',
+    'Gambia',
+    'Botswana',
+    'Gabon',
+    'Lesotho',
+    'Guinea-Bissau',
+    'Equatorial Guinea',
+    'Mauritius',
+    'Eswatini',
+    'Djibouti',
+    'Comoros',
+    'Cape Verde',
+    'Sao Tome and Principe',
+    'Seychelles'
+];
+
+const INCOTERMS = [
+    { code: 'EXW', name: 'Ex Works' },
+    { code: 'FCA', name: 'Free Carrier' },
+    { code: 'CPT', name: 'Carriage Paid To' },
+    { code: 'CIP', name: 'Carriage and Insurance Paid To' },
+    { code: 'DAP', name: 'Delivered At Place' },
+    { code: 'DPU', name: 'Delivered at Place Unloaded' },
+    { code: 'DDP', name: 'Delivered Duty Paid' },
+    { code: 'FAS', name: 'Free Alongside Ship' },
+    { code: 'FOB', name: 'Free On Board' },
+    { code: 'CFR', name: 'Cost and Freight' },
+    { code: 'CIF', name: 'Cost, Insurance and Freight' }
+];
+
 function BuyerDashboardContent() {
     const { user, loading: authLoading } = useAuth();
     const router = useRouter();
@@ -454,6 +586,8 @@ function BuyerDashboardContent() {
         pincode: '',
         city: '',
         state: '',
+        country: 'India',
+        incoterms: '',
         shippingAddress: '',
         notes: '',
         bidRunningTime: '', // in days
@@ -473,6 +607,8 @@ function BuyerDashboardContent() {
         pincode: '',
         city: '',
         state: '',
+        country: 'India',
+        incoterms: '',
         shippingAddress: '',
         notes: '',
     });
@@ -866,7 +1002,10 @@ function BuyerDashboardContent() {
                     ...(addToListForm.specification && { 'Specification': addToListForm.specification }),
                     ...(addToListForm.quality && { 'Quality Grade': QUALITY_GRADES.find(g => g.value === addToListForm.quality)?.label || addToListForm.quality }),
                     ...(addToListForm.expectedDeliveryDate && { 'Expected Delivery': addToListForm.expectedDeliveryDate }),
-                    ...(addToListForm.city && addToListForm.state && { 'Location': `${addToListForm.city}, ${addToListForm.state} - ${addToListForm.pincode}` }),
+                    'Destination Country': addToListForm.country,
+                    ...(addToListForm.country !== 'India' && addToListForm.incoterms && { 'Incoterms': `${addToListForm.incoterms} - ${INCOTERMS.find(i => i.code === addToListForm.incoterms)?.name || addToListForm.incoterms}` }),
+                    ...(addToListForm.country === 'India' && addToListForm.city && addToListForm.state && { 'Location': `${addToListForm.city}, ${addToListForm.state} - ${addToListForm.pincode}` }),
+                    ...(addToListForm.country !== 'India' && addToListForm.city && { 'Location': `${addToListForm.city}${addToListForm.state ? ', ' + addToListForm.state : ''}, ${addToListForm.country}` }),
                 },
                 sellerId: user.id, // Buyer creates the item
                 status: 'active',
@@ -889,6 +1028,8 @@ function BuyerDashboardContent() {
                 pincode: '',
                 city: '',
                 state: '',
+                country: 'India',
+                incoterms: '',
                 shippingAddress: '',
                 notes: '',
             });
@@ -1053,23 +1194,48 @@ function BuyerDashboardContent() {
         }
 
         // Validation
-        if (!bidForm.productName || !bidForm.quantity || !bidForm.shippingAddress || !bidForm.expectedDeliveryDate || !bidForm.pincode || !bidForm.city || !bidForm.state || !bidForm.bidRunningTime) {
+        const isIndia = bidForm.country === 'India';
+        
+        // Basic required fields
+        if (!bidForm.productName || !bidForm.quantity || !bidForm.shippingAddress || !bidForm.expectedDeliveryDate || !bidForm.bidRunningTime || !bidForm.country || !bidForm.city) {
             toast({
                 title: "Validation Error",
-                description: "Please fill in all required fields (Product, Quantity, Pincode, City, State, Shipping Address, Expected Delivery Date, Bid Running Time).",
+                description: "Please fill in all required fields (Product, Quantity, Country, City, Shipping Address, Expected Delivery Date, Bid Running Time).",
                 variant: "destructive",
             });
             return;
         }
 
-        // Validate pincode (6 digits for India)
-        if (bidForm.pincode.length !== 6) {
-            toast({
-                title: "Validation Error",
-                description: "Please enter a valid 6-digit pincode.",
-                variant: "destructive",
-            });
-            return;
+        // India-specific validation
+        if (isIndia) {
+            if (!bidForm.pincode || !bidForm.state) {
+                toast({
+                    title: "Validation Error",
+                    description: "Please fill in Pincode and State for Indian addresses.",
+                    variant: "destructive",
+                });
+                return;
+            }
+            
+            // Validate pincode (6 digits for India)
+            if (bidForm.pincode.length !== 6) {
+                toast({
+                    title: "Validation Error",
+                    description: "Please enter a valid 6-digit pincode.",
+                    variant: "destructive",
+                });
+                return;
+            }
+        } else {
+            // International order validation
+            if (!bidForm.incoterms) {
+                toast({
+                    title: "Validation Error",
+                    description: "Please select Incoterms for international shipments.",
+                    variant: "destructive",
+                });
+                return;
+            }
         }
 
         const quantity = parseInt(bidForm.quantity);
@@ -1111,6 +1277,8 @@ function BuyerDashboardContent() {
                     ...(bidForm.specification && { 'Specification': bidForm.specification }),
                     ...(bidForm.quality && { 'Quality Grade': QUALITY_GRADES.find(g => g.value === bidForm.quality)?.label || bidForm.quality }),
                     'Expected Delivery': bidForm.expectedDeliveryDate,
+                    'Destination Country': bidForm.country,
+                    ...(bidForm.country !== 'India' && bidForm.incoterms && { 'Incoterms': `${bidForm.incoterms} - ${INCOTERMS.find(i => i.code === bidForm.incoterms)?.name || bidForm.incoterms}` }),
                     'Bid Running Time (days)': String(bidRunningTimeDays),
                 },
                 sellerId: null as any, // Bid request items don't have a seller initially
@@ -1118,7 +1286,21 @@ function BuyerDashboardContent() {
             });
 
             // Then create the order/bid request
-            const fullAddress = `${bidForm.shippingAddress}, ${bidForm.city}, ${bidForm.state} - ${bidForm.pincode}`;
+            const isIndia = bidForm.country === 'India';
+            const locationInfo = isIndia 
+                ? `${bidForm.city}, ${bidForm.state} - ${bidForm.pincode}` 
+                : `${bidForm.city}, ${bidForm.state ? bidForm.state + ', ' : ''}${bidForm.country}`;
+            const fullAddress = `${bidForm.shippingAddress}, ${locationInfo}`;
+            
+            const orderNotes = [
+                `Bid request for ${bidForm.productName}.`,
+                `Quality: ${bidForm.quality || 'Not specified'}.`,
+                `Size: ${bidForm.size || 'Not specified'}.`,
+                `Destination: ${bidForm.country}`,
+                !isIndia ? `Incoterms: ${bidForm.incoterms}` : '',
+                bidForm.notes ? `Additional Notes: ${bidForm.notes}` : ''
+            ].filter(Boolean).join(' ');
+
             await createOrder({
                 itemId: newItem.id,
                 buyerId: user.id,
@@ -1126,7 +1308,7 @@ function BuyerDashboardContent() {
                 totalPrice: 0, // Will be determined by accepted bid
                 status: 'pending',
                 shippingAddress: fullAddress,
-                notes: bidForm.notes || `Bid request for ${bidForm.productName}. Quality: ${bidForm.quality || 'Not specified'}. Size: ${bidForm.size || 'Not specified'}.`,
+                notes: orderNotes,
             });
 
             toast({
@@ -1146,6 +1328,8 @@ function BuyerDashboardContent() {
                 pincode: '',
                 city: '',
                 state: '',
+                country: 'India',
+                incoterms: '',
                 shippingAddress: '',
                 notes: '',
                 bidRunningTime: '',
@@ -2225,6 +2409,38 @@ function BuyerDashboardContent() {
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
                                                     <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                 </div>
+
+                                                {/* Display shipping details including Incoterms */}
+                                                {order?.item?.specifications && (
+                                                    <>
+                                                        {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] !== 'India' && order.item.specifications['Incoterms'] && (
+                                                            <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/20">
+                                                                <Label className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider">International Shipping</Label>
+                                                                <div className="mt-1 space-y-1">
+                                                                    <div className="flex justify-between text-sm">
+                                                                        <span className="text-muted-foreground">Destination:</span>
+                                                                        <span className="font-medium">{order.item.specifications['Destination Country']}</span>
+                                                                    </div>
+                                                                    <div className="flex justify-between text-sm">
+                                                                        <span className="text-muted-foreground">Incoterms:</span>
+                                                                        <span className="font-medium text-amber-700 dark:text-amber-300">{order.item.specifications['Incoterms']}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] === 'India' && (
+                                                            <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
+                                                                <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Domestic Shipping</Label>
+                                                                <div className="mt-1">
+                                                                    <div className="flex justify-between text-sm">
+                                                                        <span className="text-muted-foreground">Destination:</span>
+                                                                        <span className="font-medium">India (Domestic)</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
                                             </CardContent>
                                             <CardFooter className="gap-3 bg-gray-50/50 dark:bg-gray-900/50 p-4">
                                                 <Button
@@ -2800,6 +3016,8 @@ function BuyerDashboardContent() {
                                 pincode: '',
                                 city: '',
                                 state: '',
+                                country: 'India',
+                                incoterms: '',
                                 shippingAddress: '',
                                 notes: '',
                                 bidRunningTime: '',
@@ -2944,44 +3162,115 @@ function BuyerDashboardContent() {
                                 </div>
 
                                 {/* Location Details */}
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="space-y-4">
+                                    {/* Country Selection */}
                                     <div>
-                                        <Label htmlFor="bidPincode">Pincode *</Label>
-                                        <Input
-                                            id="bidPincode"
-                                            value={bidForm.pincode}
-                                            onChange={(e) => setBidForm({ ...bidForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                                            placeholder="6-digit pincode"
-                                            maxLength={6}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="bidCity">City *</Label>
-                                        <Input
-                                            id="bidCity"
-                                            value={bidForm.city}
-                                            onChange={(e) => setBidForm({ ...bidForm, city: e.target.value })}
-                                            placeholder="Enter city"
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="bidState">State *</Label>
+                                        <Label htmlFor="bidCountry">Destination Country *</Label>
                                         <Select
-                                            value={bidForm.state}
-                                            onValueChange={(value) => setBidForm({ ...bidForm, state: value })}
+                                            value={bidForm.country}
+                                            onValueChange={(value) => setBidForm({ ...bidForm, country: value, incoterms: value !== 'India' ? bidForm.incoterms : '' })}
                                         >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select state" />
+                                            <SelectTrigger id="bidCountry">
+                                                <SelectValue placeholder="Select country" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <ScrollArea className="h-[200px]">
-                                                    {INDIAN_STATES.map((state) => (
-                                                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                                                    {COUNTRIES.map((country) => (
+                                                        <SelectItem key={country} value={country}>{country}</SelectItem>
                                                     ))}
                                                 </ScrollArea>
                                             </SelectContent>
                                         </Select>
                                     </div>
+
+                                    {/* Incoterms - Show only if country is not India */}
+                                    {bidForm.country && bidForm.country !== 'India' && (
+                                        <div>
+                                            <Label htmlFor="bidIncoterms">Incoterms *</Label>
+                                            <Select
+                                                value={bidForm.incoterms}
+                                                onValueChange={(value) => setBidForm({ ...bidForm, incoterms: value })}
+                                            >
+                                                <SelectTrigger id="bidIncoterms">
+                                                    <SelectValue placeholder="Select Incoterms" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {INCOTERMS.map((incoterm) => (
+                                                        <SelectItem key={incoterm.code} value={incoterm.code}>
+                                                            {incoterm.code} - {incoterm.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    {/* Indian location details - Show only if country is India */}
+                                    {bidForm.country === 'India' && (
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div>
+                                                <Label htmlFor="bidPincode">Pincode *</Label>
+                                                <Input
+                                                    id="bidPincode"
+                                                    value={bidForm.pincode}
+                                                    onChange={(e) => setBidForm({ ...bidForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                                                    placeholder="6-digit pincode"
+                                                    maxLength={6}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="bidCity">City *</Label>
+                                                <Input
+                                                    id="bidCity"
+                                                    value={bidForm.city}
+                                                    onChange={(e) => setBidForm({ ...bidForm, city: e.target.value })}
+                                                    placeholder="Enter city"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="bidState">State *</Label>
+                                                <Select
+                                                    value={bidForm.state}
+                                                    onValueChange={(value) => setBidForm({ ...bidForm, state: value })}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select state" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <ScrollArea className="h-[200px]">
+                                                            {INDIAN_STATES.map((state) => (
+                                                                <SelectItem key={state} value={state}>{state}</SelectItem>
+                                                            ))}
+                                                        </ScrollArea>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* International location details - Show only if country is not India */}
+                                    {bidForm.country && bidForm.country !== 'India' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label htmlFor="bidCity">City *</Label>
+                                                <Input
+                                                    id="bidCity"
+                                                    value={bidForm.city}
+                                                    onChange={(e) => setBidForm({ ...bidForm, city: e.target.value })}
+                                                    placeholder="Enter city"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="bidState">State/Province</Label>
+                                                <Input
+                                                    id="bidState"
+                                                    value={bidForm.state}
+                                                    onChange={(e) => setBidForm({ ...bidForm, state: e.target.value })}
+                                                    placeholder="Enter state/province"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Shipping Address */}
@@ -3022,6 +3311,16 @@ function BuyerDashboardContent() {
                                                     <span className="text-muted-foreground">Quantity:</span>
                                                     <p className="font-medium">{bidForm.quantity} {bidForm.size || 'units'}</p>
                                                 </div>
+                                                <div>
+                                                    <span className="text-muted-foreground">Destination:</span>
+                                                    <p className="font-medium">{bidForm.country}</p>
+                                                </div>
+                                                {bidForm.country !== 'India' && bidForm.incoterms && (
+                                                    <div>
+                                                        <span className="text-muted-foreground">Incoterms:</span>
+                                                        <p className="font-medium text-amber-600">{bidForm.incoterms} - {INCOTERMS.find(i => i.code === bidForm.incoterms)?.name}</p>
+                                                    </div>
+                                                )}
                                                 {bidForm.quality && (
                                                     <div>
                                                         <span className="text-muted-foreground">Quality:</span>
@@ -3052,7 +3351,18 @@ function BuyerDashboardContent() {
                                 </Button>
                                 <Button
                                     onClick={handlePlaceBidRequest}
-                                    disabled={placingBidRequest || !bidForm.productName || !bidForm.quantity || !bidForm.shippingAddress || !bidForm.expectedDeliveryDate || !bidForm.bidRunningTime || !bidForm.pincode || !bidForm.city || !bidForm.state || bidForm.pincode.length !== 6}
+                                    disabled={
+                                        placingBidRequest || 
+                                        !bidForm.productName || 
+                                        !bidForm.quantity || 
+                                        !bidForm.shippingAddress || 
+                                        !bidForm.expectedDeliveryDate || 
+                                        !bidForm.bidRunningTime || 
+                                        !bidForm.country || 
+                                        !bidForm.city ||
+                                        (bidForm.country === 'India' && (!bidForm.pincode || !bidForm.state || bidForm.pincode.length !== 6)) ||
+                                        (bidForm.country !== 'India' && !bidForm.incoterms)
+                                    }
                                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 >
                                     <ShoppingCart className="mr-2 h-4 w-4" />
@@ -3077,6 +3387,8 @@ function BuyerDashboardContent() {
                                 pincode: '',
                                 city: '',
                                 state: '',
+                                country: 'India',
+                                incoterms: '',
                                 shippingAddress: '',
                                 notes: '',
                             });
@@ -3195,44 +3507,115 @@ function BuyerDashboardContent() {
                                 </div>
 
                                 {/* Location Details */}
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="space-y-4">
+                                    {/* Country Selection */}
                                     <div>
-                                        <Label htmlFor="listPincode">Pincode</Label>
-                                        <Input
-                                            id="listPincode"
-                                            value={addToListForm.pincode}
-                                            onChange={(e) => setAddToListForm({ ...addToListForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                                            placeholder="6-digit"
-                                            maxLength={6}
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="listCity">City</Label>
-                                        <Input
-                                            id="listCity"
-                                            value={addToListForm.city}
-                                            onChange={(e) => setAddToListForm({ ...addToListForm, city: e.target.value })}
-                                            placeholder="Enter city"
-                                        />
-                                    </div>
-                                    <div>
-                                        <Label htmlFor="listState">State</Label>
+                                        <Label htmlFor="listCountry">Destination Country *</Label>
                                         <Select
-                                            value={addToListForm.state}
-                                            onValueChange={(value) => setAddToListForm({ ...addToListForm, state: value })}
+                                            value={addToListForm.country}
+                                            onValueChange={(value) => setAddToListForm({ ...addToListForm, country: value, incoterms: value !== 'India' ? addToListForm.incoterms : '' })}
                                         >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select state" />
+                                            <SelectTrigger id="listCountry">
+                                                <SelectValue placeholder="Select country" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <ScrollArea className="h-[200px]">
-                                                    {INDIAN_STATES.map((state) => (
-                                                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                                                    {COUNTRIES.map((country) => (
+                                                        <SelectItem key={country} value={country}>{country}</SelectItem>
                                                     ))}
                                                 </ScrollArea>
                                             </SelectContent>
                                         </Select>
                                     </div>
+
+                                    {/* Incoterms - Show only if country is not India */}
+                                    {addToListForm.country && addToListForm.country !== 'India' && (
+                                        <div>
+                                            <Label htmlFor="listIncoterms">Incoterms *</Label>
+                                            <Select
+                                                value={addToListForm.incoterms}
+                                                onValueChange={(value) => setAddToListForm({ ...addToListForm, incoterms: value })}
+                                            >
+                                                <SelectTrigger id="listIncoterms">
+                                                    <SelectValue placeholder="Select Incoterms" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {INCOTERMS.map((incoterm) => (
+                                                        <SelectItem key={incoterm.code} value={incoterm.code}>
+                                                            {incoterm.code} - {incoterm.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    {/* Indian location details - Show only if country is India */}
+                                    {addToListForm.country === 'India' && (
+                                        <div className="grid grid-cols-3 gap-3">
+                                            <div>
+                                                <Label htmlFor="listPincode">Pincode</Label>
+                                                <Input
+                                                    id="listPincode"
+                                                    value={addToListForm.pincode}
+                                                    onChange={(e) => setAddToListForm({ ...addToListForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                                                    placeholder="6-digit"
+                                                    maxLength={6}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="listCity">City</Label>
+                                                <Input
+                                                    id="listCity"
+                                                    value={addToListForm.city}
+                                                    onChange={(e) => setAddToListForm({ ...addToListForm, city: e.target.value })}
+                                                    placeholder="Enter city"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="listState">State</Label>
+                                                <Select
+                                                    value={addToListForm.state}
+                                                    onValueChange={(value) => setAddToListForm({ ...addToListForm, state: value })}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select state" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <ScrollArea className="h-[200px]">
+                                                            {INDIAN_STATES.map((state) => (
+                                                                <SelectItem key={state} value={state}>{state}</SelectItem>
+                                                            ))}
+                                                        </ScrollArea>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* International location details - Show only if country is not India */}
+                                    {addToListForm.country && addToListForm.country !== 'India' && (
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <Label htmlFor="listCity">City</Label>
+                                                <Input
+                                                    id="listCity"
+                                                    value={addToListForm.city}
+                                                    onChange={(e) => setAddToListForm({ ...addToListForm, city: e.target.value })}
+                                                    placeholder="Enter city"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="listState">State/Province</Label>
+                                                <Input
+                                                    id="listState"
+                                                    value={addToListForm.state}
+                                                    onChange={(e) => setAddToListForm({ ...addToListForm, state: e.target.value })}
+                                                    placeholder="Enter state/province"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Shipping Address */}

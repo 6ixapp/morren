@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -83,21 +83,7 @@ export default function AdminDashboard() {
         return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-200';
     };
 
-    useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/auth?role=admin');
-            return;
-        }
-        if (user && user.role !== 'admin') {
-            router.push(`/dashboard/${user.role}`);
-            return;
-        }
-        if (user) {
-            fetchData();
-        }
-    }, [user, authLoading, router]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         if (!user) return;
         try {
             setLoading(true);
@@ -116,7 +102,21 @@ export default function AdminDashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (!authLoading && !user) {
+            router.push('/auth?role=admin');
+            return;
+        }
+        if (user && user.role !== 'admin') {
+            router.push(`/dashboard/${user.role}`);
+            return;
+        }
+        if (user) {
+            fetchData();
+        }
+    }, [user, authLoading, router, fetchData]);
 
     const handleAddItem = async () => {
         if (!user) return;

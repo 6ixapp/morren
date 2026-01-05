@@ -71,6 +71,11 @@ export interface ShippingBid {
   bidAmount: number;
   estimatedDelivery: string;
   message?: string;
+  quantityKgs?: number;
+  portOfLoading?: string;
+  destinationAddress?: string;
+  incoterms?: string;
+  mode?: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: Date;
   updatedAt: Date;

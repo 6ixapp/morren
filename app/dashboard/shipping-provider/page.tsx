@@ -1223,21 +1223,22 @@ export default function ShippingProviderDashboard() {
                                                     <CardContent className="space-y-4">
                                                         <BidComparisonIndicator orderId={bid.orderId} />
                                                         
-                                                        {/* Update Bid Button - Show on all bid cards */}
-                                                        <div className="flex justify-end">
-                                                            <Button
-                                                                onClick={() => openEditBidDialog(bid)}
-                                                                disabled={bid.status !== 'pending'}
-                                                                className={`${
-                                                                    bid.status === 'pending' 
-                                                                        ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30 border-0' 
-                                                                        : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                                                                }`}
-                                                            >
-                                                                <TrendingUp className="mr-2 h-4 w-4" />
-                                                                {bid.status === 'pending' ? 'Update Bid' : 'Bid ' + bid.status.charAt(0).toUpperCase() + bid.status.slice(1)}
-                                                            </Button>
-                                                        </div>
+                                                        {(() => {
+                                                            const comparison = getBidComparison(bid.orderId);
+                                                            return comparison && !comparison.isLowest && bid.status === 'pending' ? (
+                                                                <div className="flex justify-end">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() => openEditBidDialog(bid)}
+                                                                        className="text-orange-600 border-orange-200 hover:bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:hover:bg-orange-900/20"
+                                                                    >
+                                                                        <TrendingUp className="mr-2 h-4 w-4" />
+                                                                        Update Bid
+                                                                    </Button>
+                                                                </div>
+                                                            ) : null;
+                                                        })()}
                                                         
                                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                             <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
@@ -1306,6 +1307,142 @@ export default function ShippingProviderDashboard() {
                             </div>
                         </div>
                     )}
+
+                    {/* Analytics Dashboard Section */}
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                        {/* Bid Status Distribution */}
+                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                                    <PieChart className="h-5 w-5 text-blue-600" />
+                                    Bid Status Distribution
+                                </CardTitle>
+                                <CardDescription>Overview of your shipping bid statuses</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {bidStatusData.length > 0 ? (
+                                    <ChartContainer config={{
+                                        pending: { label: 'Pending', color: '#eab308' },
+                                        accepted: { label: 'Accepted', color: '#22c55e' },
+                                        rejected: { label: 'Rejected', color: '#ef4444' },
+                                    }}>
+                                        <ResponsiveContainer width="100%" height={250}>
+                                            <RechartsPieChart>
+                                                <Pie
+                                                    data={bidStatusData}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    labelLine={false}
+                                                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                                                    outerRadius={80}
+                                                    fill="#8884d8"
+                                                    dataKey="value"
+                                                >
+                                                    {bidStatusData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                    ))}
+                                                </Pie>
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                            </RechartsPieChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                ) : (
+                                    <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                        <div className="text-center">
+                                            <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                            <p>No bid data available</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Monthly Revenue Trend */}
+                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-2">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                                    <Activity className="h-5 w-5 text-emerald-600" />
+                                    Monthly Revenue Trend
+                                </CardTitle>
+                                <CardDescription>Shipping revenue and total bid values over the year</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {monthlyRevenueData.some(d => d.revenue > 0 || d.bids > 0) ? (
+                                    <ChartContainer config={{
+                                        revenue: { label: 'Revenue', color: '#10b981' },
+                                        bids: { label: 'Total Bids', color: '#3b82f6' },
+                                    }}>
+                                        <ResponsiveContainer width="100%" height={250}>
+                                            <AreaChart data={monthlyRevenueData}>
+                                                <defs>
+                                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                                    </linearGradient>
+                                                    <linearGradient id="colorBids" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                                <XAxis dataKey="month" className="text-xs" />
+                                                <YAxis className="text-xs" />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" />
+                                                <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                ) : (
+                                    <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                        <div className="text-center">
+                                            <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                            <p>No revenue data available yet</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Recent Bid Activity (Last 7 Days) */}
+                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-3">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                                    Recent Bid Activity (Last 7 Days)
+                                </CardTitle>
+                                <CardDescription>Daily breakdown of your shipping bid performance</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {recentBidActivity.some(d => d.bids > 0) ? (
+                                    <ChartContainer config={{
+                                        accepted: { label: 'Accepted', color: '#22c55e' },
+                                        pending: { label: 'Pending', color: '#eab308' },
+                                        rejected: { label: 'Rejected', color: '#ef4444' },
+                                    }}>
+                                        <ResponsiveContainer width="100%" height={300}>
+                                            <BarChart data={recentBidActivity}>
+                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                                <XAxis dataKey="day" />
+                                                <YAxis />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Bar dataKey="accepted" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
+                                                <Bar dataKey="pending" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
+                                                <Bar dataKey="rejected" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </ChartContainer>
+                                ) : (
+                                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                                        <div className="text-center">
+                                            <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                            <p>No recent bid activity in the last 7 days</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
 
                     {/* Bid Dialog */}
                     <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>

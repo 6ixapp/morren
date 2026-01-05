@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { getRFQs as getRFQsFromSupabase, getLowestQuote, type RFQ } from "@/lib/supabase-api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,17 +30,7 @@ export default function DashboardPage() {
   const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push('/auth?role=buyer')
-      return
-    }
-    if (user) {
-      fetchRFQs()
-    }
-  }, [user, authLoading, router])
-
-  const fetchRFQs = async () => {
+  const fetchRFQs = useCallback(async () => {
     if (!user) return
     try {
       setLoading(true)
@@ -51,7 +41,17 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user])
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/auth?role=buyer')
+      return
+    }
+    if (user) {
+      fetchRFQs()
+    }
+  }, [user, authLoading, router, fetchRFQs])
 
   const stats = {
     total: rfqs.length,

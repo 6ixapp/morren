@@ -72,14 +72,10 @@ export default function SellerDashboard() {
         }
         
         try {
-            console.log('Fetching orders for seller:', user.id);
             const [ordersData, bidsData] = await Promise.all([
                 getOrdersBySeller(user.id),
                 getBidsBySeller(user.id),
             ]);
-            
-            console.log('Orders fetched:', ordersData?.length || 0);
-            console.log('Bids fetched:', bidsData?.length || 0);
             
             setOrders(ordersData || []);
             setBids(bidsData || []);
@@ -92,7 +88,6 @@ export default function SellerDashboard() {
                         try {
                             // Pass false to not mask seller info for bid comparison
                             const orderBids = await getBidsByOrder(order.id, false);
-                            console.log(`Order ${order.id.slice(0, 8)} has ${orderBids.length} bids`);
                             orderBidsMap[order.id] = orderBids || [];
                         } catch (err) {
                             console.error(`Error fetching bids for order ${order.id}:`, err);

@@ -517,6 +517,11 @@ function transformShippingBid(data: any): ShippingBid {
         bidAmount: data.bid_amount,
         estimatedDelivery: data.estimated_delivery,
         message: data.message,
+        quantityKgs: data.quantity_kgs,
+        portOfLoading: data.port_of_loading,
+        destinationAddress: data.destination_address,
+        incoterms: data.incoterms,
+        mode: data.mode,
         status: data.status,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
@@ -604,6 +609,11 @@ export async function createShippingBid(bid: Omit<ShippingBid, 'id' | 'createdAt
             bid_amount: bid.bidAmount,
             estimated_delivery: bid.estimatedDelivery,
             message: bid.message,
+            quantity_kgs: bid.quantityKgs,
+            port_of_loading: bid.portOfLoading,
+            destination_address: bid.destinationAddress,
+            incoterms: bid.incoterms,
+            mode: bid.mode,
             status: bid.status,
         }])
         .select()
@@ -618,6 +628,11 @@ export async function updateShippingBid(id: string, updates: Partial<ShippingBid
     if (updates.bidAmount !== undefined) updateData.bid_amount = updates.bidAmount;
     if (updates.estimatedDelivery !== undefined) updateData.estimated_delivery = updates.estimatedDelivery;
     if (updates.message !== undefined) updateData.message = updates.message;
+    if (updates.quantityKgs !== undefined) updateData.quantity_kgs = updates.quantityKgs;
+    if (updates.portOfLoading !== undefined) updateData.port_of_loading = updates.portOfLoading;
+    if (updates.destinationAddress !== undefined) updateData.destination_address = updates.destinationAddress;
+    if (updates.incoterms !== undefined) updateData.incoterms = updates.incoterms;
+    if (updates.mode !== undefined) updateData.mode = updates.mode;
     if (updates.status !== undefined) updateData.status = updates.status;
 
     const { data, error } = await supabase
