@@ -277,9 +277,9 @@ export async function getOrdersBySeller(sellerId: string): Promise<Order[]> {
         console.error('Error fetching orders for seller:', error);
         throw error;
     }
-    
+
     console.log('Raw orders data:', data?.length || 0, 'orders');
-    
+
     // Transform and mask buyer info for seller privacy
     return (data || []).map(order => {
         const transformed = transformOrder({ ...order, buyer: null });
@@ -302,6 +302,28 @@ export async function getSellerItemOrders(sellerId: string): Promise<Order[]> {
         .order('created_at', { ascending: false });
 
     if (error) throw error;
+    return (data || []).map(transformOrder);
+}
+
+// Get orders for shipping providers - only orders where seller bid was accepted
+export async function getOrdersForShipping(): Promise<Order[]> {
+    const { data, error } = await supabase
+        .from('orders')
+        .select(`
+      *,
+      item:items(id, name, description, image, price, size, category, condition, quantity, specifications, seller_id, status, created_at, updated_at),
+      buyer:users!buyer_id(id, name, email, role, avatar)
+    `)
+        .eq('status', 'accepted') // Only show orders where seller bid was accepted
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching orders for shipping:', error);
+        throw error;
+    }
+
+    console.log('Shipping orders (accepted status):', data?.length || 0, 'orders');
+
     return (data || []).map(transformOrder);
 }
 
@@ -385,6 +407,7 @@ function transformBid(data: any): Bid {
         bidAmount: data.bid_amount,
         estimatedDelivery: data.estimated_delivery,
         message: data.message,
+        pickupAddress: data.pickup_address,
         status: data.status,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
@@ -433,9 +456,9 @@ export async function getBidsByOrder(orderId: string, maskSellerInfo: boolean = 
         .order('created_at', { ascending: false });
 
     if (error) throw error;
-    
+
     console.log('getBidsByOrder raw data:', data); // Debug log
-    
+
     // Transform bids - keep sellerId for comparison but mask seller name/details
     return (data || []).map(bid => {
         const transformed = transformBid({ ...bid, seller: null });
@@ -463,29 +486,69 @@ export async function getBidsBySeller(sellerId: string): Promise<Bid[]> {
 }
 
 export async function createBid(bid: Omit<Bid, 'id' | 'createdAt' | 'updatedAt'>): Promise<Bid> {
+    const insertData: any = {
+        order_id: bid.orderId,
+        seller_id: bid.sellerId,
+        bid_amount: bid.bidAmount,
+        estimated_delivery: bid.estimatedDelivery,
+        status: bid.status,
+    };
+
+    // Add optional fields if provided
+    if (bid.message) insertData.message = bid.message;
+    if (bid.pickupAddress) insertData.pickup_address = bid.pickupAddress;
+
     const { data, error } = await supabase
         .from('bids')
-        .insert([{
-            order_id: bid.orderId,
-            seller_id: bid.sellerId,
-            bid_amount: bid.bidAmount,
-            estimated_delivery: bid.estimatedDelivery,
-            message: bid.message,
-            status: bid.status,
-        }])
+        .insert([insertData])
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error('Supabase error creating bid:', error);
+        throw new Error(error.message || 'Failed to create bid');
+    }
+
     return transformBid(data);
 }
 
 export async function updateBid(id: string, updates: Partial<Bid>): Promise<Bid> {
+    console.log('updateBid called with:', { id, updates });
+
+    // First, check if the bid exists
+    const { data: existingBid, error: checkError } = await supabase
+        .from('bids')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+    if (checkError) {
+        console.error('Error checking if bid exists:', {
+            error: checkError,
+            bidId: id,
+            errorCode: checkError.code,
+            errorMessage: checkError.message,
+            errorDetails: checkError.details,
+            errorHint: checkError.hint
+        });
+        throw new Error(`Failed to check bid existence: ${checkError.message}`);
+    }
+
+    if (!existingBid) {
+        console.error('Bid not found:', id);
+        throw new Error(`Bid with ID ${id} does not exist`);
+    }
+
+    console.log('Existing bid found:', existingBid);
+
     const updateData: any = {};
     if (updates.bidAmount !== undefined) updateData.bid_amount = updates.bidAmount;
     if (updates.estimatedDelivery !== undefined) updateData.estimated_delivery = updates.estimatedDelivery;
     if (updates.message !== undefined) updateData.message = updates.message;
+    if (updates.pickupAddress !== undefined) updateData.pickup_address = updates.pickupAddress;
     if (updates.status !== undefined) updateData.status = updates.status;
+
+    console.log('Updating bid:', { id, updateData });
 
     const { data, error } = await supabase
         .from('bids')
@@ -494,7 +557,25 @@ export async function updateBid(id: string, updates: Partial<Bid>): Promise<Bid>
         .select()
         .single();
 
-    if (error) throw error;
+    if (error) {
+        console.error('Supabase error updating bid:', {
+            error,
+            bidId: id,
+            updateData,
+            errorCode: error.code,
+            errorMessage: error.message,
+            errorDetails: error.details,
+            errorHint: error.hint
+        });
+        throw new Error(error.message || 'Failed to update bid');
+    }
+
+    if (!data) {
+        console.error('No data returned after update for bid:', id);
+        throw new Error(`Bid with ID ${id} not found after update`);
+    }
+
+    console.log('Bid updated successfully:', data);
     return transformBid(data);
 }
 
@@ -576,7 +657,7 @@ export async function getShippingBidsByOrder(orderId: string, maskProviderInfo: 
         .order('created_at', { ascending: false });
 
     if (error) throw error;
-    
+
     return (data || []).map(bid => {
         const transformed = transformShippingBid({ ...bid, shipping_provider: null });
         if (maskProviderInfo) {
@@ -610,7 +691,7 @@ export async function createShippingBid(bid: Omit<ShippingBid, 'id' | 'createdAt
         estimated_delivery: bid.estimatedDelivery,
         status: bid.status,
     };
-    
+
     // Add optional message field if provided
     if (bid.message) {
         insertData.message = bid.message;
@@ -626,7 +707,7 @@ export async function createShippingBid(bid: Omit<ShippingBid, 'id' | 'createdAt
         console.error('Supabase error creating shipping bid:', error);
         throw new Error(error.message || 'Failed to create shipping bid');
     }
-    
+
     return transformShippingBid(data);
 }
 
@@ -649,7 +730,7 @@ export async function updateShippingBid(id: string, updates: Partial<ShippingBid
         console.error('Supabase error updating shipping bid:', error);
         throw new Error(error.message || 'Failed to update shipping bid');
     }
-    
+
     return transformShippingBid(data);
 }
 

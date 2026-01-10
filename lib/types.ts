@@ -57,6 +57,7 @@ export interface Bid {
   bidAmount: number;
   estimatedDelivery: string;
   message?: string;
+  pickupAddress?: string; // Seller's address for shipping provider to collect goods
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: Date;
   updatedAt: Date;

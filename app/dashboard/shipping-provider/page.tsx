@@ -14,7 +14,7 @@ import { Order, ShippingBid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
-import { getOrders, getShippingBidsByProvider, createShippingBid, updateShippingBid, getShippingBidsByOrder } from '@/lib/supabase-api';
+import { getOrdersForShipping, getShippingBidsByProvider, createShippingBid, updateShippingBid, getShippingBidsByOrder, getBidsByOrder } from '@/lib/supabase-api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getDashboardRoute } from '@/lib/utils';
@@ -30,6 +30,7 @@ export default function ShippingProviderDashboard() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [bids, setBids] = useState<ShippingBid[]>([]);
     const [allOrderBids, setAllOrderBids] = useState<Record<string, ShippingBid[]>>({});
+    const [sellerBids, setSellerBids] = useState<Record<string, any>>({});  // Store accepted seller bids by order ID
     const [showAllOrders, setShowAllOrders] = useState(false);
     const [showAllBids, setShowAllBids] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -44,7 +45,7 @@ export default function ShippingProviderDashboard() {
     });
     const [searchQuery, setSearchQuery] = useState('');
     const [inlineBidForms, setInlineBidForms] = useState<Record<string, { bidAmount: string; estimatedDelivery: string; message: string }>>({});
-    
+
     // Enhanced search and filtering states
     const [bidSearchQuery, setBidSearchQuery] = useState('');
     const [orderSortBy, setOrderSortBy] = useState<'date' | 'quantity' | 'price' | 'name'>('date');
@@ -70,15 +71,15 @@ export default function ShippingProviderDashboard() {
             console.log('fetchData: No user, skipping');
             return;
         }
-        
+
         if (!silent) {
             setLoading(true);
         }
-        
+
         try {
             console.log('Fetching orders for shipping provider:', user.id);
             const [ordersData, bidsData] = await Promise.all([
-                getOrders().catch(err => {
+                getOrdersForShipping().catch(err => {
                     console.error('Error fetching orders:', err);
                     return [];
                 }),
@@ -87,15 +88,16 @@ export default function ShippingProviderDashboard() {
                     return [];
                 }),
             ]);
-            
+
             console.log('Orders fetched:', ordersData?.length || 0);
             console.log('Shipping bids fetched:', bidsData?.length || 0);
-            
+
             setOrders(ordersData || []);
             setBids(bidsData || []);
 
             // Fetch all shipping bids for each order to compare
             const orderBidsMap: Record<string, ShippingBid[]> = {};
+            const sellerBidsMap: Record<string, any> = {};
             if (ordersData && ordersData.length > 0) {
                 await Promise.all(
                     ordersData.map(async (order) => {
@@ -103,14 +105,25 @@ export default function ShippingProviderDashboard() {
                             const orderBids = await getShippingBidsByOrder(order.id, false);
                             console.log(`Order ${order.id.slice(0, 8)} has ${orderBids.length} shipping bids`);
                             orderBidsMap[order.id] = orderBids || [];
+
+                            // Fetch accepted seller bid for this order to get pickup address
+                            if (order.status === 'accepted') {
+                                const orderSellerBids = await getBidsByOrder(order.id, false);
+                                const acceptedSellerBid = orderSellerBids.find(b => b.status === 'accepted');
+                                if (acceptedSellerBid) {
+                                    sellerBidsMap[order.id] = acceptedSellerBid;
+                                    console.log(`Found accepted seller bid for order ${order.id.slice(0, 8)} with pickup address:`, acceptedSellerBid.pickupAddress);
+                                }
+                            }
                         } catch (err) {
-                            console.error(`Error fetching shipping bids for order ${order.id}:`, err);
+                            console.error(`Error fetching bids for order ${order.id}:`, err);
                             orderBidsMap[order.id] = [];
                         }
                     })
                 );
             }
             setAllOrderBids(orderBidsMap);
+            setSellerBids(sellerBidsMap);
             console.log('fetchData completed successfully');
         } catch (error: any) {
             console.error('Error fetching data:', error);
@@ -127,7 +140,7 @@ export default function ShippingProviderDashboard() {
                 setLoading(false);
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     // Initial data fetch
@@ -138,7 +151,7 @@ export default function ShippingProviderDashboard() {
         } else {
             console.log('Initial fetch skipped - no user yet');
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     // Safety timeout: if still loading after 5 seconds, force stop loading
@@ -162,7 +175,7 @@ export default function ShippingProviderDashboard() {
         }, 10000); // Poll every 10 seconds
 
         return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, submittingBid]);
 
     const stats = {
@@ -188,20 +201,20 @@ export default function ShippingProviderDashboard() {
     // Filter and sort orders
     const filteredAndSortedOrders = useMemo(() => {
         let filtered = orders.filter(order => {
-            const matchesSearch = !searchQuery || 
+            const matchesSearch = !searchQuery ||
                 order.item?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 order.item?.specifications?.hsnCode?.toLowerCase().includes(searchQuery.toLowerCase());
-            
+
             const matchesCategory = orderCategoryFilter === 'all' || order.item?.category === orderCategoryFilter;
-            
+
             return matchesSearch && matchesCategory;
         });
 
         // Sort orders
         filtered.sort((a, b) => {
             let aValue: any, bValue: any;
-            
+
             switch (orderSortBy) {
                 case 'quantity':
                     aValue = a.quantity;
@@ -219,7 +232,7 @@ export default function ShippingProviderDashboard() {
                     aValue = new Date(a.createdAt);
                     bValue = new Date(b.createdAt);
             }
-            
+
             if (orderSortDirection === 'asc') {
                 return aValue > bValue ? 1 : -1;
             } else {
@@ -234,21 +247,21 @@ export default function ShippingProviderDashboard() {
     const filteredAndSortedBids = useMemo(() => {
         let filtered = bids.filter(bid => {
             const order = orders.find(o => o.id === bid.orderId);
-            const matchesSearch = !bidSearchQuery || 
-                bid.orderId.toLowerCase().includes(bidSearchQuery.toLowerCase()) || 
+            const matchesSearch = !bidSearchQuery ||
+                bid.orderId.toLowerCase().includes(bidSearchQuery.toLowerCase()) ||
                 order?.item?.name?.toLowerCase().includes(bidSearchQuery.toLowerCase()) ||
                 order?.item?.specifications?.hsnCode?.toLowerCase().includes(bidSearchQuery.toLowerCase()) ||
                 bid.message?.toLowerCase().includes(bidSearchQuery.toLowerCase());
-            
+
             const matchesStatus = bidStatusFilter === 'all' || bid.status === bidStatusFilter;
-            
+
             return matchesSearch && matchesStatus;
         });
 
         // Sort bids
         filtered.sort((a, b) => {
             let aValue: any, bValue: any;
-            
+
             switch (bidSortBy) {
                 case 'date':
                     aValue = new Date(a.createdAt);
@@ -271,7 +284,7 @@ export default function ShippingProviderDashboard() {
                     aValue = new Date(a.createdAt);
                     bValue = new Date(b.createdAt);
             }
-            
+
             if (bidSortDirection === 'asc') {
                 return aValue > bValue ? 1 : -1;
             } else {
@@ -297,16 +310,20 @@ export default function ShippingProviderDashboard() {
         setBidSortDirection('desc');
     };
 
-    // Calculate bid end time based on order creation and bid running time
+    // Calculate bid end time for shipping phase
+    // Shipping bidding starts when order status becomes 'accepted' (seller bid accepted)
     const calculateBidEndTime = (order: Order) => {
-        const createdAt = new Date(order.createdAt);
+        // For shipping providers, use the time when order was accepted (seller bid was accepted)
+        // This is when the shipping bidding phase starts
+        const acceptedAt = new Date(order.updatedAt); // Order was last updated when status changed to 'accepted'
         const bidRunningDays = 7; // Default 7 days if not specified
-        
+
         const specs = order.item?.specifications as any;
-        const specifiedDays = specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
+        // Use SHIPPING bid running time, not seller bid running time
+        const specifiedDays = specs?.['Shipping Bid Running Time (days)'] || specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
         const daysToAdd = specifiedDays ? parseInt(specifiedDays.toString()) : bidRunningDays;
-        
-        const endTime = new Date(createdAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+
+        const endTime = new Date(acceptedAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
         return endTime;
     };
 
@@ -326,19 +343,19 @@ export default function ShippingProviderDashboard() {
     const monthlyRevenueData = useMemo(() => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
         const currentYear = new Date().getFullYear();
-        
+
         const monthlyData = months.map((month, index) => {
             const monthBids = bids.filter(b => {
                 const bidDate = new Date(b.createdAt);
                 return bidDate.getMonth() === index && bidDate.getFullYear() === currentYear;
             });
-            
+
             const acceptedRevenue = monthBids
                 .filter(b => b.status === 'accepted')
                 .reduce((sum, b) => sum + b.bidAmount, 0);
-            
+
             const totalBidValue = monthBids.reduce((sum, b) => sum + b.bidAmount, 0);
-            
+
             return {
                 month,
                 revenue: acceptedRevenue,
@@ -346,7 +363,7 @@ export default function ShippingProviderDashboard() {
                 bidCount: monthBids.length,
             };
         });
-        
+
         return monthlyData;
     }, [bids]);
 
@@ -357,12 +374,12 @@ export default function ShippingProviderDashboard() {
             const date = new Date();
             date.setDate(date.getDate() - i);
             const dateStr = date.toLocaleDateString('en-US', { weekday: 'short' });
-            
+
             const dayBids = bids.filter(b => {
                 const bidDate = new Date(b.createdAt);
                 return bidDate.toDateString() === date.toDateString();
             });
-            
+
             last7Days.push({
                 day: dateStr,
                 bids: dayBids.length,
@@ -377,12 +394,12 @@ export default function ShippingProviderDashboard() {
     // Helper function to get bid comparison info for an order
     const getBidComparison = (orderId: string) => {
         if (!user) return null;
-        
+
         const orderBids = allOrderBids[orderId] || [];
         const myBid = orderBids.find(b => b.shippingProviderId === user.id);
-        
+
         if (!myBid) return null;
-        
+
         if (orderBids.length === 1) {
             return {
                 myBid: myBid.bidAmount,
@@ -399,23 +416,23 @@ export default function ShippingProviderDashboard() {
                 isOnlyBidder: true,
             };
         }
-        
+
         const otherBids = orderBids.filter(b => b.shippingProviderId !== user.id);
         const allBidAmounts = orderBids.map(b => b.bidAmount);
         const lowestBid = Math.min(...allBidAmounts);
         const highestBid = Math.max(...allBidAmounts);
         const avgBid = allBidAmounts.reduce((sum, b) => sum + b, 0) / allBidAmounts.length;
-        
+
         const diffFromLowest = lowestBid > 0 ? ((myBid.bidAmount - lowestBid) / lowestBid) * 100 : 0;
         const diffFromHighest = highestBid > 0 ? ((myBid.bidAmount - highestBid) / highestBid) * 100 : 0;
-        
+
         const sortedBids = [...allBidAmounts].sort((a, b) => a - b);
         const myPosition = sortedBids.indexOf(myBid.bidAmount) + 1;
         const totalBidders = orderBids.length;
-        
+
         const isLowest = myBid.bidAmount <= lowestBid;
         const isHighest = myBid.bidAmount >= highestBid;
-        
+
         return {
             myBid: myBid.bidAmount,
             lowestBid,
@@ -435,11 +452,11 @@ export default function ShippingProviderDashboard() {
     // Bid comparison indicator component
     const BidComparisonIndicator = ({ orderId }: { orderId: string }) => {
         const comparison = getBidComparison(orderId);
-        
+
         if (!comparison) return null;
-        
+
         const { myBid, lowestBid, highestBid, diffFromLowest, myPosition, totalBidders, isLowest, competitorCount, isOnlyBidder } = comparison;
-        
+
         if (isOnlyBidder) {
             return (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 border rounded-xl p-6 mb-6 shadow-sm">
@@ -460,11 +477,11 @@ export default function ShippingProviderDashboard() {
                 </div>
             );
         }
-        
+
         // Calculate position on bar based on bid amount relative to range
         const bidRange = highestBid - lowestBid;
         const positionPercent = bidRange > 0 ? ((myBid - lowestBid) / bidRange) * 100 : 0;
-        
+
         let bgColor = 'bg-yellow-500';
         let textColor = 'text-yellow-700 dark:text-yellow-300';
         let bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
@@ -472,7 +489,7 @@ export default function ShippingProviderDashboard() {
         let icon = <Minus className="h-5 w-5" />;
         let message = '';
         let statusTitle = '';
-        
+
         if (isLowest) {
             bgColor = 'bg-green-500';
             textColor = 'text-green-700 dark:text-green-300';
@@ -506,7 +523,7 @@ export default function ShippingProviderDashboard() {
             statusTitle = "High Price";
             message = `${diffFromLowest.toFixed(1)}% higher than lowest`;
         }
-        
+
         return (
             <div className={`${bgLight} ${borderColor} border rounded-xl p-5 mb-6 shadow-sm`}>
                 <div className="flex items-center justify-between mb-6">
@@ -524,7 +541,7 @@ export default function ShippingProviderDashboard() {
                         <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Rank</div>
                     </div>
                 </div>
-                
+
                 <div className="relative mt-8 mb-2 px-2">
                     <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
                         <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
@@ -534,12 +551,12 @@ export default function ShippingProviderDashboard() {
                             Highest (${highestBid.toFixed(0)})
                         </span>
                     </div>
-                    
+
                     <div className="h-3 w-full rounded-full relative bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                         <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-yellow-400 to-red-500 opacity-80"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-yellow-400 to-red-500 opacity-80"></div>
                     </div>
-                    
-                    <div 
+
+                    <div
                         className="absolute top-1/2 -translate-y-1/2 transition-all duration-700 ease-out z-10"
                         style={{ left: `calc(${Math.max(0, Math.min(100, positionPercent))}% - 1rem)` }}
                     >
@@ -547,7 +564,7 @@ export default function ShippingProviderDashboard() {
                             <div className={`w-8 h-8 ${bgColor} rounded-full border-4 border-white dark:border-gray-900 shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform`}>
                                 <div className="w-2 h-2 bg-white rounded-full" />
                             </div>
-                            
+
                             <div className={`absolute -top-14 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-lg flex flex-col items-center ${isLowest ? 'bg-green-600' : 'bg-gray-900'}`}>
                                 <span>YOU</span>
                                 <span className="text-[10px] font-normal opacity-90">${myBid.toFixed(0)}</span>
@@ -556,7 +573,7 @@ export default function ShippingProviderDashboard() {
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700/50 text-sm">
                     <span className="text-muted-foreground font-medium">
                         <Users className="h-4 w-4 inline mr-1.5 mb-0.5" />
@@ -668,11 +685,11 @@ export default function ShippingProviderDashboard() {
             await fetchData(false);
         } catch (error: any) {
             console.error('Error creating shipping bid:', error);
-            const errorMessage = error?.message || 
-                                error?.error_description ||
-                                error?.details || 
-                                (typeof error === 'string' ? error : null) ||
-                                "Failed to create shipping bid. Please check your connection and try again.";
+            const errorMessage = error?.message ||
+                error?.error_description ||
+                error?.details ||
+                (typeof error === 'string' ? error : null) ||
+                "Failed to create shipping bid. Please check your connection and try again.";
             toast({
                 title: "Error",
                 description: errorMessage,
@@ -755,11 +772,11 @@ export default function ShippingProviderDashboard() {
             await fetchData(false);
         } catch (error: any) {
             console.error('Error creating shipping bid:', error);
-            const errorMessage = error?.message || 
-                                error?.error_description ||
-                                error?.details || 
-                                (typeof error === 'string' ? error : null) ||
-                                "Failed to create shipping bid. Please check your connection and try again.";
+            const errorMessage = error?.message ||
+                error?.error_description ||
+                error?.details ||
+                (typeof error === 'string' ? error : null) ||
+                "Failed to create shipping bid. Please check your connection and try again.";
             toast({
                 title: "Error",
                 description: errorMessage,
@@ -952,7 +969,7 @@ export default function ShippingProviderDashboard() {
                                     Clear Filters
                                 </Button>
                             </div>
-                            
+
                             <div className="space-y-4">
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -996,7 +1013,7 @@ export default function ShippingProviderDashboard() {
                                                 <SelectItem value="name">Product Name</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        
+
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -1011,33 +1028,33 @@ export default function ShippingProviderDashboard() {
                         </div>
 
                         <div className="grid gap-6">
-                                {filteredAndSortedOrders.length === 0 ? (
-                                    orders.length === 0 ? (
-                                        <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                                            <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                            <p className="text-muted-foreground">No orders available at the moment.</p>
-                                        </Card>
-                                    ) : (
-                                        <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                                            <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                            <p className="text-muted-foreground">No orders found matching your filters.</p>
-                                            <Button 
-                                                variant="outline" 
-                                                className="mt-4" 
-                                                onClick={resetOrderFilters}
-                                            >
-                                                Clear Filters
-                                            </Button>
-                                        </Card>
-                                    )
+                            {filteredAndSortedOrders.length === 0 ? (
+                                orders.length === 0 ? (
+                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                        <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                        <p className="text-muted-foreground">No orders available at the moment.</p>
+                                    </Card>
                                 ) : (
-                                    <>
-                                        {(showAllOrders ? filteredAndSortedOrders : filteredAndSortedOrders.slice(0, 5)).map((order) => {
-                                                            const hasMyBid = user && allOrderBids[order.id]?.some(b => b.shippingProviderId === user.id);
-                                                            const bidEndTime = calculateBidEndTime(order);
-                                                            const isBidExpired = new Date() > bidEndTime;
-                                                            
-                                                            return (
+                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                        <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                        <p className="text-muted-foreground">No orders found matching your filters.</p>
+                                        <Button
+                                            variant="outline"
+                                            className="mt-4"
+                                            onClick={resetOrderFilters}
+                                        >
+                                            Clear Filters
+                                        </Button>
+                                    </Card>
+                                )
+                            ) : (
+                                <>
+                                    {(showAllOrders ? filteredAndSortedOrders : filteredAndSortedOrders.slice(0, 5)).map((order) => {
+                                        const hasMyBid = user && allOrderBids[order.id]?.some(b => b.shippingProviderId === user.id);
+                                        const bidEndTime = calculateBidEndTime(order);
+                                        const isBidExpired = new Date() > bidEndTime;
+
+                                        return (
                                             <Card key={order.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 group">
                                                 <CardHeader>
                                                     <div className="flex items-center justify-between">
@@ -1059,47 +1076,47 @@ export default function ShippingProviderDashboard() {
                                                             </div>
                                                         </div>
                                                         {!hasMyBid && !isBidExpired && (
-                                                        <div className="flex items-center gap-2">
-                                                            <Input
-                                                                type="number"
-                                                                step="0.01"
-                                                                placeholder="Shipping Cost ($)"
-                                                                className="h-9 w-32"
-                                                                value={inlineBidForms[order.id]?.bidAmount || ''}
-                                                                onChange={(e) => setInlineBidForms(prev => ({
-                                                                    ...prev,
-                                                                    [order.id]: {
-                                                                        ...prev[order.id],
-                                                                        bidAmount: e.target.value,
-                                                                        estimatedDelivery: prev[order.id]?.estimatedDelivery || '',
-                                                                        message: prev[order.id]?.message || ''
-                                                                    }
-                                                                }))}
-                                                            />
-                                                            <Input
-                                                                type="date"
-                                                                className="h-9 w-36"
-                                                                value={inlineBidForms[order.id]?.estimatedDelivery || ''}
-                                                                min={new Date().toISOString().split('T')[0]}
-                                                                onChange={(e) => setInlineBidForms(prev => ({
-                                                                    ...prev,
-                                                                    [order.id]: {
-                                                                        ...prev[order.id],
-                                                                        bidAmount: prev[order.id]?.bidAmount || '',
-                                                                        estimatedDelivery: e.target.value,
-                                                                        message: prev[order.id]?.message || ''
-                                                                    }
-                                                                }))}
-                                                            />
-                                                            <Button
-                                                                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/20"
-                                                                onClick={() => handleInlineBidSubmit(order)}
-                                                                disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
-                                                            >
-                                                                <Send className="mr-2 h-4 w-4" />
-                                                                {submittingBid ? "Placing..." : "Place Bid"}
-                                                            </Button>
-                                                        </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <Input
+                                                                    type="number"
+                                                                    step="0.01"
+                                                                    placeholder="Shipping Cost ($)"
+                                                                    className="h-9 w-32"
+                                                                    value={inlineBidForms[order.id]?.bidAmount || ''}
+                                                                    onChange={(e) => setInlineBidForms(prev => ({
+                                                                        ...prev,
+                                                                        [order.id]: {
+                                                                            ...prev[order.id],
+                                                                            bidAmount: e.target.value,
+                                                                            estimatedDelivery: prev[order.id]?.estimatedDelivery || '',
+                                                                            message: prev[order.id]?.message || ''
+                                                                        }
+                                                                    }))}
+                                                                />
+                                                                <Input
+                                                                    type="date"
+                                                                    className="h-9 w-36"
+                                                                    value={inlineBidForms[order.id]?.estimatedDelivery || ''}
+                                                                    min={new Date().toISOString().split('T')[0]}
+                                                                    onChange={(e) => setInlineBidForms(prev => ({
+                                                                        ...prev,
+                                                                        [order.id]: {
+                                                                            ...prev[order.id],
+                                                                            bidAmount: prev[order.id]?.bidAmount || '',
+                                                                            estimatedDelivery: e.target.value,
+                                                                            message: prev[order.id]?.message || ''
+                                                                        }
+                                                                    }))}
+                                                                />
+                                                                <Button
+                                                                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/20"
+                                                                    onClick={() => handleInlineBidSubmit(order)}
+                                                                    disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
+                                                                >
+                                                                    <Send className="mr-2 h-4 w-4" />
+                                                                    {submittingBid ? "Placing..." : "Place Bid"}
+                                                                </Button>
+                                                            </div>
                                                         )}
                                                         {hasMyBid && (
                                                             <Badge className="bg-green-100 text-green-700 border-green-200 px-4 py-2">
@@ -1123,503 +1140,524 @@ export default function ShippingProviderDashboard() {
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
                                                             <p className="text-sm font-bold">{order.quantity} units</p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Shipping Address</Label>
-                                                            <p className="text-sm font-medium">{order.shippingAddress?.split(',')[0] || 'N/A'}</p>
+                                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
+                                                            <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Pickup Address</Label>
+                                                            <p className="text-sm font-medium">{sellerBids[order.id]?.pickupAddress?.split(',')[0] || 'N/A'}</p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Pincode</Label>
-                                                            <p className="text-sm font-medium">{order.shippingAddress?.match(/\d{6}/)?.[0] || 'N/A'}</p>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Delivery To</Label>
+                                                            <p className="text-sm font-medium">{order.shippingAddress?.split(',')[0] || 'N/A'}</p>
                                                         </div>
                                                         <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
                                                             <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">Bid Ends In</Label>
-                                                            <ClockTimer 
-                                                                endTime={calculateBidEndTime(order)} 
+                                                            <ClockTimer
+                                                                endTime={calculateBidEndTime(order)}
                                                                 size={18}
                                                                 className="mt-1"
                                                             />
                                                         </div>
                                                     </div>
 
-                                                    {order.shippingAddress && (
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Full Shipping Address</Label>
-                                                            <p className="font-medium mt-1">{order.shippingAddress}</p>
-                                                        </div>
-                                                    )}
+                                                    {/* Full addresses section */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {sellerBids[order.id]?.pickupAddress && (
+                                                            <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-900/20">
+                                                                <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Full Pickup Address (Collect From)</Label>
+                                                                <p className="font-medium mt-1">{sellerBids[order.id].pickupAddress}</p>
+                                                            </div>
+                                                        )}
+                                                        {order.shippingAddress && (
+                                                            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Full Delivery Address (Deliver To)</Label>
+                                                                <p className="font-medium mt-1">{order.shippingAddress}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </CardContent>
                                             </Card>
-                                            );
-                                        })}
-                                        {filteredAndSortedOrders.length > 5 && (
-                                            <Button
-                                                variant="outline"
-                                                className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                                onClick={() => setShowAllOrders(!showAllOrders)}
-                                            >
-                                                {showAllOrders ? (
-                                                    <>
-                                                        <ChevronUp className="mr-2 h-4 w-4" />
-                                                        Show Less
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <ChevronDown className="mr-2 h-4 w-4" />
-                                                        Load More ({filteredAndSortedOrders.length - 5} more)
-                                                    </>
-                                                )}
-                                            </Button>
-                                        )}
-                                    </>
-                                )}
-                            </div>
+                                        );
+                                    })}
+                                    {filteredAndSortedOrders.length > 5 && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                            onClick={() => setShowAllOrders(!showAllOrders)}
+                                        >
+                                            {showAllOrders ? (
+                                                <>
+                                                    <ChevronUp className="mr-2 h-4 w-4" />
+                                                    Show Less
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <ChevronDown className="mr-2 h-4 w-4" />
+                                                    Load More ({filteredAndSortedOrders.length - 5} more)
+                                                </>
+                                            )}
+                                        </Button>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
+                </div>
 
-                    {/* My Shipping Bids Section */}
-                    <div className="space-y-6">
-                            <div className="flex flex-col gap-4">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <TrendingUp className="h-5 w-5 text-blue-600" />
-                                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">My Shipping Bids</h2>
-                                        <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} bids</Badge>
-                                    </div>
+                {/* My Shipping Bids Section */}
+                <div className="space-y-6">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-blue-600" />
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">My Shipping Bids</h2>
+                                <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} bids</Badge>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={resetBidFilters}
+                                className="text-muted-foreground hover:text-foreground"
+                            >
+                                <X className="mr-1 h-4 w-4" />
+                                Clear Filters
+                            </Button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <Input
+                                    type="text"
+                                    placeholder="Search bids..."
+                                    className="pl-10 py-6 text-lg"
+                                    value={bidSearchQuery}
+                                    onChange={(e) => setBidSearchQuery(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap gap-4 items-center">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="h-4 w-4 text-muted-foreground" />
+                                    <Select value={bidStatusFilter} onValueChange={(value: any) => setBidStatusFilter(value)}>
+                                        <SelectTrigger className="w-[140px]">
+                                            <SelectValue placeholder="Filter by status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Status</SelectItem>
+                                            <SelectItem value="pending">Pending</SelectItem>
+                                            <SelectItem value="accepted">Accepted</SelectItem>
+                                            <SelectItem value="rejected">Rejected</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-muted-foreground">Sort by:</span>
+                                    <Select value={bidSortBy} onValueChange={(value: any) => setBidSortBy(value)}>
+                                        <SelectTrigger className="w-[140px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="date">Date Created</SelectItem>
+                                            <SelectItem value="amount">Bid Amount</SelectItem>
+                                            <SelectItem value="status">Status</SelectItem>
+                                            <SelectItem value="delivery">Delivery Date</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        onClick={resetBidFilters}
-                                        className="text-muted-foreground hover:text-foreground"
+                                        onClick={() => setBidSortDirection(bidSortDirection === 'asc' ? 'desc' : 'asc')}
+                                        className="p-2"
                                     >
-                                        <X className="mr-1 h-4 w-4" />
-                                        Clear Filters
+                                        {bidSortDirection === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
                                     </Button>
                                 </div>
-                                
-                                <div className="space-y-4">
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <Search className="h-5 w-5 text-gray-400" />
-                                        </div>
-                                        <Input
-                                            type="text"
-                                            placeholder="Search bids..."
-                                            className="pl-10 py-6 text-lg"
-                                            value={bidSearchQuery}
-                                            onChange={(e) => setBidSearchQuery(e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-4 items-center">
-                                        <div className="flex items-center gap-2">
-                                            <Filter className="h-4 w-4 text-muted-foreground" />
-                                            <Select value={bidStatusFilter} onValueChange={(value: any) => setBidStatusFilter(value)}>
-                                                <SelectTrigger className="w-[140px]">
-                                                    <SelectValue placeholder="Filter by status" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">All Status</SelectItem>
-                                                    <SelectItem value="pending">Pending</SelectItem>
-                                                    <SelectItem value="accepted">Accepted</SelectItem>
-                                                    <SelectItem value="rejected">Rejected</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm text-muted-foreground">Sort by:</span>
-                                            <Select value={bidSortBy} onValueChange={(value: any) => setBidSortBy(value)}>
-                                                <SelectTrigger className="w-[140px]">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="date">Date Created</SelectItem>
-                                                    <SelectItem value="amount">Bid Amount</SelectItem>
-                                                    <SelectItem value="status">Status</SelectItem>
-                                                    <SelectItem value="delivery">Delivery Date</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => setBidSortDirection(bidSortDirection === 'asc' ? 'desc' : 'asc')}
-                                                className="p-2"
-                                            >
-                                                {bidSortDirection === 'asc' ? <SortAsc className="h-4 w-4" /> : <SortDesc className="h-4 w-4" />}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="grid gap-6">
-                                {filteredAndSortedBids.length === 0 ? (
-                                    bids.length === 0 ? (
-                                        <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                                            <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                            <p className="text-muted-foreground">You haven't placed any shipping bids yet.</p>
-                                        </Card>
-                                    ) : (
-                                        <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                                            <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                            <p className="text-muted-foreground">No bids found matching your filters.</p>
-                                            <Button 
-                                                variant="outline" 
-                                                className="mt-4" 
-                                                onClick={resetBidFilters}
-                                            >
-                                                Clear Filters
-                                            </Button>
-                                        </Card>
-                                    )
-                                ) : (
-                                    <>
-                                        {(showAllBids ? filteredAndSortedBids : filteredAndSortedBids.slice(0, 5)).map((bid) => {
-                                            const order = orders.find(o => o.id === bid.orderId);
-                                            const bidEndTime = order ? calculateBidEndTime(order) : new Date();
-                                            const isBidExpired = new Date() > bidEndTime;
-                                            
-                                            return (
-                                                <Card key={bid.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-100 dark:border-blue-900/50 group overflow-hidden relative">
-                                                    {/* Decorative gradient overlay */}
-                                                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl -z-0 group-hover:scale-150 transition-transform duration-500"></div>
-                                                    
-                                                    <CardHeader className="relative z-10">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg shadow-blue-500/30">
-                                                                    <Truck className="h-7 w-7 text-white" />
-                                                                </div>
-                                                                <div>
-                                                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                                                        {order?.item?.name || 'Unknown Item'}
-                                                                        {order?.item?.category && (
-                                                                            <Badge variant="secondary" className="bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 hover:from-blue-200 hover:to-cyan-200 border-blue-200">{order.item.category}</Badge>
-                                                                        )}
-                                                                    </CardTitle>
-                                                                    <CardDescription className="text-sm mt-1">
-                                                                        Order #{bid.orderId.slice(0, 8)} • Placed on {new Date(bid.createdAt).toLocaleDateString()}
-                                                                    </CardDescription>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex flex-col items-end gap-2">
-                                                                <Badge variant="outline" className={`${getStatusColor(bid.status)} font-semibold text-sm px-4 py-1.5 shadow-sm`}>
-                                                                    {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
-                                                                </Badge>
-                                                                {!isBidExpired && bid.status === 'pending' && (
-                                                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                                                        Active
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </CardHeader>
-                                                    <CardContent className="space-y-5 relative z-10">
-                                                        <BidComparisonIndicator orderId={bid.orderId} />
-                                                        
-                                                        {bid.status === 'pending' && order && !isBidExpired && (
-                                                            <div className="flex justify-end">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => openEditBidDialog(bid)}
-                                                                    className="bg-gradient-to-r from-orange-50 to-amber-50 text-orange-600 border-2 border-orange-300 hover:from-orange-100 hover:to-amber-100 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-200/50 dark:from-orange-900/20 dark:to-amber-900/20 dark:text-orange-400 dark:border-orange-700 dark:hover:border-orange-600 transition-all duration-300 font-semibold"
-                                                                >
-                                                                    <TrendingUp className="mr-2 h-4 w-4" />
-                                                                    Update Bid
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                        
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                            <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-md transition-all duration-300 group/card">
-                                                                <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold flex items-center gap-1">
-                                                                    <DollarSign className="h-3 w-3" />
-                                                                    Your Shipping Bid
-                                                                </Label>
-                                                                <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 group-hover/card:scale-105 transition-transform">${bid.bidAmount.toFixed(2)}</p>
-                                                            </div>
-                                                            <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                                <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider font-bold flex items-center gap-1">
-                                                                    <Calendar className="h-3 w-3" />
-                                                                    Delivery Date
-                                                                </Label>
-                                                                <p className="font-bold text-purple-600 dark:text-purple-400 mt-2 text-sm">
-                                                                    {new Date(bid.estimatedDelivery).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                                </p>
-                                                            </div>
-                                                            <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                                <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider font-bold flex items-center gap-1">
-                                                                    <Activity className="h-3 w-3" />
-                                                                    Bid Status
-                                                                </Label>
-                                                                <p className="font-bold capitalize mt-2 text-emerald-600 dark:text-emerald-400">{bid.status}</p>
-                                                            </div>
-                                                            <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border-2 border-orange-200 dark:border-orange-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                                <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider font-bold">Time Remaining</Label>
-                                                                <ClockTimer 
-                                                                    endTime={bidEndTime} 
-                                                                    size={20}
-                                                                    className="mt-2"
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {order?.shippingAddress && (
-                                                            <div className="p-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/30 dark:to-gray-900/30 rounded-xl border-2 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                                <Label className="text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
-                                                                    <Package className="h-3.5 w-3.5" />
-                                                                    Shipping Destination
-                                                                </Label>
-                                                                <p className="font-semibold mt-2 text-slate-700 dark:text-slate-300 leading-relaxed">{order.shippingAddress}</p>
-                                                            </div>
-                                                        )}
-
-                                                        {bid.message && (
-                                                            <div className="p-4 bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-violet-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-lg hover:shadow-blue-200/50 dark:hover:shadow-blue-900/30 transition-all duration-300">
-                                                                <Label className="text-xs text-blue-700 dark:text-blue-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
-                                                                    <Send className="h-3.5 w-3.5" />
-                                                                    Your Note to Buyer
-                                                                </Label>
-                                                                <p className="font-medium mt-2 text-blue-700 dark:text-blue-300 italic leading-relaxed">"{bid.message}"</p>
-                                                            </div>
-                                                        )}
-                                                    </CardContent>
-                                                </Card>
-                                            );
-                                        })}
-                                        {filteredAndSortedBids.length > 5 && (
-                                            <Button
-                                                variant="outline"
-                                                className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                                                onClick={() => setShowAllBids(!showAllBids)}
-                                            >
-                                                {showAllBids ? (
-                                                    <>
-                                                        <ChevronUp className="mr-2 h-4 w-4" />
-                                                        Show Less
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <ChevronDown className="mr-2 h-4 w-4" />
-                                                        Load More ({filteredAndSortedBids.length - 5} more)
-                                                    </>
-                                                )}
-                                            </Button>
-                                        )}
-                                    </>
-                                )}
                             </div>
                         </div>
-
-                    {/* Analytics Dashboard Section */}
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {/* Bid Status Distribution */}
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                                    <PieChart className="h-5 w-5 text-blue-600" />
-                                    Bid Status Distribution
-                                </CardTitle>
-                                <CardDescription>Overview of your shipping bid statuses</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {bidStatusData.length > 0 ? (
-                                    <ChartContainer config={{
-                                        pending: { label: 'Pending', color: '#eab308' },
-                                        accepted: { label: 'Accepted', color: '#22c55e' },
-                                        rejected: { label: 'Rejected', color: '#ef4444' },
-                                    }}>
-                                        <ResponsiveContainer width="100%" height={250}>
-                                            <RechartsPieChart>
-                                                <Pie
-                                                    data={bidStatusData}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    labelLine={false}
-                                                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                                                    outerRadius={80}
-                                                    fill="#8884d8"
-                                                    dataKey="value"
-                                                >
-                                                    {bidStatusData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                                                    ))}
-                                                </Pie>
-                                                <ChartTooltip content={<ChartTooltipContent />} />
-                                            </RechartsPieChart>
-                                        </ResponsiveContainer>
-                                    </ChartContainer>
-                                ) : (
-                                    <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                                        <div className="text-center">
-                                            <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                            <p>No bid data available</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Monthly Revenue Trend */}
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-2">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                                    <Activity className="h-5 w-5 text-emerald-600" />
-                                    Monthly Revenue Trend
-                                </CardTitle>
-                                <CardDescription>Shipping revenue and total bid values over the year</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {monthlyRevenueData.some(d => d.revenue > 0 || d.bids > 0) ? (
-                                    <ChartContainer config={{
-                                        revenue: { label: 'Revenue', color: '#10b981' },
-                                        bids: { label: 'Total Bids', color: '#3b82f6' },
-                                    }}>
-                                        <ResponsiveContainer width="100%" height={250}>
-                                            <AreaChart data={monthlyRevenueData}>
-                                                <defs>
-                                                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                    <linearGradient id="colorBids" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                                                    </linearGradient>
-                                                </defs>
-                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                                                <XAxis dataKey="month" className="text-xs" />
-                                                <YAxis className="text-xs" />
-                                                <ChartTooltip content={<ChartTooltipContent />} />
-                                                <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" />
-                                                <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" />
-                                            </AreaChart>
-                                        </ResponsiveContainer>
-                                    </ChartContainer>
-                                ) : (
-                                    <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                                        <div className="text-center">
-                                            <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                            <p>No revenue data available yet</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-
-                        {/* Recent Bid Activity (Last 7 Days) */}
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-3">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                                    <BarChart3 className="h-5 w-5 text-blue-600" />
-                                    Recent Bid Activity (Last 7 Days)
-                                </CardTitle>
-                                <CardDescription>Daily breakdown of your shipping bid performance</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {recentBidActivity.some(d => d.bids > 0) ? (
-                                    <ChartContainer config={{
-                                        accepted: { label: 'Accepted', color: '#22c55e' },
-                                        pending: { label: 'Pending', color: '#eab308' },
-                                        rejected: { label: 'Rejected', color: '#ef4444' },
-                                    }}>
-                                        <ResponsiveContainer width="100%" height={300}>
-                                            <BarChart data={recentBidActivity}>
-                                                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                                                <XAxis dataKey="day" />
-                                                <YAxis />
-                                                <ChartTooltip content={<ChartTooltipContent />} />
-                                                <Bar dataKey="accepted" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
-                                                <Bar dataKey="pending" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
-                                                <Bar dataKey="rejected" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </ChartContainer>
-                                ) : (
-                                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                                        <div className="text-center">
-                                            <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                            <p>No recent bid activity in the last 7 days</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
                     </div>
 
-                    {/* Bid Dialog */}
-                    <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>
-                        <DialogContent className="sm:max-w-[500px]">
-                            <DialogHeader>
-                                <DialogTitle>{editingBid ? 'Update Your Shipping Bid' : 'Place Your Shipping Bid'}</DialogTitle>
-                                <DialogDescription>
-                                    {editingBid 
-                                        ? `Update your shipping bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
-                                        : `Submit a competitive shipping bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
-                                    }
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-6 py-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="bidAmount" className="text-sm font-medium">Shipping Cost ($)</Label>
-                                    <div className="relative">
-                                        <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            id="bidAmount"
-                                            type="number"
-                                            step="0.01"
-                                            className="pl-9"
-                                            placeholder="Enter your shipping cost"
-                                            value={bidForm.bidAmount}
-                                            onChange={(e) => setBidForm({ ...bidForm, bidAmount: e.target.value })}
-                                        />
+                    <div className="grid gap-6">
+                        {filteredAndSortedBids.length === 0 ? (
+                            bids.length === 0 ? (
+                                <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                    <p className="text-muted-foreground">You haven't placed any shipping bids yet.</p>
+                                </Card>
+                            ) : (
+                                <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                    <p className="text-muted-foreground">No bids found matching your filters.</p>
+                                    <Button
+                                        variant="outline"
+                                        className="mt-4"
+                                        onClick={resetBidFilters}
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                </Card>
+                            )
+                        ) : (
+                            <>
+                                {(showAllBids ? filteredAndSortedBids : filteredAndSortedBids.slice(0, 5)).map((bid) => {
+                                    const order = orders.find(o => o.id === bid.orderId);
+                                    const bidEndTime = order ? calculateBidEndTime(order) : new Date();
+                                    const isBidExpired = new Date() > bidEndTime;
+
+                                    return (
+                                        <Card key={bid.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-100 dark:border-blue-900/50 group overflow-hidden relative">
+                                            {/* Decorative gradient overlay */}
+                                            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl -z-0 group-hover:scale-150 transition-transform duration-500"></div>
+
+                                            <CardHeader className="relative z-10">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                                            <Truck className="h-7 w-7 text-white" />
+                                                        </div>
+                                                        <div>
+                                                            <CardTitle className="flex items-center gap-2 text-lg">
+                                                                {order?.item?.name || 'Unknown Item'}
+                                                                {order?.item?.category && (
+                                                                    <Badge variant="secondary" className="bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 hover:from-blue-200 hover:to-cyan-200 border-blue-200">{order.item.category}</Badge>
+                                                                )}
+                                                            </CardTitle>
+                                                            <CardDescription className="text-sm mt-1">
+                                                                Order #{bid.orderId.slice(0, 8)} • Placed on {new Date(bid.createdAt).toLocaleDateString()}
+                                                            </CardDescription>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col items-end gap-2">
+                                                        <Badge variant="outline" className={`${getStatusColor(bid.status)} font-semibold text-sm px-4 py-1.5 shadow-sm`}>
+                                                            {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
+                                                        </Badge>
+                                                        {!isBidExpired && bid.status === 'pending' && (
+                                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                                                Active
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="space-y-5 relative z-10">
+                                                <BidComparisonIndicator orderId={bid.orderId} />
+
+                                                {bid.status === 'pending' && order && !isBidExpired && (
+                                                    <div className="flex justify-end">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => openEditBidDialog(bid)}
+                                                            className="bg-gradient-to-r from-orange-50 to-amber-50 text-orange-600 border-2 border-orange-300 hover:from-orange-100 hover:to-amber-100 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-200/50 dark:from-orange-900/20 dark:to-amber-900/20 dark:text-orange-400 dark:border-orange-700 dark:hover:border-orange-600 transition-all duration-300 font-semibold"
+                                                        >
+                                                            <TrendingUp className="mr-2 h-4 w-4" />
+                                                            Update Bid
+                                                        </Button>
+                                                    </div>
+                                                )}
+
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                    <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-md transition-all duration-300 group/card">
+                                                        <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                                                            <DollarSign className="h-3 w-3" />
+                                                            Your Shipping Bid
+                                                        </Label>
+                                                        <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 group-hover/card:scale-105 transition-transform">${bid.bidAmount.toFixed(2)}</p>
+                                                    </div>
+                                                    <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-800 shadow-sm hover:shadow-md transition-all duration-300">
+                                                        <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            Delivery Date
+                                                        </Label>
+                                                        <p className="font-bold text-purple-600 dark:text-purple-400 mt-2 text-sm">
+                                                            {new Date(bid.estimatedDelivery).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        </p>
+                                                    </div>
+                                                    <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 shadow-sm hover:shadow-md transition-all duration-300">
+                                                        <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                                                            <Activity className="h-3 w-3" />
+                                                            Bid Status
+                                                        </Label>
+                                                        <p className="font-bold capitalize mt-2 text-emerald-600 dark:text-emerald-400">{bid.status}</p>
+                                                    </div>
+                                                    <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border-2 border-orange-200 dark:border-orange-800 shadow-sm hover:shadow-md transition-all duration-300">
+                                                        <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider font-bold">Time Remaining</Label>
+                                                        <ClockTimer
+                                                            endTime={bidEndTime}
+                                                            size={20}
+                                                            className="mt-2"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {order?.shippingAddress && (
+                                                    <div className="p-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/30 dark:to-gray-900/30 rounded-xl border-2 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300">
+                                                        <Label className="text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                            <Package className="h-3.5 w-3.5" />
+                                                            Shipping Destination
+                                                        </Label>
+                                                        <p className="font-semibold mt-2 text-slate-700 dark:text-slate-300 leading-relaxed">{order.shippingAddress}</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Pickup Address from Seller's Bid */}
+                                                {sellerBids[bid.orderId]?.pickupAddress && (
+                                                    <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border-2 border-orange-200 dark:border-orange-800 shadow-sm hover:shadow-md transition-all duration-300">
+                                                        <Label className="text-xs text-orange-700 dark:text-orange-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                            <Truck className="h-3.5 w-3.5" />
+                                                            Pickup Address (Seller's Location)
+                                                        </Label>
+                                                        <p className="font-semibold mt-2 text-orange-700 dark:text-orange-300 leading-relaxed">{sellerBids[bid.orderId].pickupAddress}</p>
+                                                        <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Collect goods from this address</p>
+                                                    </div>
+                                                )}
+
+                                                {bid.message && (
+                                                    <div className="p-4 bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-violet-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-lg hover:shadow-blue-200/50 dark:hover:shadow-blue-900/30 transition-all duration-300">
+                                                        <Label className="text-xs text-blue-700 dark:text-blue-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                            <Send className="h-3.5 w-3.5" />
+                                                            Your Note to Buyer
+                                                        </Label>
+                                                        <p className="font-medium mt-2 text-blue-700 dark:text-blue-300 italic leading-relaxed">"{bid.message}"</p>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                                {filteredAndSortedBids.length > 5 && (
+                                    <Button
+                                        variant="outline"
+                                        className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                        onClick={() => setShowAllBids(!showAllBids)}
+                                    >
+                                        {showAllBids ? (
+                                            <>
+                                                <ChevronUp className="mr-2 h-4 w-4" />
+                                                Show Less
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ChevronDown className="mr-2 h-4 w-4" />
+                                                Load More ({filteredAndSortedBids.length - 5} more)
+                                            </>
+                                        )}
+                                    </Button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* Analytics Dashboard Section */}
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    {/* Bid Status Distribution */}
+                    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                                <PieChart className="h-5 w-5 text-blue-600" />
+                                Bid Status Distribution
+                            </CardTitle>
+                            <CardDescription>Overview of your shipping bid statuses</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {bidStatusData.length > 0 ? (
+                                <ChartContainer config={{
+                                    pending: { label: 'Pending', color: '#eab308' },
+                                    accepted: { label: 'Accepted', color: '#22c55e' },
+                                    rejected: { label: 'Rejected', color: '#ef4444' },
+                                }}>
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <RechartsPieChart>
+                                            <Pie
+                                                data={bidStatusData}
+                                                cx="50%"
+                                                cy="50%"
+                                                labelLine={false}
+                                                label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                                                outerRadius={80}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                            >
+                                                {bidStatusData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                            </Pie>
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                        </RechartsPieChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            ) : (
+                                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                    <div className="text-center">
+                                        <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                        <p>No bid data available</p>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="estimatedDelivery" className="text-sm font-medium">Estimated Delivery Date</Label>
-                                    <Input
-                                        id="estimatedDelivery"
-                                        type="date"
-                                        min={new Date().toISOString().split('T')[0]}
-                                        value={bidForm.estimatedDelivery}
-                                        onChange={(e) => setBidForm({ ...bidForm, estimatedDelivery: e.target.value })}
-                                    />
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Monthly Revenue Trend */}
+                    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-2">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                                <Activity className="h-5 w-5 text-emerald-600" />
+                                Monthly Revenue Trend
+                            </CardTitle>
+                            <CardDescription>Shipping revenue and total bid values over the year</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {monthlyRevenueData.some(d => d.revenue > 0 || d.bids > 0) ? (
+                                <ChartContainer config={{
+                                    revenue: { label: 'Revenue', color: '#10b981' },
+                                    bids: { label: 'Total Bids', color: '#3b82f6' },
+                                }}>
+                                    <ResponsiveContainer width="100%" height={250}>
+                                        <AreaChart data={monthlyRevenueData}>
+                                            <defs>
+                                                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                                </linearGradient>
+                                                <linearGradient id="colorBids" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                            <XAxis dataKey="month" className="text-xs" />
+                                            <YAxis className="text-xs" />
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" />
+                                            <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            ) : (
+                                <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                    <div className="text-center">
+                                        <Activity className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                        <p>No revenue data available yet</p>
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="message" className="text-sm font-medium">Message (Optional)</Label>
-                                    <Textarea
-                                        id="message"
-                                        placeholder="Add a personalized message..."
-                                        value={bidForm.message}
-                                        onChange={(e) => setBidForm({ ...bidForm, message: e.target.value })}
-                                        rows={4}
-                                        className="resize-none"
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Recent Bid Activity (Last 7 Days) */}
+                    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-3">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                                <BarChart3 className="h-5 w-5 text-blue-600" />
+                                Recent Bid Activity (Last 7 Days)
+                            </CardTitle>
+                            <CardDescription>Daily breakdown of your shipping bid performance</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {recentBidActivity.some(d => d.bids > 0) ? (
+                                <ChartContainer config={{
+                                    accepted: { label: 'Accepted', color: '#22c55e' },
+                                    pending: { label: 'Pending', color: '#eab308' },
+                                    rejected: { label: 'Rejected', color: '#ef4444' },
+                                }}>
+                                    <ResponsiveContainer width="100%" height={300}>
+                                        <BarChart data={recentBidActivity}>
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                                            <XAxis dataKey="day" />
+                                            <YAxis />
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <Bar dataKey="accepted" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
+                                            <Bar dataKey="pending" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
+                                            <Bar dataKey="rejected" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </ChartContainer>
+                            ) : (
+                                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                                    <div className="text-center">
+                                        <BarChart3 className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                        <p>No recent bid activity in the last 7 days</p>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Bid Dialog */}
+                <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>{editingBid ? 'Update Your Shipping Bid' : 'Place Your Shipping Bid'}</DialogTitle>
+                            <DialogDescription>
+                                {editingBid
+                                    ? `Update your shipping bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
+                                    : `Submit a competitive shipping bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
+                                }
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-6 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="bidAmount" className="text-sm font-medium">Shipping Cost ($)</Label>
+                                <div className="relative">
+                                    <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        id="bidAmount"
+                                        type="number"
+                                        step="0.01"
+                                        className="pl-9"
+                                        placeholder="Enter your shipping cost"
+                                        value={bidForm.bidAmount}
+                                        onChange={(e) => setBidForm({ ...bidForm, bidAmount: e.target.value })}
                                     />
                                 </div>
                             </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => {
-                                    setIsBidDialogOpen(false);
-                                    setEditingBid(null);
-                                    setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
-                                }}>
-                                    Cancel
-                                </Button>
-                                <Button
-                                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/20"
-                                    onClick={editingBid ? updateExistingBid : submitBid}
-                                    disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
-                                >
-                                    <Send className="mr-2 h-4 w-4" />
-                                    {submittingBid ? (editingBid ? "Updating..." : "Submitting...") : (editingBid ? "Update Bid" : "Submit Bid")}
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="estimatedDelivery" className="text-sm font-medium">Estimated Delivery Date</Label>
+                                <Input
+                                    id="estimatedDelivery"
+                                    type="date"
+                                    min={new Date().toISOString().split('T')[0]}
+                                    value={bidForm.estimatedDelivery}
+                                    onChange={(e) => setBidForm({ ...bidForm, estimatedDelivery: e.target.value })}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="message" className="text-sm font-medium">Message (Optional)</Label>
+                                <Textarea
+                                    id="message"
+                                    placeholder="Add a personalized message..."
+                                    value={bidForm.message}
+                                    onChange={(e) => setBidForm({ ...bidForm, message: e.target.value })}
+                                    rows={4}
+                                    className="resize-none"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => {
+                                setIsBidDialogOpen(false);
+                                setEditingBid(null);
+                                setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
+                            }}>
+                                Cancel
+                            </Button>
+                            <Button
+                                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/20"
+                                onClick={editingBid ? updateExistingBid : submitBid}
+                                disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
+                            >
+                                <Send className="mr-2 h-4 w-4" />
+                                {submittingBid ? (editingBid ? "Updating..." : "Submitting...") : (editingBid ? "Update Bid" : "Submit Bid")}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </DashboardLayout>
     );
 }

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ShoppingCart, Package, DollarSign, TrendingUp, Eye, Plus, Check, X, Clock, Search, Leaf, Wheat, Apple, Nut, List, Trash2, Send, MoreHorizontal, Copy, Edit, Filter, SortAsc, SortDesc, ChevronDown, ChevronUp } from 'lucide-react';
+import { ShoppingCart, Package, DollarSign, TrendingUp, TrendingDown, Eye, Plus, Check, X, Clock, Search, Leaf, Wheat, Apple, Nut, List, Trash2, Send, MoreHorizontal, Copy, Edit, Filter, SortAsc, SortDesc, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import { Item, Order, Bid, ShippingBid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { CardContainer, CardBody, CardItem } from '@/components/ui/aceternity/3d-card';
@@ -24,6 +24,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { LocalCache, CacheKeys, CacheDuration } from '@/lib/cache';
+import { processAutoAccepts } from '@/lib/auto-accept';
 
 // Predefined Product Catalog with Varieties
 const PRODUCT_CATALOG = {
@@ -590,7 +592,8 @@ function BuyerDashboardContent() {
         incoterms: '',
         shippingAddress: '',
         notes: '',
-        bidRunningTime: '', // in days
+        sellerBidRunningTime: '', // Phase 1: Seller bid running time in days
+        shippingBidRunningTime: '', // Phase 2: Shipping bid running time in days
     });
     const [selectedCatalogProduct, setSelectedCatalogProduct] = useState<CatalogProduct | null>(null);
 
@@ -632,6 +635,10 @@ function BuyerDashboardContent() {
 
     // Filter and sort Live Bids
     const filteredAndSortedLiveBids = useMemo(() => {
+        console.log('=== Live Bids Filtering Debug ===');
+        console.log('Total bids:', bids.length);
+        console.log('All bids:', bids);
+
         const liveBidsData = Object.values(
             bids.filter(b => b.status === 'pending').reduce((acc, bid) => {
                 if (!acc[bid.orderId] || bid.bidAmount < acc[bid.orderId].bidAmount) {
@@ -640,6 +647,9 @@ function BuyerDashboardContent() {
                 return acc;
             }, {} as Record<string, Bid>)
         );
+
+        console.log('Pending bids:', bids.filter(b => b.status === 'pending'));
+        console.log('Live bids data (lowest per order):', liveBidsData);
 
         let filtered = liveBidsData.filter(bid => {
             if (!liveBidsSearchQuery) return true;
@@ -653,12 +663,14 @@ function BuyerDashboardContent() {
             );
         });
 
+        console.log('Filtered bids:', filtered);
+
         // Sort Live Bids by total cost (seller bid + shipping bid)
         filtered.sort((a, b) => {
             let aValue: any, bValue: any;
             const aOrder = orders.find(o => o.id === a.orderId);
             const bOrder = orders.find(o => o.id === b.orderId);
-            
+
             // Get shipping bids for each order
             const aShippingBids = shippingBids.filter(sb => sb.orderId === a.orderId && sb.status === 'pending');
             const bShippingBids = shippingBids.filter(sb => sb.orderId === b.orderId && sb.status === 'pending');
@@ -666,7 +678,7 @@ function BuyerDashboardContent() {
             const bLowestShipping = bShippingBids.length > 0 ? Math.min(...bShippingBids.map(sb => sb.bidAmount)) : 0;
             const aTotalCost = a.bidAmount + aLowestShipping;
             const bTotalCost = b.bidAmount + bLowestShipping;
-            
+
             switch (liveBidsSortBy) {
                 case 'date':
                     aValue = new Date(a.createdAt);
@@ -693,13 +705,16 @@ function BuyerDashboardContent() {
                     aValue = new Date(a.createdAt);
                     bValue = new Date(b.createdAt);
             }
-            
+
             if (liveBidsSortDirection === 'asc') {
                 return aValue > bValue ? 1 : -1;
             } else {
                 return aValue < bValue ? 1 : -1;
             }
         });
+
+        console.log('Final sorted bids:', filtered);
+        console.log('=== End Live Bids Filtering Debug ===');
 
         return filtered;
     }, [bids, shippingBids, orders, liveBidsSearchQuery, liveBidsSortBy, liveBidsSortDirection]);
@@ -720,15 +735,15 @@ function BuyerDashboardContent() {
     // Calculate bid end time based on order creation and bid running time
     const calculateBidEndTime = (order: Order | undefined) => {
         if (!order) return new Date();
-        
+
         const createdAt = new Date(order.createdAt);
         const bidRunningDays = 7; // Default 7 days if not specified
-        
+
         // Try to get bid running time from specifications
         const specs = order.item?.specifications as any;
-        const specifiedDays = specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
+        const specifiedDays = specs?.['Seller Bid Running Time (days)'] || specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
         const daysToAdd = specifiedDays ? parseInt(specifiedDays.toString()) : bidRunningDays;
-        
+
         const endTime = new Date(createdAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
         return endTime;
     };
@@ -791,7 +806,7 @@ function BuyerDashboardContent() {
         // Sort My Bids
         filtered.sort((a, b) => {
             let aValue: any, bValue: any;
-            
+
             switch (myBidsSortBy) {
                 case 'date':
                     aValue = new Date(a.createdAt);
@@ -817,7 +832,7 @@ function BuyerDashboardContent() {
                     aValue = new Date(a.createdAt);
                     bValue = new Date(b.createdAt);
             }
-            
+
             if (myBidsSortDirection === 'asc') {
                 return aValue > bValue ? 1 : -1;
             } else {
@@ -831,7 +846,7 @@ function BuyerDashboardContent() {
     const getBidTimeLeftLabel = (order: Order | undefined) => {
         if (!order) return 'N/A';
         const specs = order.item?.specifications || {};
-        const runningDaysRaw = (specs as any)['Bid Running Time (days)'];
+        const runningDaysRaw = (specs as any)['Seller Bid Running Time (days)'] || (specs as any)['Bid Running Time (days)'];
         const runningDays = runningDaysRaw ? parseInt(String(runningDaysRaw)) : NaN;
         if (!runningDays || isNaN(runningDays) || runningDays <= 0) return 'N/A';
 
@@ -892,18 +907,9 @@ function BuyerDashboardContent() {
     }, [items]);
 
     // Size options for bid form
+    // Size options for bid form - simplified to just kg
     const SIZE_OPTIONS = [
-        { value: '1kg', label: '1 kg' },
-        { value: '5kg', label: '5 kg' },
-        { value: '10kg', label: '10 kg' },
-        { value: '25kg', label: '25 kg' },
-        { value: '50kg', label: '50 kg' },
-        { value: '100kg', label: '100 kg' },
-        { value: '500kg', label: '500 kg' },
-        { value: '1ton', label: '1 Ton' },
-        { value: '5ton', label: '5 Tons' },
-        { value: '10ton', label: '10 Tons' },
-        { value: 'container', label: 'Container Load' },
+        { value: 'kg', label: 'kg' },
     ];
 
     // Select a product from catalog
@@ -1070,34 +1076,115 @@ function BuyerDashboardContent() {
         }
     }, [user, authLoading, router]);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (forceRefresh = false) => {
         if (!user) return;
         try {
             setLoading(true);
-            const [itemsData, ordersData, statsData] = await Promise.all([
+
+            // Try to get cached data first (if not forcing refresh)
+            let itemsData: Item[] | null = null;
+            let ordersData: Order[] | null = null;
+
+            if (!forceRefresh) {
+                itemsData = LocalCache.get<Item[]>(CacheKeys.items());
+                ordersData = LocalCache.get<Order[]>(CacheKeys.orders(user.id));
+
+                if (itemsData && ordersData) {
+                    console.log('Using cached data');
+                    setItems(itemsData);
+                    setOrders(ordersData);
+
+                    // Still fetch bids as they change frequently
+                    const bidsPromises = ordersData.map(order => getBidsByOrder(order.id));
+                    const shippingBidsPromises = ordersData.map(order => getShippingBidsByOrder(order.id));
+                    const [bidsArrays, shippingBidsArrays] = await Promise.all([
+                        Promise.all(bidsPromises),
+                        Promise.all(shippingBidsPromises)
+                    ]);
+                    const allBids = bidsArrays.flat();
+                    const allShippingBids = shippingBidsArrays.flat();
+
+                    setBids(allBids);
+                    setShippingBids(allShippingBids);
+
+                    // Process auto-accepts for expired bids
+                    processAutoAccepts(ordersData, allBids, allShippingBids).then((result) => {
+                        if (result.sellerAccepted > 0 || result.shippingAccepted > 0) {
+                            console.log(`Auto-accepted: ${result.sellerAccepted} seller bids, ${result.shippingAccepted} shipping bids`);
+                            toast({
+                                title: "Bids Auto-Accepted",
+                                description: `${result.sellerAccepted} seller bid(s) and ${result.shippingAccepted} shipping bid(s) were automatically accepted due to time expiration.`,
+                            });
+                            // Refresh data after auto-accept
+                            fetchData(true);
+                        }
+                    });
+
+                    setLoading(false);
+                    return;
+                }
+            }
+
+            // Fetch fresh data from Supabase
+            console.log('Fetching fresh data from Supabase');
+            const [freshItems, freshOrders, statsData] = await Promise.all([
                 getActiveItems(),
                 getOrdersByBuyer(user.id),
                 getBuyerStats(user.id),
             ]);
 
-            setItems(itemsData);
-            setOrders(ordersData);
+            // Cache the fresh data
+            LocalCache.set(CacheKeys.items(), freshItems, CacheDuration.MEDIUM);
+            LocalCache.set(CacheKeys.orders(user.id), freshOrders, CacheDuration.SHORT);
+
+            setItems(freshItems);
+            setOrders(freshOrders);
 
             // Fetch bids for all orders (both seller bids and shipping bids)
-            const bidsPromises = ordersData.map(order => getBidsByOrder(order.id));
-            const shippingBidsPromises = ordersData.map(order => getShippingBidsByOrder(order.id));
+            console.log('=== Fetching Bids Debug ===');
+            console.log('Fetching bids for orders:', freshOrders.map(o => ({ id: o.id, status: o.status })));
+
+            const bidsPromises = freshOrders.map(order => getBidsByOrder(order.id));
+            const shippingBidsPromises = freshOrders.map(order => getShippingBidsByOrder(order.id));
             const [bidsArrays, shippingBidsArrays] = await Promise.all([
                 Promise.all(bidsPromises),
                 Promise.all(shippingBidsPromises)
             ]);
-            setBids(bidsArrays.flat());
-            setShippingBids(shippingBidsArrays.flat());
+            const allBids = bidsArrays.flat();
+            const allShippingBids = shippingBidsArrays.flat();
+
+            console.log('Fetched bids:', allBids);
+            console.log('Fetched shipping bids:', allShippingBids);
+            console.log('=== End Fetching Bids Debug ===');
+
+            // Cache bids
+            LocalCache.set(CacheKeys.bids(user.id), allBids, CacheDuration.SHORT);
+            LocalCache.set(CacheKeys.shippingBids(user.id), allShippingBids, CacheDuration.SHORT);
+
+            setBids(allBids);
+            setShippingBids(allShippingBids);
+
+            // Process auto-accepts for expired bids
+            processAutoAccepts(freshOrders, allBids, allShippingBids).then((result) => {
+                if (result.sellerAccepted > 0 || result.shippingAccepted > 0) {
+                    console.log(`Auto-accepted: ${result.sellerAccepted} seller bids, ${result.shippingAccepted} shipping bids`);
+                    toast({
+                        title: "Bids Auto-Accepted",
+                        description: `${result.sellerAccepted} seller bid(s) and ${result.shippingAccepted} shipping bid(s) were automatically accepted due to time expiration.`,
+                    });
+                    // Invalidate cache and refresh
+                    LocalCache.remove(CacheKeys.orders(user.id));
+                    LocalCache.remove(CacheKeys.bids(user.id));
+                    LocalCache.remove(CacheKeys.shippingBids(user.id));
+                    setTimeout(() => fetchData(true), 1000);
+                }
+            });
         } catch (error) {
             console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
         }
-    }, [user]);
+    }, [user, toast]);
 
     // Separate effect for fetching data
     useEffect(() => {
@@ -1195,12 +1282,12 @@ function BuyerDashboardContent() {
 
         // Validation
         const isIndia = bidForm.country === 'India';
-        
+
         // Basic required fields
-        if (!bidForm.productName || !bidForm.quantity || !bidForm.shippingAddress || !bidForm.expectedDeliveryDate || !bidForm.bidRunningTime || !bidForm.country || !bidForm.city) {
+        if (!bidForm.productName || !bidForm.quantity || !bidForm.shippingAddress || !bidForm.expectedDeliveryDate || !bidForm.sellerBidRunningTime || !bidForm.shippingBidRunningTime || !bidForm.country || !bidForm.city) {
             toast({
                 title: "Validation Error",
-                description: "Please fill in all required fields (Product, Quantity, Country, City, Shipping Address, Expected Delivery Date, Bid Running Time).",
+                description: "Please fill in all required fields (Product, Quantity, Country, City, Shipping Address, Expected Delivery Date, Seller Bid Time, Shipping Bid Time).",
                 variant: "destructive",
             });
             return;
@@ -1216,7 +1303,7 @@ function BuyerDashboardContent() {
                 });
                 return;
             }
-            
+
             // Validate pincode (6 digits for India)
             if (bidForm.pincode.length !== 6) {
                 toast({
@@ -1248,12 +1335,23 @@ function BuyerDashboardContent() {
             return;
         }
 
-        // Validate bid running time (in days)
-        const bidRunningTimeDays = parseInt(bidForm.bidRunningTime);
-        if (isNaN(bidRunningTimeDays) || bidRunningTimeDays <= 0) {
+        // Validate seller bid running time (in days)
+        const sellerBidDays = parseInt(bidForm.sellerBidRunningTime);
+        if (isNaN(sellerBidDays) || sellerBidDays <= 0) {
             toast({
                 title: "Validation Error",
-                description: "Please enter a valid bid running time in days.",
+                description: "Please enter a valid seller bid running time (must be at least 1 day).",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        // Validate shipping bid running time (in days)
+        const shippingBidDays = parseInt(bidForm.shippingBidRunningTime);
+        if (isNaN(shippingBidDays) || shippingBidDays <= 0) {
+            toast({
+                title: "Validation Error",
+                description: "Please enter a valid shipping bid running time (must be at least 1 day).",
                 variant: "destructive",
             });
             return;
@@ -1279,7 +1377,8 @@ function BuyerDashboardContent() {
                     'Expected Delivery': bidForm.expectedDeliveryDate,
                     'Destination Country': bidForm.country,
                     ...(bidForm.country !== 'India' && bidForm.incoterms && { 'Incoterms': `${bidForm.incoterms} - ${INCOTERMS.find(i => i.code === bidForm.incoterms)?.name || bidForm.incoterms}` }),
-                    'Bid Running Time (days)': String(bidRunningTimeDays),
+                    'Seller Bid Running Time (days)': String(sellerBidDays),
+                    'Shipping Bid Running Time (days)': String(shippingBidDays),
                 },
                 sellerId: null as any, // Bid request items don't have a seller initially
                 status: 'active',
@@ -1287,11 +1386,11 @@ function BuyerDashboardContent() {
 
             // Then create the order/bid request
             const isIndia = bidForm.country === 'India';
-            const locationInfo = isIndia 
-                ? `${bidForm.city}, ${bidForm.state} - ${bidForm.pincode}` 
+            const locationInfo = isIndia
+                ? `${bidForm.city}, ${bidForm.state} - ${bidForm.pincode}`
                 : `${bidForm.city}, ${bidForm.state ? bidForm.state + ', ' : ''}${bidForm.country}`;
             const fullAddress = `${bidForm.shippingAddress}, ${locationInfo}`;
-            
+
             const orderNotes = [
                 `Bid request for ${bidForm.productName}.`,
                 `Quality: ${bidForm.quality || 'Not specified'}.`,
@@ -1332,7 +1431,8 @@ function BuyerDashboardContent() {
                 incoterms: '',
                 shippingAddress: '',
                 notes: '',
-                bidRunningTime: '',
+                sellerBidRunningTime: '',
+                shippingBidRunningTime: '',
             });
             setSelectedCatalogProduct(null);
 
@@ -1363,29 +1463,36 @@ function BuyerDashboardContent() {
 
             // Find the lowest shipping bid for this order
             const orderShippingBids = shippingBids.filter(sb => sb.orderId === bid.orderId && sb.status === 'pending');
-            const lowestShippingBid = orderShippingBids.length > 0 
+            const lowestShippingBid = orderShippingBids.length > 0
                 ? orderShippingBids.reduce((lowest, sb) => sb.bidAmount < lowest.bidAmount ? sb : lowest)
                 : null;
 
             // Accept the seller bid
             await updateBid(bidId, { status: 'accepted' });
-            
+
             // Accept the lowest shipping bid if available
             if (lowestShippingBid) {
                 await updateShippingBid(lowestShippingBid.id, { status: 'accepted' });
             }
-            
+
             // Reject all other bids for this order
             const otherSellerBids = bids.filter(b => b.orderId === bid.orderId && b.id !== bidId && b.status === 'pending');
             const otherShippingBids = shippingBids.filter(sb => sb.orderId === bid.orderId && sb.id !== lowestShippingBid?.id && sb.status === 'pending');
-            
+
             await Promise.all([
                 ...otherSellerBids.map(b => updateBid(b.id, { status: 'rejected' })),
                 ...otherShippingBids.map(sb => updateShippingBid(sb.id, { status: 'rejected' }))
             ]);
-            
+
             // Also update the order status to accepted
             await updateOrder(bid.orderId, { status: 'accepted' });
+
+            // Invalidate cache
+            if (user) {
+                LocalCache.remove(CacheKeys.orders(user.id));
+                LocalCache.remove(CacheKeys.bids(user.id));
+                LocalCache.remove(CacheKeys.shippingBids(user.id));
+            }
 
             const totalCost = bid.bidAmount + (lowestShippingBid?.bidAmount || 0);
             toast({
@@ -1393,7 +1500,7 @@ function BuyerDashboardContent() {
                 description: `You've accepted the seller bid ($${bid.bidAmount.toFixed(2)})${lowestShippingBid ? ` and shipping bid ($${lowestShippingBid.bidAmount.toFixed(2)})` : ''}. Total: $${totalCost.toFixed(2)}`,
             });
 
-            await fetchData();
+            await fetchData(true);
         } catch (error: any) {
             console.error('Error accepting bid:', error);
             toast({
@@ -1824,7 +1931,7 @@ function BuyerDashboardContent() {
                                                     </Button>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Enhanced Search and Filter Controls for My Bids */}
                                             <div className="space-y-3">
                                                 {/* Search Bar */}
@@ -1866,7 +1973,7 @@ function BuyerDashboardContent() {
                                                             <SelectItem value="name">Product Name</SelectItem>
                                                         </SelectContent>
                                                     </Select>
-                                                    
+
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
@@ -1885,118 +1992,124 @@ function BuyerDashboardContent() {
                                                     </div>
                                                 ) : (
                                                     (myBidsShowAll ? filteredAndSortedMyBids : filteredAndSortedMyBids.slice(0, 10)).map((order, index) => {
-                                                    const serial = index + 1;
-                                                    const specifications = order.item?.specifications || {};
-                                                    const hsnCode = (specifications as any)['HSN Code'] || '-';
-                                                    const quality = (specifications as any)['Quality Grade'] || '-';
-                                                    const size = order.item?.size || '-';
-                                                    const expectedDelivery = (specifications as any)['Expected Delivery'] || '-';
-                                                    const bidRunningTime = (specifications as any)['Bid Running Time (days)'] || '-';
-                                                    const remainingTime = calculateRemainingTime(order.createdAt, bidRunningTime);
-                                                    const pincodeMatch = order.shippingAddress?.match(/(\d{6})(?!.*\d{6})/);
-                                                    const pincode = pincodeMatch ? pincodeMatch[1] : '-';
+                                                        const serial = index + 1;
+                                                        const specifications = order.item?.specifications || {};
+                                                        const hsnCode = (specifications as any)['HSN Code'] || '-';
+                                                        const quality = (specifications as any)['Quality Grade'] || '-';
+                                                        const size = order.item?.size || '-';
+                                                        const expectedDelivery = (specifications as any)['Expected Delivery'] || '-';
+                                                        const sellerBidTime = (specifications as any)['Seller Bid Running Time (days)'] || (specifications as any)['Bid Running Time (days)'] || '-';
+                                                        const remainingTime = calculateRemainingTime(order.createdAt, sellerBidTime);
+                                                        const pincodeMatch = order.shippingAddress?.match(/(\d{6})(?!.*\d{6})/);
+                                                        const pincode = pincodeMatch ? pincodeMatch[1] : '-';
 
-                                                    return (
-                                                        <div
-                                                            key={order.id}
-                                                            className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-md bg-background px-4 py-4 border border-dashed border-purple-200 dark:border-purple-700"
-                                                        >
-                                                            <div className="flex items-start gap-2 text-sm md:text-base">
-                                                                <span className="font-semibold w-5">{serial}.</span>
-                                                                <div className="space-y-0.5">
-                                                                    <p className="font-medium line-clamp-1">
-                                                                        {order.item?.name || 'Bid Request'}
-                                                                    </p>
-                                                                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm text-muted-foreground">
-                                                                        <span>HSN: <span className="font-medium text-foreground">{hsnCode}</span></span>
-                                                                        <span>Quality: <span className="font-medium text-foreground">{quality}</span></span>
-                                                                        <span>Qty: <span className="font-medium text-foreground">{order.quantity}</span></span>
-                                                                        <span>Size: <span className="font-medium text-foreground">{size}</span></span>
-                                                                        <span>Expected: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
-                                                                        <span>Pincode: <span className="font-medium text-foreground">{pincode}</span></span>
-                                                                        <span className="flex items-center gap-1">
-                                                                            Time Remaining: 
-                                                                            <ClockTimer 
-                                                                                endTime={calculateBidEndTime(order)} 
-                                                                                size={16}
-                                                                            />
-                                                                        </span>
+                                                        return (
+                                                            <div
+                                                                key={order.id}
+                                                                className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-md bg-background px-4 py-4 border border-dashed border-purple-200 dark:border-purple-700"
+                                                            >
+                                                                <div className="flex items-start gap-2 text-sm md:text-base">
+                                                                    <span className="font-semibold w-5">{serial}.</span>
+                                                                    <div className="space-y-0.5">
+                                                                        <p className="font-medium line-clamp-1">
+                                                                            {order.item?.name || 'Bid Request'}
+                                                                        </p>
+                                                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm text-muted-foreground">
+                                                                            <span>HSN: <span className="font-medium text-foreground">{hsnCode}</span></span>
+                                                                            <span>Quality: <span className="font-medium text-foreground">{quality}</span></span>
+                                                                            <span>Qty: <span className="font-medium text-foreground">{order.quantity}</span></span>
+                                                                            <span>Size: <span className="font-medium text-foreground">{size}</span></span>
+                                                                            <span>Expected: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
+                                                                            <span>Pincode: <span className="font-medium text-foreground">{pincode}</span></span>
+                                                                            <span className="flex items-center gap-1">
+                                                                                Time Remaining:
+                                                                                <ClockTimer
+                                                                                    endTime={calculateBidEndTime(order)}
+                                                                                    size={16}
+                                                                                />
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
+                                                                <div className="flex justify-end">
+                                                                    <DropdownMenu
+                                                                        open={openDropdowns[order.id] || false}
+                                                                        onOpenChange={(isOpen) =>
+                                                                            setOpenDropdowns(prev => ({ ...prev, [order.id]: isOpen }))
+                                                                        }
+                                                                    >
+                                                                        <DropdownMenuTrigger asChild>
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="outline"
+                                                                                className="h-8 w-8 p-0"
+                                                                            >
+                                                                                <MoreHorizontal className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </DropdownMenuTrigger>
+                                                                        <DropdownMenuContent align="end" className="w-48">
+                                                                            <DropdownMenuItem
+                                                                                onClick={() => {
+                                                                                    const specs = order.item?.specifications || {};
+                                                                                    setBidForm({
+                                                                                        productName: order.item?.name || '',
+                                                                                        hsnCode: (specs as any)['HSN Code'] || '',
+                                                                                        size: order.item?.size || '',
+                                                                                        specification: (specs as any)['Specification'] || '',
+                                                                                        quality: '',
+                                                                                        quantity: String(order.quantity || ''),
+                                                                                        expectedDeliveryDate: (specs as any)['Expected Delivery'] || '',
+                                                                                        pincode,
+                                                                                        city: '',
+                                                                                        state: '',
+                                                                                        country: 'India',
+                                                                                        incoterms: '',
+                                                                                        shippingAddress: order.shippingAddress || '',
+                                                                                        notes: order.notes || '',
+                                                                                        sellerBidRunningTime: (specs as any)['Seller Bid Running Time (days)'] || (specs as any)['Bid Running Time (days)'] || '',
+                                                                                        shippingBidRunningTime: (specs as any)['Shipping Bid Running Time (days)'] || '',
+                                                                                    });
+                                                                                    setIsPlaceBidDialogOpen(true);
+                                                                                    setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
+                                                                                }}
+                                                                            >
+                                                                                <Copy className="mr-2 h-4 w-4" />
+                                                                                Duplicate
+                                                                            </DropdownMenuItem>
+                                                                            <DropdownMenuItem
+                                                                                onClick={() => {
+                                                                                    const specs = order.item?.specifications || {};
+                                                                                    setBidForm({
+                                                                                        productName: order.item?.name || '',
+                                                                                        hsnCode: (specs as any)['HSN Code'] || '',
+                                                                                        size: order.item?.size || '',
+                                                                                        specification: (specs as any)['Specification'] || '',
+                                                                                        quality: '',
+                                                                                        quantity: String(order.quantity || ''),
+                                                                                        expectedDeliveryDate: (specs as any)['Expected Delivery'] || '',
+                                                                                        pincode,
+                                                                                        city: '',
+                                                                                        state: '',
+                                                                                        country: 'India',
+                                                                                        incoterms: '',
+                                                                                        shippingAddress: order.shippingAddress || '',
+                                                                                        notes: order.notes || '',
+                                                                                        sellerBidRunningTime: (specs as any)['Seller Bid Running Time (days)'] || (specs as any)['Bid Running Time (days)'] || '',
+                                                                                        shippingBidRunningTime: (specs as any)['Shipping Bid Running Time (days)'] || '',
+                                                                                    });
+                                                                                    setIsPlaceBidDialogOpen(true);
+                                                                                    setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
+                                                                                }}
+                                                                            >
+                                                                                <Edit className="mr-2 h-4 w-4" />
+                                                                                Modify
+                                                                            </DropdownMenuItem>
+                                                                        </DropdownMenuContent>
+                                                                    </DropdownMenu>
+                                                                </div>
                                                             </div>
-                                                            <div className="flex justify-end">
-                                                                <DropdownMenu
-                                                                    open={openDropdowns[order.id] || false}
-                                                                    onOpenChange={(isOpen) =>
-                                                                        setOpenDropdowns(prev => ({ ...prev, [order.id]: isOpen }))
-                                                                    }
-                                                                >
-                                                                    <DropdownMenuTrigger asChild>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            className="h-8 w-8 p-0"
-                                                                        >
-                                                                            <MoreHorizontal className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </DropdownMenuTrigger>
-                                                                    <DropdownMenuContent align="end" className="w-48">
-                                                                        <DropdownMenuItem
-                                                                            onClick={() => {
-                                                                                const specs = order.item?.specifications || {};
-                                                                                setBidForm({
-                                                                                    productName: order.item?.name || '',
-                                                                                    hsnCode: (specs as any)['HSN Code'] || '',
-                                                                                    size: order.item?.size || '',
-                                                                                    specification: (specs as any)['Specification'] || '',
-                                                                                    quality: '',
-                                                                                    quantity: String(order.quantity || ''),
-                                                                                    expectedDeliveryDate: (specs as any)['Expected Delivery'] || '',
-                                                                                    pincode,
-                                                                                    city: '',
-                                                                                    state: '',
-                                                                                    shippingAddress: order.shippingAddress || '',
-                                                                                    notes: order.notes || '',
-                                                                                    bidRunningTime: (specs as any)['Bid Running Time (days)'] || '',
-                                                                                });
-                                                                                setIsPlaceBidDialogOpen(true);
-                                                                                setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
-                                                                            }}
-                                                                        >
-                                                                            <Copy className="mr-2 h-4 w-4" />
-                                                                            Duplicate
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() => {
-                                                                                const specs = order.item?.specifications || {};
-                                                                                setBidForm({
-                                                                                    productName: order.item?.name || '',
-                                                                                    hsnCode: (specs as any)['HSN Code'] || '',
-                                                                                    size: order.item?.size || '',
-                                                                                    specification: (specs as any)['Specification'] || '',
-                                                                                    quality: '',
-                                                                                    quantity: String(order.quantity || ''),
-                                                                                    expectedDeliveryDate: (specs as any)['Expected Delivery'] || '',
-                                                                                    pincode,
-                                                                                    city: '',
-                                                                                    state: '',
-                                                                                    shippingAddress: order.shippingAddress || '',
-                                                                                    notes: order.notes || '',
-                                                                                    bidRunningTime: (specs as any)['Bid Running Time (days)'] || '',
-                                                                                });
-                                                                                setIsPlaceBidDialogOpen(true);
-                                                                                setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
-                                                                            }}
-                                                                        >
-                                                                            <Edit className="mr-2 h-4 w-4" />
-                                                                            Modify
-                                                                        </DropdownMenuItem>
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                }))}
+                                                        );
+                                                    }))}
                                             </div>
                                             {filteredAndSortedMyBids.length > 10 && (
                                                 <div className="flex justify-center pt-1">
@@ -2312,7 +2425,7 @@ function BuyerDashboardContent() {
                                                 <SelectItem value="delivery">Delivery Date</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        
+
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -2333,9 +2446,9 @@ function BuyerDashboardContent() {
                                             {bids.filter(b => b.status === 'pending').length === 0 ? 'No live bids available' : 'No bids match your search'}
                                         </p>
                                         {liveBidsSearchQuery && (
-                                            <Button 
-                                                variant="outline" 
-                                                className="mt-4" 
+                                            <Button
+                                                variant="outline"
+                                                className="mt-4"
                                                 onClick={resetLiveBidsFilters}
                                             >
                                                 Clear Filters
@@ -2344,133 +2457,170 @@ function BuyerDashboardContent() {
                                     </Card>
                                 ) : (
                                     (liveBidsShowAll ? filteredAndSortedLiveBids : filteredAndSortedLiveBids.slice(0, 5)).map((bid) => {
-                                    const order = orders.find(o => o.id === bid.orderId);
-                                    const timeLeftLabel = getBidTimeLeftLabel(order);
-                                    const isExpired = timeLeftLabel === 'Expired';
-                                    // Find the lowest shipping bid for this order
-                                    const orderShippingBids = shippingBids.filter(sb => sb.orderId === bid.orderId && sb.status === 'pending');
-                                    const lowestShippingBid = orderShippingBids.length > 0 
-                                        ? orderShippingBids.reduce((lowest, sb) => sb.bidAmount < lowest.bidAmount ? sb : lowest)
-                                        : null;
-                                    const totalCost = bid.bidAmount + (lowestShippingBid?.bidAmount || 0);
-                                    return (
-                                        <Card key={bid.id} className="border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-900 overflow-hidden relative">
-                                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-blue-500" />
-                                            <CardHeader>
-                                                <div className="flex items-center justify-between">
-                                                    <div>
-                                                        <CardTitle className="text-gray-900 dark:text-gray-100">
-                                                            {order?.item?.name || `Order #${bid.orderId.slice(0, 8)}`}
-                                                        </CardTitle>
-                                                        <CardDescription>
-                                                            Enquiry Number #{bid.sellerId?.slice(0, 6).toUpperCase() || bid.id.slice(0, 6).toUpperCase()} • {new Date(bid.createdAt).toLocaleDateString()}
-                                                        </CardDescription>
-                                                    </div>
-                                                    <div className="flex flex-col items-end gap-1">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                                                            <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Live</Badge>
+                                        const order = orders.find(o => o.id === bid.orderId);
+                                        const timeLeftLabel = getBidTimeLeftLabel(order);
+                                        const isExpired = timeLeftLabel === 'Expired';
+                                        // Find the lowest shipping bid for this order
+                                        const orderShippingBids = shippingBids.filter(sb => sb.orderId === bid.orderId && sb.status === 'pending');
+                                        const lowestShippingBid = orderShippingBids.length > 0
+                                            ? orderShippingBids.reduce((lowest, sb) => sb.bidAmount < lowest.bidAmount ? sb : lowest)
+                                            : null;
+                                        const totalCost = bid.bidAmount + (lowestShippingBid?.bidAmount || 0);
+
+                                        // Calculate bid comparison - find all bids for this order
+                                        const allOrderBids = bids.filter(b => b.orderId === bid.orderId && b.status === 'pending');
+                                        const highestBid = allOrderBids.length > 0 ? Math.max(...allOrderBids.map(b => b.bidAmount)) : bid.bidAmount;
+                                        const percentLowerThanHighest = highestBid > 0 && bid.bidAmount < highestBid
+                                            ? ((highestBid - bid.bidAmount) / highestBid * 100).toFixed(1)
+                                            : null;
+
+                                        return (
+                                            <Card key={bid.id} className="border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-900 overflow-hidden relative">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-blue-500" />
+                                                <CardHeader>
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <CardTitle className="text-gray-900 dark:text-gray-100">
+                                                                {order?.item?.name || `Order #${bid.orderId.slice(0, 8)}`}
+                                                            </CardTitle>
+                                                            <CardDescription>
+                                                                Enquiry Number #{bid.sellerId?.slice(0, 6).toUpperCase() || bid.id.slice(0, 6).toUpperCase()} • {new Date(bid.createdAt).toLocaleDateString()}
+                                                            </CardDescription>
                                                         </div>
-                                                        <div className={`flex items-center gap-2 mt-1 px-3 py-1.5 rounded-full border shadow-sm backdrop-blur-md ${isExpired ? 'bg-red-500/10 border-red-500/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
-                                                            <ClockTimer 
-                                                                endTime={order ? calculateBidEndTime(order) : new Date()} 
-                                                                size={18}
-                                                                className="font-extrabold text-sm tracking-wide"
-                                                            />
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
+                                                                <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Live</Badge>
+                                                            </div>
+                                                            <div className={`flex items-center gap-2 mt-1 px-3 py-1.5 rounded-full border shadow-sm backdrop-blur-md ${isExpired ? 'bg-red-500/10 border-red-500/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
+                                                                <ClockTimer
+                                                                    endTime={order ? calculateBidEndTime(order) : new Date()}
+                                                                    size={18}
+                                                                    className="font-extrabold text-sm tracking-wide"
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent className="space-y-3">
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-900/20">
-                                                        <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">Seller Bid</Label>
-                                                        <p className="text-xl font-bold text-purple-600">${bid.bidAmount.toFixed(2)}</p>
-                                                    </div>
-                                                    <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                        <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Shipping Cost</Label>
-                                                        <p className="text-xl font-bold text-blue-600">
-                                                            {lowestShippingBid ? `$${lowestShippingBid.bidAmount.toFixed(2)}` : 'No bid yet'}
-                                                        </p>
-                                                        {orderShippingBids.length > 1 && (
-                                                            <p className="text-xs text-muted-foreground mt-1">{orderShippingBids.length} shipping bids</p>
-                                                        )}
-                                                    </div>
-                                                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                        <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Cost</Label>
-                                                        <p className="text-2xl font-bold text-emerald-600">${totalCost.toFixed(2)}</p>
+                                                </CardHeader>
+                                                <CardContent className="space-y-3">
+                                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                        <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-900/20">
+                                                            <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">Seller Bid</Label>
+                                                            <p className="text-xl font-bold text-purple-600">${bid.bidAmount.toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
+                                                            <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Shipping Cost</Label>
+                                                            <p className="text-xl font-bold text-blue-600">
+                                                                {lowestShippingBid ? `$${lowestShippingBid.bidAmount.toFixed(2)}` : 'No bid yet'}
+                                                            </p>
+                                                            {orderShippingBids.length > 1 && (
+                                                                <p className="text-xs text-muted-foreground mt-1">{orderShippingBids.length} shipping bids</p>
+                                                            )}
+                                                        </div>
+                                                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
+                                                            <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Cost</Label>
+                                                            <p className="text-2xl font-bold text-emerald-600">${totalCost.toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
+                                                            <p className="font-medium">{order?.quantity || 'N/A'} units</p>
+                                                        </div>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
-                                                        <p className="font-medium">{order?.quantity || 'N/A'} units</p>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
+                                                        <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                     </div>
-                                                </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
-                                                    <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
-                                                </div>
 
-                                                {/* Display shipping details including Incoterms */}
-                                                {order?.item?.specifications && (
-                                                    <>
-                                                        {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] !== 'India' && order.item.specifications['Incoterms'] && (
-                                                            <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/20">
-                                                                <Label className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider">International Shipping</Label>
-                                                                <div className="mt-1 space-y-1">
-                                                                    <div className="flex justify-between text-sm">
-                                                                        <span className="text-muted-foreground">Destination:</span>
-                                                                        <span className="font-medium">{order.item.specifications['Destination Country']}</span>
-                                                                    </div>
-                                                                    <div className="flex justify-between text-sm">
-                                                                        <span className="text-muted-foreground">Incoterms:</span>
-                                                                        <span className="font-medium text-amber-700 dark:text-amber-300">{order.item.specifications['Incoterms']}</span>
-                                                                    </div>
+                                                    {/* Pickup Address */}
+                                                    {bid.pickupAddress && (
+                                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
+                                                            <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">Pickup Address</Label>
+                                                            <p className="font-medium text-sm mt-1">{bid.pickupAddress}</p>
+                                                            <p className="text-xs text-muted-foreground mt-1">Seller's goods location for shipping provider pickup</p>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Bid Comparison */}
+                                                    {percentLowerThanHighest && allOrderBids.length > 1 && (
+                                                        <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border-2 border-green-200 dark:border-green-800 shadow-sm">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full">
+                                                                    <TrendingDown className="h-4 w-4 text-white" />
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <Label className="text-xs text-green-700 dark:text-green-300 uppercase tracking-wider font-bold">Best Value</Label>
+                                                                    <p className="text-sm font-bold text-green-700 dark:text-green-300 mt-0.5">
+                                                                        This bid is {percentLowerThanHighest}% lower than the highest bid
+                                                                    </p>
+                                                                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                                                        Competing with {allOrderBids.length - 1} other seller{allOrderBids.length - 1 > 1 ? 's' : ''}
+                                                                    </p>
                                                                 </div>
                                                             </div>
-                                                        )}
-                                                        {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] === 'India' && (
-                                                            <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                                <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Domestic Shipping</Label>
-                                                                <div className="mt-1">
-                                                                    <div className="flex justify-between text-sm">
-                                                                        <span className="text-muted-foreground">Destination:</span>
-                                                                        <span className="font-medium">India (Domestic)</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Display shipping details including Incoterms */}
+                                                    {order?.item?.specifications && (
+                                                        <>
+                                                            {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] !== 'India' && order.item.specifications['Incoterms'] && (
+                                                                <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/20">
+                                                                    <Label className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider">International Shipping</Label>
+                                                                    <div className="mt-1 space-y-1">
+                                                                        <div className="flex justify-between text-sm">
+                                                                            <span className="text-muted-foreground">Destination:</span>
+                                                                            <span className="font-medium">{order.item.specifications['Destination Country']}</span>
+                                                                        </div>
+                                                                        <div className="flex justify-between text-sm">
+                                                                            <span className="text-muted-foreground">Incoterms:</span>
+                                                                            <span className="font-medium text-amber-700 dark:text-amber-300">{order.item.specifications['Incoterms']}</span>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                            </div>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </CardContent>
-                                            <CardFooter className="gap-3 bg-gray-50/50 dark:bg-gray-900/50 p-4">
-                                                <Button
-                                                    className="w-32 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
-                                                    onClick={() => handleAcceptBid(bid.id)}
-                                                >
-                                                    <Check className="mr-2 h-4 w-4" />
-                                                    Accept
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    className="w-32 rounded-lg shadow-lg shadow-red-500/20"
-                                                    onClick={() => handleRejectBid(bid.id)}
-                                                >
-                                                    <X className="mr-2 h-4 w-4" />
-                                                    Reject
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    className="w-32 rounded-lg"
-                                                    onClick={() => handleDeleteBid(bid.id)}
-                                                >
-                                                    <Trash2 className="mr-2 h-4 w-4" />
-                                                    Delete
-                                                </Button>
-                                            </CardFooter>
-                                        </Card>
-                                    );
-                                }))}
-                                
+                                                            )}
+                                                            {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] === 'India' && (
+                                                                <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
+                                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Domestic Shipping</Label>
+                                                                    <div className="mt-1">
+                                                                        <div className="flex justify-between text-sm">
+                                                                            <span className="text-muted-foreground">Destination:</span>
+                                                                            <span className="font-medium">India (Domestic)</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </CardContent>
+                                                <CardFooter className="gap-3 bg-gray-50/50 dark:bg-gray-900/50 p-4">
+                                                    <Button
+                                                        className="w-32 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
+                                                        onClick={() => handleAcceptBid(bid.id)}
+                                                    >
+                                                        <Check className="mr-2 h-4 w-4" />
+                                                        Accept
+                                                    </Button>
+                                                    <Button
+                                                        variant="destructive"
+                                                        className="w-32 rounded-lg shadow-lg shadow-red-500/20"
+                                                        onClick={() => handleRejectBid(bid.id)}
+                                                    >
+                                                        <X className="mr-2 h-4 w-4" />
+                                                        Reject
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="w-32 rounded-lg"
+                                                        onClick={() => handleDeleteBid(bid.id)}
+                                                    >
+                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                        Delete
+                                                    </Button>
+                                                </CardFooter>
+                                            </Card>
+                                        );
+                                    }))}
+
                                 {/* Load More button for Live Bids */}
                                 {filteredAndSortedLiveBids.length > 5 && (
                                     <div className="flex justify-center">
@@ -3020,7 +3170,8 @@ function BuyerDashboardContent() {
                                 incoterms: '',
                                 shippingAddress: '',
                                 notes: '',
-                                bidRunningTime: '',
+                                sellerBidRunningTime: '',
+                                shippingBidRunningTime: '',
                             });
                             setSelectedCatalogProduct(null);
                         }
@@ -3146,18 +3297,53 @@ function BuyerDashboardContent() {
                                     </div>
                                 </div>
 
-                                {/* Bid Running Time */}
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <Label htmlFor="bidRunningTime">Bid Running Time (days) *</Label>
-                                        <Input
-                                            id="bidRunningTime"
-                                            type="number"
-                                            min="1"
-                                            value={bidForm.bidRunningTime}
-                                            onChange={(e) => setBidForm({ ...bidForm, bidRunningTime: e.target.value })}
-                                            placeholder="e.g., 3"
-                                        />
+                                {/* Two-Phase Bid Running Time */}
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border-2 border-purple-200 dark:border-purple-800">
+                                        <h3 className="font-semibold text-purple-700 dark:text-purple-300 mb-3 flex items-center gap-2">
+                                            <Calendar className="h-4 w-4" />
+                                            Two-Phase Bidding Timeline
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            Set separate time windows: First for sellers to bid on your order, then for shipping providers to bid on transport.
+                                        </p>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <Label htmlFor="sellerBidRunningTime" className="text-purple-700 dark:text-purple-300 font-semibold">
+                                                    Phase 1: Seller Bids (days) *
+                                                </Label>
+                                                <Input
+                                                    id="sellerBidRunningTime"
+                                                    type="number"
+                                                    min="1"
+                                                    value={bidForm.sellerBidRunningTime}
+                                                    onChange={(e) => setBidForm({ ...bidForm, sellerBidRunningTime: e.target.value })}
+                                                    placeholder="e.g., 3"
+                                                    className="mt-1"
+                                                />
+                                                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                                                    Sellers place their bids during this period
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <Label htmlFor="shippingBidRunningTime" className="text-blue-700 dark:text-blue-300 font-semibold">
+                                                    Phase 2: Shipping Bids (days) *
+                                                </Label>
+                                                <Input
+                                                    id="shippingBidRunningTime"
+                                                    type="number"
+                                                    min="1"
+                                                    value={bidForm.shippingBidRunningTime}
+                                                    onChange={(e) => setBidForm({ ...bidForm, shippingBidRunningTime: e.target.value })}
+                                                    placeholder="e.g., 2"
+                                                    className="mt-1"
+                                                />
+                                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                                    Starts after seller bids end
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -3333,10 +3519,16 @@ function BuyerDashboardContent() {
                                                         <p className="font-medium">{new Date(bidForm.expectedDeliveryDate).toLocaleDateString()}</p>
                                                     </div>
                                                 )}
-                                                {bidForm.bidRunningTime && (
+                                                {bidForm.sellerBidRunningTime && (
                                                     <div>
-                                                        <span className="text-muted-foreground">Bid Running Time:</span>
-                                                        <p className="font-medium">{bidForm.bidRunningTime} days</p>
+                                                        <span className="text-muted-foreground">Seller Bid Time:</span>
+                                                        <p className="font-medium text-purple-600">{bidForm.sellerBidRunningTime} days</p>
+                                                    </div>
+                                                )}
+                                                {bidForm.shippingBidRunningTime && (
+                                                    <div>
+                                                        <span className="text-muted-foreground">Shipping Bid Time:</span>
+                                                        <p className="font-medium text-blue-600">{bidForm.shippingBidRunningTime} days</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -3352,13 +3544,14 @@ function BuyerDashboardContent() {
                                 <Button
                                     onClick={handlePlaceBidRequest}
                                     disabled={
-                                        placingBidRequest || 
-                                        !bidForm.productName || 
-                                        !bidForm.quantity || 
-                                        !bidForm.shippingAddress || 
-                                        !bidForm.expectedDeliveryDate || 
-                                        !bidForm.bidRunningTime || 
-                                        !bidForm.country || 
+                                        placingBidRequest ||
+                                        !bidForm.productName ||
+                                        !bidForm.quantity ||
+                                        !bidForm.shippingAddress ||
+                                        !bidForm.expectedDeliveryDate ||
+                                        !bidForm.sellerBidRunningTime ||
+                                        !bidForm.shippingBidRunningTime ||
+                                        !bidForm.country ||
                                         !bidForm.city ||
                                         (bidForm.country === 'India' && (!bidForm.pincode || !bidForm.state || bidForm.pincode.length !== 6)) ||
                                         (bidForm.country !== 'India' && !bidForm.incoterms)
