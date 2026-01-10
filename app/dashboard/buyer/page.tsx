@@ -1078,72 +1078,29 @@ function BuyerDashboardContent() {
 
     const fetchData = useCallback(async (forceRefresh = false) => {
         if (!user) return;
+
         try {
             setLoading(true);
 
-            // Try to get cached data first (if not forcing refresh)
-            let itemsData: Item[] | null = null;
-            let ordersData: Order[] | null = null;
-
-            if (!forceRefresh) {
-                itemsData = LocalCache.get<Item[]>(CacheKeys.items());
-                ordersData = LocalCache.get<Order[]>(CacheKeys.orders(user.id));
-
-                if (itemsData && ordersData) {
-                    console.log('Using cached data');
-                    setItems(itemsData);
-                    setOrders(ordersData);
-
-                    // Still fetch bids as they change frequently
-                    const bidsPromises = ordersData.map(order => getBidsByOrder(order.id));
-                    const shippingBidsPromises = ordersData.map(order => getShippingBidsByOrder(order.id));
-                    const [bidsArrays, shippingBidsArrays] = await Promise.all([
-                        Promise.all(bidsPromises),
-                        Promise.all(shippingBidsPromises)
-                    ]);
-                    const allBids = bidsArrays.flat();
-                    const allShippingBids = shippingBidsArrays.flat();
-
-                    setBids(allBids);
-                    setShippingBids(allShippingBids);
-
-                    // Process auto-accepts for expired bids
-                    processAutoAccepts(ordersData, allBids, allShippingBids).then((result) => {
-                        if (result.sellerAccepted > 0 || result.shippingAccepted > 0) {
-                            console.log(`Auto-accepted: ${result.sellerAccepted} seller bids, ${result.shippingAccepted} shipping bids`);
-                            toast({
-                                title: "Bids Auto-Accepted",
-                                description: `${result.sellerAccepted} seller bid(s) and ${result.shippingAccepted} shipping bid(s) were automatically accepted due to time expiration.`,
-                            });
-                            // Refresh data after auto-accept
-                            fetchData(true);
-                        }
-                    });
-
-                    setLoading(false);
-                    return;
-                }
+            // Clear cache on force refresh (hard refresh)
+            if (forceRefresh) {
+                LocalCache.remove(CacheKeys.orders(user.id));
+                LocalCache.remove(CacheKeys.bids(user.id));
+                LocalCache.remove(CacheKeys.shippingBids(user.id));
+                LocalCache.remove(CacheKeys.items());
             }
 
-            // Fetch fresh data from Supabase
+            // Always fetch fresh data for buyer dashboard (real-time is critical)
             console.log('Fetching fresh data from Supabase');
-            const [freshItems, freshOrders, statsData] = await Promise.all([
+            const [freshItems, freshOrders] = await Promise.all([
                 getActiveItems(),
                 getOrdersByBuyer(user.id),
-                getBuyerStats(user.id),
             ]);
-
-            // Cache the fresh data
-            LocalCache.set(CacheKeys.items(), freshItems, CacheDuration.MEDIUM);
-            LocalCache.set(CacheKeys.orders(user.id), freshOrders, CacheDuration.SHORT);
 
             setItems(freshItems);
             setOrders(freshOrders);
 
             // Fetch bids for all orders (both seller bids and shipping bids)
-            console.log('=== Fetching Bids Debug ===');
-            console.log('Fetching bids for orders:', freshOrders.map(o => ({ id: o.id, status: o.status })));
-
             const bidsPromises = freshOrders.map(order => getBidsByOrder(order.id));
             const shippingBidsPromises = freshOrders.map(order => getShippingBidsByOrder(order.id));
             const [bidsArrays, shippingBidsArrays] = await Promise.all([
@@ -1153,18 +1110,10 @@ function BuyerDashboardContent() {
             const allBids = bidsArrays.flat();
             const allShippingBids = shippingBidsArrays.flat();
 
-            console.log('Fetched bids:', allBids);
-            console.log('Fetched shipping bids:', allShippingBids);
-            console.log('=== End Fetching Bids Debug ===');
-
-            // Cache bids
-            LocalCache.set(CacheKeys.bids(user.id), allBids, CacheDuration.SHORT);
-            LocalCache.set(CacheKeys.shippingBids(user.id), allShippingBids, CacheDuration.SHORT);
-
             setBids(allBids);
             setShippingBids(allShippingBids);
 
-            // Process auto-accepts for expired bids
+            // Process auto-accepts for expired bids (don't await, run in background)
             processAutoAccepts(freshOrders, allBids, allShippingBids).then((result) => {
                 if (result.sellerAccepted > 0 || result.shippingAccepted > 0) {
                     console.log(`Auto-accepted: ${result.sellerAccepted} seller bids, ${result.shippingAccepted} shipping bids`);
@@ -1172,27 +1121,45 @@ function BuyerDashboardContent() {
                         title: "Bids Auto-Accepted",
                         description: `${result.sellerAccepted} seller bid(s) and ${result.shippingAccepted} shipping bid(s) were automatically accepted due to time expiration.`,
                     });
-                    // Invalidate cache and refresh
-                    LocalCache.remove(CacheKeys.orders(user.id));
-                    LocalCache.remove(CacheKeys.bids(user.id));
-                    LocalCache.remove(CacheKeys.shippingBids(user.id));
-                    setTimeout(() => fetchData(true), 1000);
+                    // Refresh data after auto-accept (after a short delay)
+                    setTimeout(() => fetchData(true), 1500);
                 }
+            }).catch(err => {
+                console.error('Error in auto-accept:', err);
             });
-        } catch (error) {
+
+        } catch (error: any) {
             console.error('Error fetching data:', error);
+            toast({
+                title: "Error Loading Data",
+                description: error?.message || "Failed to load dashboard data. Please refresh the page.",
+                variant: "destructive",
+            });
         } finally {
             setLoading(false);
         }
     }, [user, toast]);
 
-    // Separate effect for fetching data
+    // Separate effect for fetching data on mount
     useEffect(() => {
         if (user && user.role === 'buyer') {
             // User is authenticated and is a buyer, fetch data
             console.log('Buyer authenticated, fetching data');
-            fetchData();
+            fetchData(true); // Force refresh on mount to clear any stale cache
         }
+    }, [user, fetchData]);
+
+    // Auto-refresh every 15 seconds for real-time updates
+    useEffect(() => {
+        if (!user || user.role !== 'buyer') return;
+
+        // Poll for updates every 15 seconds
+        const intervalId = setInterval(() => {
+            console.log('Auto-refreshing data...');
+            fetchData(false); // Don't force, just fetch fresh data
+        }, 15000); // 15 seconds
+
+        return () => clearInterval(intervalId);
     }, [user, fetchData]);
 
     const handlePlaceOrder = async () => {
