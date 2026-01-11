@@ -1077,13 +1077,20 @@ function BuyerDashboardContent() {
     }, [user, authLoading, router]);
 
     const fetchData = useCallback(async (forceRefresh = false) => {
-        if (!user) return;
+        if (!user) {
+            console.log('fetchData: No user, skipping and ensuring loading is false');
+            setLoading(false); // Ensure loading is stopped
+            return;
+        }
+
+        console.log('fetchData: Starting...', { forceRefresh, userId: user.id });
 
         try {
             setLoading(true);
 
             // Clear cache on force refresh (hard refresh)
             if (forceRefresh) {
+                console.log('fetchData: Clearing cache...');
                 LocalCache.remove(CacheKeys.orders(user.id));
                 LocalCache.remove(CacheKeys.bids(user.id));
                 LocalCache.remove(CacheKeys.shippingBids(user.id));
@@ -1092,23 +1099,67 @@ function BuyerDashboardContent() {
 
             // Always fetch fresh data for buyer dashboard (real-time is critical)
             console.log('Fetching fresh data from Supabase');
-            const [freshItems, freshOrders] = await Promise.all([
-                getActiveItems(),
-                getOrdersByBuyer(user.id),
-            ]);
+
+            let freshItems: any[] = [];
+            let freshOrders: any[] = [];
+
+            try {
+                const results = await Promise.all([
+                    getActiveItems().catch(err => {
+                        console.error('Error fetching items:', err);
+                        return [];
+                    }),
+                    getOrdersByBuyer(user.id).catch(err => {
+                        console.error('Error fetching orders:', err);
+                        return [];
+                    }),
+                ]);
+
+                freshItems = results[0];
+                freshOrders = results[1];
+
+                console.log('fetchData: Fetched items:', freshItems.length, 'orders:', freshOrders.length);
+            } catch (err) {
+                console.error('Error in Promise.all for items/orders:', err);
+                // Continue with empty arrays
+            }
 
             setItems(freshItems);
             setOrders(freshOrders);
 
             // Fetch bids for all orders (both seller bids and shipping bids)
-            const bidsPromises = freshOrders.map(order => getBidsByOrder(order.id));
-            const shippingBidsPromises = freshOrders.map(order => getShippingBidsByOrder(order.id));
-            const [bidsArrays, shippingBidsArrays] = await Promise.all([
-                Promise.all(bidsPromises),
-                Promise.all(shippingBidsPromises)
-            ]);
-            const allBids = bidsArrays.flat();
-            const allShippingBids = shippingBidsArrays.flat();
+            let allBids: any[] = [];
+            let allShippingBids: any[] = [];
+
+            if (freshOrders.length > 0) {
+                try {
+                    const bidsPromises = freshOrders.map(order =>
+                        getBidsByOrder(order.id).catch(err => {
+                            console.error(`Error fetching bids for order ${order.id}:`, err);
+                            return [];
+                        })
+                    );
+                    const shippingBidsPromises = freshOrders.map(order =>
+                        getShippingBidsByOrder(order.id).catch(err => {
+                            console.error(`Error fetching shipping bids for order ${order.id}:`, err);
+                            return [];
+                        })
+                    );
+
+                    const [bidsArrays, shippingBidsArrays] = await Promise.all([
+                        Promise.all(bidsPromises),
+                        Promise.all(shippingBidsPromises)
+                    ]);
+
+                    allBids = bidsArrays.flat();
+                    allShippingBids = shippingBidsArrays.flat();
+
+                    console.log('fetchData: Fetched bids:', allBids.length, 'shipping bids:', allShippingBids.length);
+                } catch (err) {
+                    console.error('Error fetching bids:', err);
+                    // Continue with empty arrays
+                }
+            }
 
             setBids(allBids);
             setShippingBids(allShippingBids);
@@ -1128,14 +1179,17 @@ function BuyerDashboardContent() {
                 console.error('Error in auto-accept:', err);
             });
 
+            console.log('fetchData: Success!');
+
         } catch (error: any) {
             console.error('Error fetching data:', error);
             toast({
                 title: "Error Loading Data",
-                description: error?.message || "Failed to load dashboard data. Please refresh the page.",
+                description: error?.message || "Failed to load dashboard data. Please try refreshing the page.",
                 variant: "destructive",
             });
         } finally {
+            console.log('fetchData: Setting loading to false');
             setLoading(false);
         }
     }, [user, toast]);
@@ -1149,18 +1203,30 @@ function BuyerDashboardContent() {
         }
     }, [user, fetchData]);
 
-    // Auto-refresh every 1 minute for updates
+    // Auto-refresh DISABLED - Only manual refresh on page reload or refresh button
+    // useEffect(() => {
+    //     if (!user || user.role !== 'buyer') return;
+    //     const intervalId = setInterval(() => {
+    //         console.log('Auto-refreshing data...');
+    //         fetchData(false);
+    //     }, 60000);
+    //     return () => clearInterval(intervalId);
+    // }, [user, fetchData]);
+
+    // Safety timeout: Force stop loading after 8 seconds to prevent stuck state
     useEffect(() => {
-        if (!user || user.role !== 'buyer') return;
+        if (!loading) return;
 
-        // Poll for updates every 60 seconds (1 minute)
-        const intervalId = setInterval(() => {
-            console.log('Auto-refreshing data...');
-            fetchData(false); // Don't force, just fetch fresh data
-        }, 60000); // 60 seconds = 1 minute
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                console.warn('Loading timeout - stopping loading state');
+                setLoading(false);
+                // Don't show toast - this is a safety mechanism and data might have loaded anyway
+            }
+        }, 8000); // 8 seconds timeout
 
-        return () => clearInterval(intervalId);
-    }, [user, fetchData]);
+        return () => clearTimeout(timeoutId);
+    }, [loading]);
 
     const handlePlaceOrder = async () => {
         if (!selectedItem || !user) {

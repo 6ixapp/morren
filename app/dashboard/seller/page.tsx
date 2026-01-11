@@ -122,16 +122,28 @@ export default function SellerDashboard() {
         }
     }, [user, fetchData]);
 
-    // Auto-refresh orders every 10 seconds (silent updates)
+    // Auto-refresh DISABLED - Only manual refresh on page reload
+    // useEffect(() => {
+    //     if (!user || submittingBid) return;
+    //     const interval = setInterval(() => {
+    //         fetchData(true);
+    //     }, 60000);
+    //     return () => clearInterval(interval);
+    // }, [user, submittingBid, fetchData]);
+
+    // Safety timeout: Force stop loading after 8 seconds to prevent stuck state
     useEffect(() => {
-        if (!user || submittingBid) return;
+        if (!loading) return;
 
-        const interval = setInterval(() => {
-            fetchData(true); // Silent refresh
-        }, 10000); // Poll every 10 seconds
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                console.warn('Loading timeout - stopping loading state');
+                setLoading(false);
+            }
+        }, 8000); // 8 seconds timeout
 
-        return () => clearInterval(interval);
-    }, [user, submittingBid, fetchData]);
+        return () => clearTimeout(timeoutId);
+    }, [loading]);
 
     const stats = {
         totalOrders: orders.length,

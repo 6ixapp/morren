@@ -154,29 +154,28 @@ export default function ShippingProviderDashboard() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
-    // Safety timeout: if still loading after 5 seconds, force stop loading
+    // Safety timeout: Force stop loading after 8 seconds to prevent stuck state
     useEffect(() => {
-        const timeout = setTimeout(() => {
+        if (!loading) return;
+
+        const timeoutId = setTimeout(() => {
             if (loading && !authLoading) {
-                console.warn('Loading timeout reached, forcing loading to false');
+                console.warn('Loading timeout - stopping loading state');
                 setLoading(false);
             }
-        }, 5000);
+        }, 8000); // 8 seconds timeout
 
-        return () => clearTimeout(timeout);
+        return () => clearTimeout(timeoutId);
     }, [loading, authLoading]);
 
-    // Auto-refresh orders every 10 seconds (silent updates)
-    useEffect(() => {
-        if (!user || submittingBid) return;
-
-        const interval = setInterval(() => {
-            fetchData(true); // Silent refresh
-        }, 10000); // Poll every 10 seconds
-
-        return () => clearInterval(interval);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, submittingBid]);
+    // Auto-refresh DISABLED - Only manual refresh on page reload
+    // useEffect(() => {
+    //     if (!user || submittingBid) return;
+    //     const interval = setInterval(() => {
+    //         fetchData(true);
+    //     }, 60000);
+    //     return () => clearInterval(interval);
+    // }, [user, submittingBid]);
 
     const stats = {
         totalOrders: orders.length,
