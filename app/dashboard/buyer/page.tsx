@@ -1149,15 +1149,15 @@ function BuyerDashboardContent() {
         }
     }, [user, fetchData]);
 
-    // Auto-refresh every 15 seconds for real-time updates
+    // Auto-refresh every 1 minute for updates
     useEffect(() => {
         if (!user || user.role !== 'buyer') return;
 
-        // Poll for updates every 15 seconds
+        // Poll for updates every 60 seconds (1 minute)
         const intervalId = setInterval(() => {
             console.log('Auto-refreshing data...');
             fetchData(false); // Don't force, just fetch fresh data
-        }, 15000); // 15 seconds
+        }, 60000); // 60 seconds = 1 minute
 
         return () => clearInterval(intervalId);
     }, [user, fetchData]);
