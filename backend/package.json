@@ -6,11 +6,9 @@
   "scripts": {
     "dev": "nodemon src/index.ts",
     "build": "tsc",
+    "postbuild": "node -e \"require('fs').copyFileSync('src/db/schema.sql', 'dist/db/schema.sql')\"",
     "start": "node dist/index.js",
-    "migrate": "node -r ts-node/register src/db/migrate.ts",
-    "seed": "node -r ts-node/register src/db/seed.ts",
-    "test": "node test-endpoints.js",
-    "setup": "setup-database.bat"
+    "migrate": "node dist/db/migrate.js"
   },
   "keywords": [],
   "author": "",

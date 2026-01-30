@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import pool from './index';
 
-async function runMigrations() {
+export async function runMigrations() {
   try {
     console.log('Running database migrations...');
     
@@ -12,11 +12,16 @@ async function runMigrations() {
     await pool.query(schema);
     
     console.log('✅ Migrations completed successfully');
-    process.exit(0);
+    return true;
   } catch (error) {
     console.error('❌ Migration failed:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
-runMigrations();
+// Run migrations if this file is executed directly
+if (require.main === module) {
+  runMigrations()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}

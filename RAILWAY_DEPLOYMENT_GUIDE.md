@@ -1,59 +1,66 @@
 # 🚂 Railway Deployment Guide
 
-## Quick Deploy (5 Minutes)
+## Your Deployed URLs
+- **Backend API:** `https://morren-production.up.railway.app`
+- **Database:** Railway PostgreSQL (internal)
 
-### Step 1: Push to GitHub
-```bash
-git add .
-git commit -m "Ready for Railway deployment"
-git push origin main
-```
+---
 
-### Step 2: Create Railway Project
+## Quick Deploy Steps
+
+### Step 1: Deploy Backend to Railway
 
 1. Go to [railway.app](https://railway.app)
 2. Sign in with GitHub
-3. Click **"New Project"**
-4. Select **"Deploy from GitHub repo"**
-5. Choose your repository
+3. Click **"New Project"** → **"Deploy from GitHub repo"**
+4. Select your repository
+5. **Set Root Directory:** `backend`
 
-### Step 3: Add PostgreSQL Database
+### Step 2: Add PostgreSQL Database
 
-1. Click **"+ New"** → **"Database"** → **"Add PostgreSQL"**
-2. Railway automatically creates `DATABASE_URL` environment variable
-3. Wait for database to provision (~30 seconds)
+1. In your Railway project, click **"+ New"** → **"Database"** → **"Add PostgreSQL"**
+2. Wait for database to provision (~30 seconds)
+3. Railway automatically links `DATABASE_URL`
 
-### Step 4: Configure Backend Service
+### Step 3: Link Database to Backend
 
-1. Click on your backend service
-2. Go to **"Settings"** → **"Root Directory"**
-3. Set to: `backend`
-4. Go to **"Variables"** tab and add:
+1. Click on your **backend service**
+2. Go to **"Variables"** tab
+3. Click **"Add Variable Reference"**
+4. Select **DATABASE_URL** from Postgres service
+5. Add these additional variables:
+   ```
+   NODE_ENV=production
+   JWT_SECRET=your-random-secret-key
+   JWT_REFRESH_SECRET=your-random-refresh-secret
+   CORS_ORIGIN=http://localhost:3000
+   ```
 
-```env
-NODE_ENV=production
-PORT=5000
-JWT_SECRET=your-random-secret-key-here
-JWT_REFRESH_SECRET=your-random-refresh-secret-here
-CORS_ORIGIN=https://your-app.vercel.app
-```
+### Step 4: Generate Domain
 
-**Generate secure secrets:**
+1. Click on backend service → **"Settings"** → **"Networking"**
+2. Click **"Generate Domain"**
+3. Note your URL: `https://xxx.up.railway.app`
+
+### Step 5: Trigger Redeploy
+
+1. Go to **"Deployments"** tab
+2. Click **"Redeploy"** on latest deployment
+3. Wait for deployment to complete
+4. Check logs for "✅ Database ready"
+
+### Step 6: Test API
+
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+curl https://your-backend.up.railway.app/health
+curl -X POST https://your-backend.up.railway.app/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","password":"test123","name":"Test","role":"buyer"}'
 ```
 
-### Step 5: Run Database Migrations
+---
 
-1. Go to backend service → **"Deployments"** tab
-2. Click on latest deployment → **"View Logs"**
-3. Once deployed, run migrations:
-   - Click service → **"Settings"** → **"Custom Start Command"**
-   - Temporarily set: `npm run migrate && npm start`
-   - Redeploy
-   - After first deploy, change back to: `npm start`
-
-### Step 6: Deploy Frontend to Vercel
+## Deploy Frontend to Vercel
 
 1. Go to [vercel.com](https://vercel.com)
 2. Import your GitHub repository
@@ -61,114 +68,34 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
    NEXT_PUBLIC_API_URL=https://your-backend.up.railway.app
    ```
-4. Deploy! ✅
+4. Deploy!
 
-### Step 7: Update Backend CORS
-
-1. Go back to Railway → Backend service → Variables
-2. Update `CORS_ORIGIN` with your Vercel URL
-3. Redeploy backend
-
----
-
-## 🎯 Your URLs
-
-**Backend API:** `https://your-backend.up.railway.app`
-**Frontend:** `https://your-app.vercel.app`
-**Database:** Managed by Railway (internal)
-
----
-
-## 📊 Monitoring
-
-**Railway Dashboard:**
-- View logs in real-time
-- Monitor CPU/Memory usage
-- Check database connections
-- View deployment history
-
-**Metrics Tab:**
-- Request counts
-- Response times
-- Error rates
-
----
-
-## 🔄 Updating Your App
-
-```bash
-# Make changes locally
-git add .
-git commit -m "Update feature"
-git push origin main
+After Vercel deployment, update Railway backend CORS:
+```
+CORS_ORIGIN=https://your-app.vercel.app,http://localhost:3000
 ```
 
-Railway auto-deploys on every push! 🚀
+---
+
+## What Happens on Deploy
+
+1. **Build:** TypeScript compiles to JavaScript, schema.sql copied
+2. **Start:** Server runs migrations automatically, then starts Express
+3. **Migrations:** Creates all database tables if they don't exist
 
 ---
 
-## 💰 Pricing
+## Troubleshooting
 
-**Trial:** $5 credit (lasts ~1 week)
-**Hobby Plan:** $5/month (execute time) + $0.02/GB RAM/hour
-**Estimated Cost:** ~$8-12/month for this app
+**"relation does not exist" error:**
+- Check if DATABASE_URL is set correctly
+- Verify Postgres service is linked
+- Redeploy backend
 
----
-
-## 🐛 Troubleshooting
-
-**Backend won't start:**
-- Check logs for errors
-- Verify `DATABASE_URL` is set
-- Ensure migrations ran successfully
-
-**Database connection fails:**
-- Check if PostgreSQL service is running
-- Verify `DATABASE_URL` format
-- Check service linking in Railway dashboard
+**502 errors:**
+- Check backend logs in Railway dashboard
+- Verify environment variables are set
 
 **CORS errors:**
-- Update `CORS_ORIGIN` with exact frontend URL
-- Include `https://` in URL
-- Redeploy backend after changing
-
----
-
-## 🔐 Security Checklist
-
-- ✅ Changed JWT secrets from defaults
-- ✅ Set `NODE_ENV=production`
-- ✅ Updated CORS_ORIGIN to your domain
-- ✅ Database backups enabled (automatic in Railway)
-
----
-
-## 📝 Post-Deployment
-
-1. Test all API endpoints
-2. Create admin user (via API or database)
-3. Test authentication flow
-4. Verify database persistence
-5. Check logs for errors
-
-**Create Admin User:**
-```bash
-# Use Railway CLI or database console
-INSERT INTO users (name, email, password_hash, role) 
-VALUES ('Admin', 'admin@example.com', 'hashed-password', 'admin');
-```
-
-Or use the `/auth/register` endpoint and manually update role in database.
-
----
-
-## 🎉 Done!
-
-Your app is now live on Railway with:
-- ✅ Always-on backend (no cold starts)
-- ✅ Managed PostgreSQL
-- ✅ Automatic deployments
-- ✅ Free SSL certificates
-- ✅ Built-in monitoring
-
-Questions? Check Railway docs: https://docs.railway.app
+- Update CORS_ORIGIN with your frontend URL
+- Include both http://localhost:3000 and production URL
