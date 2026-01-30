@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { getRFQs as getRFQsFromSupabase, getLowestQuote, type RFQ } from "@/lib/supabase-api"
+import { getRFQs as getRFQsFromSupabase, getLowestQuote, type RFQ } from "@/lib/api-client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"

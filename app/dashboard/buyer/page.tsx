@@ -17,8 +17,7 @@ import { CardContainer, CardBody, CardItem } from '@/components/ui/aceternity/3d
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrder, updateShippingBid } from '@/lib/supabase-api';
+import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrder, updateShippingBid } from '@/lib/api-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -27,6 +26,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LocalCache, CacheKeys, CacheDuration } from '@/lib/cache';
 import { processAutoAccepts } from '@/lib/auto-accept';
+import { getErrorMessage } from '@/lib/utils';
 
 // Predefined Product Catalog with Varieties
 const PRODUCT_CATALOG = {
@@ -1152,70 +1152,30 @@ function BuyerDashboardContent() {
 
                     console.log(`Batch fetching bids for ${orderIds.length} orders...`);
 
-                    // **PERFORMANCE IMPROVEMENT**: Single query for all bids instead of N queries
-                    // This reduces API calls from O(n) to O(1)
-                    const [bidsResult, shippingBidsResult] = await Promise.all([
-                        // Fetch all seller bids for these orders in one query
-                        supabase
-                            .from('bids')
-                            .select('*')
-                            .in('order_id', orderIds)
-                            .order('created_at', { ascending: false })
-                            .then(({ data, error }) => {
-                                if (error) throw error;
-                                return data || [];
-                            })
-                            .catch(err => {
-                                console.error('Error batch fetching bids:', err);
-                                return [];
-                            }),
+                    // **PERFORMANCE IMPROVEMENT**: Fetch bids for all orders
+                    // Using API client instead of direct database queries
+                    const bidPromises = orderIds.map(orderId =>
+                        getBidsByOrder(orderId, false).catch(err => {
+                            console.error(`Error fetching bids for order ${orderId}:`, err);
+                            return [];
+                        })
+                    );
 
-                        // Fetch all shipping bids for these orders in one query
-                        supabase
-                            .from('shipping_bids')
-                            .select('*')
-                            .in('order_id', orderIds)
-                            .order('created_at', { ascending: false })
-                            .then(({ data, error }) => {
-                                if (error) throw error;
-                                return data || [];
-                            })
-                            .catch(err => {
-                                console.error('Error batch fetching shipping bids:', err);
-                                return [];
-                            })
+                    const shippingBidPromises = orderIds.map(orderId =>
+                        getShippingBidsByOrder(orderId, false).catch(err => {
+                            console.error(`Error fetching shipping bids for order ${orderId}:`, err);
+                            return [];
+                        })
+                    );
+
+                    const [bidArrays, shippingBidArrays] = await Promise.all([
+                        Promise.all(bidPromises),
+                        Promise.all(shippingBidPromises)
                     ]);
 
-                    // Convert from snake_case to camelCase
-                    allBids = (bidsResult as any[]).map(bid => ({
-                        id: bid.id,
-                        orderId: bid.order_id,
-                        sellerId: bid.seller_id,
-                        bidAmount: bid.bid_amount,
-                        estimatedDelivery: bid.estimated_delivery,
-                        message: bid.message,
-                        pickupAddress: bid.pickup_address,
-                        status: bid.status,
-                        createdAt: bid.created_at,
-                        updatedAt: bid.updated_at
-                    }));
-
-                    allShippingBids = (shippingBidsResult as any[]).map(bid => ({
-                        id: bid.id,
-                        orderId: bid.order_id,
-                        shippingProviderId: bid.shipping_provider_id,
-                        bidAmount: bid.bid_amount,
-                        estimatedDelivery: bid.estimated_delivery,
-                        message: bid.message,
-                        quantityKgs: bid.quantity_kgs,
-                        portOfLoading: bid.port_of_loading,
-                        destinationAddress: bid.destination_address,
-                        incoterms: bid.incoterms,
-                        mode: bid.mode,
-                        status: bid.status,
-                        createdAt: bid.created_at,
-                        updatedAt: bid.updated_at
-                    }));
+                    // Flatten arrays (each promise returned an array of bids for one order)
+                    allBids = bidArrays.flat();
+                    allShippingBids = shippingBidArrays.flat();
 
                     console.log(`fetchData: Batch fetched ${allBids.length} seller bids and ${allShippingBids.length} shipping bids`);
                 } catch (err) {
@@ -1266,15 +1226,17 @@ function BuyerDashboardContent() {
         }
     }, [user, fetchData]);
 
-    // Auto-refresh DISABLED - Only manual refresh on page reload or refresh button
-    // useEffect(() => {
-    //     if (!user || user.role !== 'buyer') return;
-    //     const intervalId = setInterval(() => {
-    //         console.log('Auto-refreshing data...');
-    //         fetchData(false);
-    //     }, 60000);
-    //     return () => clearInterval(intervalId);
-    // }, [user, fetchData]);
+    // Auto-refresh every 30 seconds to see new bids in real-time
+    useEffect(() => {
+        if (!user || user.role !== 'buyer') return;
+        
+        const intervalId = setInterval(() => {
+            console.log('Auto-refreshing data for new bids...');
+            fetchData(false); // Soft refresh (uses cache for some data)
+        }, 30000); // 30 seconds
+        
+        return () => clearInterval(intervalId);
+    }, [user, fetchData]);
 
     // Safety timeout: Force stop loading after 8 seconds to prevent stuck state
     useEffect(() => {
@@ -1352,11 +1314,12 @@ function BuyerDashboardContent() {
 
             // Refresh data immediately
             await fetchData();
-        } catch (error: any) {
-            console.error('Error creating order:', error);
+        } catch (error: unknown) {
+            const err = error as { message?: string; details?: string; hint?: string; code?: string };
+            console.error('Error creating order:', err?.message ?? err?.details ?? err?.hint ?? err?.code ?? error);
             toast({
                 title: "Error",
-                description: error?.message || "Failed to create order. Please try again.",
+                description: getErrorMessage(error, "Failed to create order. Please try again."),
                 variant: "destructive",
             });
         } finally {
@@ -1533,11 +1496,12 @@ function BuyerDashboardContent() {
             setSelectedCatalogProduct(null);
 
             await fetchData();
-        } catch (error: any) {
-            console.error('Error creating bid request:', error);
+        } catch (error: unknown) {
+            const err = error as { message?: string; details?: string; hint?: string; code?: string };
+            console.error('Error creating bid request:', err?.message ?? err?.details ?? err?.hint ?? err?.code ?? error);
             toast({
                 title: "Error",
-                description: error?.message || "Failed to place bid request. Please try again.",
+                description: getErrorMessage(error, "Failed to place bid request. Please try again."),
                 variant: "destructive",
             });
         } finally {
@@ -1590,10 +1554,10 @@ function BuyerDashboardContent() {
                 LocalCache.remove(CacheKeys.shippingBids(user.id));
             }
 
-            const totalCost = bid.bidAmount + (lowestShippingBid?.bidAmount || 0);
+            const totalCost = Number(bid.bidAmount) + (lowestShippingBid?.bidAmount ? Number(lowestShippingBid.bidAmount) : 0);
             toast({
                 title: "Bid Accepted! ✅",
-                description: `You've accepted the seller bid ($${bid.bidAmount.toFixed(2)})${lowestShippingBid ? ` and shipping bid ($${lowestShippingBid.bidAmount.toFixed(2)})` : ''}. Total: $${totalCost.toFixed(2)}`,
+                description: `You've accepted the seller bid ($${Number(bid.bidAmount).toFixed(2)})${lowestShippingBid ? ` and shipping bid ($${Number(lowestShippingBid.bidAmount).toFixed(2)})` : ''}. Total: $${totalCost.toFixed(2)}`,
             });
 
             await fetchData(true);
@@ -2401,7 +2365,7 @@ function BuyerDashboardContent() {
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
                                                         <Label className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bid Amount</Label>
-                                                        <p className="text-xl font-bold text-purple-600">${bid.bidAmount.toFixed(2)}</p>
+                                                        <p className="text-xl font-bold text-purple-600">${Number(bid.bidAmount).toFixed(2)}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
@@ -2607,7 +2571,7 @@ function BuyerDashboardContent() {
                                                     <div className={`grid ${isInternational ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2'} gap-4`}>
                                                         <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-900/20">
                                                             <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">Seller Bid</Label>
-                                                            <p className="text-xl font-bold text-purple-600">${bid.bidAmount.toFixed(2)}</p>
+                                                            <p className="text-xl font-bold text-purple-600">${Number(bid.bidAmount).toFixed(2)}</p>
                                                             <p className="text-[10px] text-purple-500 dark:text-purple-400 mt-0.5">exclusive GST</p>
                                                         </div>
                                                         {isInternational && (
@@ -2615,7 +2579,7 @@ function BuyerDashboardContent() {
                                                                 <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
                                                                     <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Shipping Cost</Label>
                                                                     <p className="text-xl font-bold text-blue-600">
-                                                                        {lowestShippingBid ? `$${lowestShippingBid.bidAmount.toFixed(2)}` : 'No bid yet'}
+                                                                        {lowestShippingBid ? `$${Number(lowestShippingBid.bidAmount).toFixed(2)}` : 'No bid yet'}
                                                                     </p>
                                                                     {orderShippingBids.length > 1 && (
                                                                         <p className="text-xs text-muted-foreground mt-1">{orderShippingBids.length} shipping bids</p>
@@ -2623,7 +2587,7 @@ function BuyerDashboardContent() {
                                                                 </div>
                                                                 <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
                                                                     <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Cost</Label>
-                                                                    <p className="text-2xl font-bold text-emerald-600">${totalCost.toFixed(2)}</p>
+                                                                    <p className="text-2xl font-bold text-emerald-600">${Number(totalCost).toFixed(2)}</p>
                                                                 </div>
                                                             </>
                                                         )}
@@ -2869,12 +2833,27 @@ function BuyerDashboardContent() {
                                     </div>
                                 </div>
                             </div>
-                            <DialogFooter>
+                            <DialogFooter className="flex-col sm:flex-row gap-2">
                                 <Button
-                                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                                    variant="outline"
+                                    className="flex-1"
                                     onClick={() => {
                                         setIsItemDetailsDialogOpen(false);
-                                        // Pre-fill bid form with selected item details
+                                        setOrderForm({
+                                            quantity: '1',
+                                            shippingAddress: '',
+                                            notes: '',
+                                        });
+                                        setIsOrderDialogOpen(true);
+                                    }}
+                                >
+                                    <ShoppingCart className="mr-2 h-4 w-4" />
+                                    Place Order
+                                </Button>
+                                <Button
+                                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                                    onClick={() => {
+                                        setIsItemDetailsDialogOpen(false);
                                         setBidForm({
                                             ...bidForm,
                                             productName: selectedItem?.name || '',
@@ -2885,7 +2864,7 @@ function BuyerDashboardContent() {
                                         setIsPlaceBidDialogOpen(true);
                                     }}
                                 >
-                                    <ShoppingCart className="mr-2 h-4 w-4" />
+                                    <Package className="mr-2 h-4 w-4" />
                                     Place Bid Request
                                 </Button>
                             </DialogFooter>

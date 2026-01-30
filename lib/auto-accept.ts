@@ -1,7 +1,7 @@
 // Auto-accept best bid when bidding time expires
 
 import { Order, Bid, ShippingBid } from './types';
-import { updateBid, updateShippingBid, updateOrder } from './supabase-api';
+import { updateBid, updateShippingBid, updateOrder } from './api-client';
 
 /**
  * Calculate bid end time based on order creation and bid running time

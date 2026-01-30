@@ -339,11 +339,7 @@ export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'updat
             shipping_address: order.shippingAddress,
             notes: order.notes,
         }])
-        .select(`
-            *,
-            item:items(id, name, description, image, price, size, category, condition, quantity, specifications, seller_id, status, created_at, updated_at),
-            buyer:users!buyer_id(id, name, email, role, avatar)
-        `)
+        .select('*')
         .single();
 
     if (error) {
@@ -351,7 +347,7 @@ export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'updat
         throw error;
     }
 
-    // Transform snake_case to camelCase
+    // Transform snake_case to camelCase (no embedded item/buyer to avoid PostgREST relationship errors on insert)
     return {
         id: data.id,
         itemId: data.item_id,
@@ -363,8 +359,6 @@ export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'updat
         notes: data.notes,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
-        item: data.item,
-        buyer: data.buyer,
     };
 }
 

@@ -14,7 +14,7 @@ import {
   type Supplier,
   type Quote,
   type SupplierInvite,
-} from "@/lib/supabase-api"
+} from "@/lib/api-client"
 import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

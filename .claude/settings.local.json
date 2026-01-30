@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-Process)",
+      "Bash(Where-Object {$_ProcessName -like \"*node*\" -or $_ProcessName -like \"*python*\"})",
+      "Bash(Select-Object ProcessName, Id, CPU)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(curl:*)",
+      "Bash(npm run seed:*)",
+      "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwMDIyYWUwMC0zMDQ3LTQ4NTAtOWVjMy0zYmU5YTFiZmYzNWUiLCJlbWFpbCI6ImFkbWluQG1vcnJlbi5jb20iLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3Njk3MTc0NjMsImV4cCI6MTc2OTcyMTA2M30.lWV2bxdh_8__ccJv661OfHI0i6GpG8wJLvsoiuF22rc\")",
+      "Bash(node test-backend-integration.js:*)",
+      "Bash(if [ -f .env.local ])",
+      "Bash(then grep NEXT_PUBLIC_API_URL .env.local)",
+      "Bash(else echo \".env.local does not exist - frontend may still be using Supabase\")",
+      "Bash(fi)",
+      "Bash(start http://localhost:3000)",
+      "Bash(timeout:*)",
+      "Bash(start test-frontend-integration.html)",
+      "Bash(dir:*)",
+      "Bash(node test-all-features.js:*)",
+      "Bash(node create-test-users.js:*)",
+      "Bash(psql:*)",
+      "Bash(node ../setup-admin-seller.js:*)",
+      "Bash(node setup-all-test-users.js:*)"
+    ]
+  }
+}

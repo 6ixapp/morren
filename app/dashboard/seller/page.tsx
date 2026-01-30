@@ -15,7 +15,7 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
-import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder } from '@/lib/supabase-api';
+import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -387,11 +387,12 @@ export default function SellerDashboard() {
 
         // If only one bid (mine), show that I'm the only bidder
         if (orderBids.length === 1) {
+            const myBidAmount = Number(myBid.bidAmount);
             return {
-                myBid: myBid.bidAmount,
-                lowestBid: myBid.bidAmount,
-                highestBid: myBid.bidAmount,
-                avgBid: myBid.bidAmount,
+                myBid: myBidAmount,
+                lowestBid: myBidAmount,
+                highestBid: myBidAmount,
+                avgBid: myBidAmount,
                 diffFromLowest: 0,
                 diffFromHighest: 0,
                 myPosition: 1,
@@ -406,24 +407,25 @@ export default function SellerDashboard() {
         const otherBids = orderBids.filter(b => b.sellerId !== user.id);
 
         // Find lowest bid (best for buyer - seller wants to be lowest or close to it)
-        const allBidAmounts = orderBids.map(b => b.bidAmount);
+        const allBidAmounts = orderBids.map(b => Number(b.bidAmount));
         const lowestBid = Math.min(...allBidAmounts);
         const highestBid = Math.max(...allBidAmounts);
         const avgBid = allBidAmounts.reduce((sum, b) => sum + b, 0) / allBidAmounts.length;
 
-        const diffFromLowest = lowestBid > 0 ? ((myBid.bidAmount - lowestBid) / lowestBid) * 100 : 0;
-        const diffFromHighest = highestBid > 0 ? ((myBid.bidAmount - highestBid) / highestBid) * 100 : 0;
+        const myBidAmount = Number(myBid.bidAmount);
+        const diffFromLowest = lowestBid > 0 ? ((myBidAmount - lowestBid) / lowestBid) * 100 : 0;
+        const diffFromHighest = highestBid > 0 ? ((myBidAmount - highestBid) / highestBid) * 100 : 0;
 
         // Position: where does my bid stand? (1 = lowest/best, higher = worse)
         const sortedBids = [...allBidAmounts].sort((a, b) => a - b);
-        const myPosition = sortedBids.indexOf(myBid.bidAmount) + 1;
+        const myPosition = sortedBids.indexOf(myBidAmount) + 1;
         const totalBidders = orderBids.length;
 
-        const isLowest = myBid.bidAmount <= lowestBid;
-        const isHighest = myBid.bidAmount >= highestBid;
+        const isLowest = myBidAmount <= lowestBid;
+        const isHighest = myBidAmount >= highestBid;
 
         return {
-            myBid: myBid.bidAmount,
+            myBid: myBidAmount,
             lowestBid,
             highestBid,
             avgBid,
@@ -923,7 +925,7 @@ export default function SellerDashboard() {
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">${stats.potentialRevenue.toFixed(2)}</div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">${Number(stats.potentialRevenue).toFixed(2)}</div>
                                 <p className="text-xs text-gray-500 mt-1">From accepted bids</p>
                             </CardContent>
                         </Card>
@@ -1357,7 +1359,7 @@ export default function SellerDashboard() {
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Order Budget</Label>
-                                                            <p className="text-lg font-medium text-gray-600">${(order?.totalPrice || 0).toFixed(2)}</p>
+                                                            <p className="text-lg font-medium text-gray-600">${Number(order?.totalPrice || 0).toFixed(2)}</p>
                                                         </div>
                                                     </div>
 
@@ -1365,7 +1367,7 @@ export default function SellerDashboard() {
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                         <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
                                                             <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Your Bid Amount</Label>
-                                                            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${bid.bidAmount.toFixed(2)}</p>
+                                                            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${Number(bid.bidAmount).toFixed(2)}</p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
@@ -1531,7 +1533,7 @@ export default function SellerDashboard() {
                                             <p className="text-xs text-muted-foreground">Total Bids</p>
                                         </div>
                                         <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                            <p className="text-2xl font-bold text-blue-600">${stats.totalBidValue.toFixed(0)}</p>
+                                            <p className="text-2xl font-bold text-blue-600">${Number(stats.totalBidValue || 0).toFixed(0)}</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">Total Value</p>
                                         </div>
                                     </div>
@@ -1551,16 +1553,16 @@ export default function SellerDashboard() {
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
                                             <span className="text-emerald-100">Total Potential</span>
-                                            <span className="text-xl font-bold">${stats.totalBidValue.toFixed(2)}</span>
+                                            <span className="text-xl font-bold">${Number(stats.totalBidValue).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
                                             <span className="text-emerald-100">Confirmed Revenue</span>
-                                            <span className="text-xl font-bold">${stats.potentialRevenue.toFixed(2)}</span>
+                                            <span className="text-xl font-bold">${Number(stats.potentialRevenue).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
                                             <span className="text-emerald-100">Avg. Bid Value</span>
                                             <span className="text-xl font-bold">
-                                                ${bids.length > 0 ? (stats.totalBidValue / bids.length).toFixed(2) : '0.00'}
+                                                ${bids.length > 0 ? (Number(stats.totalBidValue) / bids.length).toFixed(2) : '0.00'}
                                             </span>
                                         </div>
                                     </div>
@@ -1675,7 +1677,7 @@ export default function SellerDashboard() {
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                        Order budget: <span className="font-semibold">${(selectedOrder?.totalPrice || 0).toFixed(2)}</span>
+                                        Order budget: <span className="font-semibold">${Number(selectedOrder?.totalPrice || 0).toFixed(2)}</span>
                                     </p>
                                 </div>
                                 <div className="space-y-2">

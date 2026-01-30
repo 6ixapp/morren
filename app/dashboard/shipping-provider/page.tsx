@@ -14,7 +14,7 @@ import { Order, ShippingBid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
-import { getOrdersForShipping, getShippingBidsByProvider, createShippingBid, updateShippingBid, getShippingBidsByOrder, getBidsByOrder } from '@/lib/supabase-api';
+import { getOrdersForShipping, getShippingBidsByProvider, createShippingBid, updateShippingBid, getShippingBidsByOrder, getBidsByOrder } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { getDashboardRoute } from '@/lib/utils';
@@ -1364,7 +1364,7 @@ export default function ShippingProviderDashboard() {
                                                             <DollarSign className="h-3 w-3" />
                                                             Your Shipping Bid
                                                         </Label>
-                                                        <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 group-hover/card:scale-105 transition-transform">${bid.bidAmount.toFixed(2)}</p>
+                                                        <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 group-hover/card:scale-105 transition-transform">${Number(bid.bidAmount).toFixed(2)}</p>
                                                     </div>
                                                     <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-800 shadow-sm hover:shadow-md transition-all duration-300">
                                                         <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider font-bold flex items-center gap-1">

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getMarketPrices, addMarketPrice, getRFQs, type MarketPrice, type RFQ, type Quote } from "@/lib/supabase-api"
+import { getMarketPrices, addMarketPrice, getRFQs, type MarketPrice, type RFQ, type Quote } from "@/lib/api-client"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"

@@ -1,55 +1,34 @@
 # Marketplace Platform
 
-A comprehensive marketplace system with three distinct dashboards for buyers, sellers, and administrators.
+A B2B-style marketplace with four roles (buyer, seller, shipping provider, admin), **custom REST API backend**, fixed-price orders, bid requests, RFQ with supplier invites, and market prices.
 
-## 🚀 Features
+**Full feature overview:** [FEATURES.md](./FEATURES.md)
 
-### 🛒 Buyer Dashboard (`/dashboard/buyer`)
-- **Browse Items**: View all marketplace items with detailed information
-  - Item name, description, image
-  - Price, size, category, condition
-  - Stock availability
-  - Detailed specifications (e.g., for tomatoes: origin, variety, harvest date, shelf life, etc.)
-- **View Item Details**: Click to see complete specifications and seller information
-- **Manage Orders**: Track all your orders with status updates
-- **Review Seller Bids**: View and accept/reject bids from sellers
-- **Dashboard Stats**: 
-  - Total orders
-  - Pending orders
-  - Total spent
-  - Active bids
+## 🎉 NEW: Custom Backend Implementation
 
-### 🏪 Seller Dashboard (`/dashboard/seller`)
-- **View Buyer Orders**: See all buyer orders with complete details
-  - Order information
-  - Item specifications
-  - Buyer contact details
-  - Shipping address and notes
-- **Place Bids**: Submit competitive bids on buyer orders
-  - Custom bid amount
-  - Estimated delivery date
-  - Personalized message to buyer
-- **Track Bids**: Monitor status of all your bids
-- **Dashboard Stats**:
-  - Available orders
-  - Pending bids
-  - Accepted bids
-  - Potential revenue
+The platform now includes a **complete custom REST API backend** built from scratch to replace Supabase!
 
-### 🛡️ Admin Panel (`/dashboard/admin`)
-- **Full CRUD on Items**:
-  - Add new items with all details
-  - Edit existing items
-  - Delete items
-  - Manage specifications (key-value pairs)
-- **Order Management**: View and delete orders
-- **Bid Oversight**: Monitor all bids in the system
-- **User Management**: View all registered users
-- **Dashboard Stats**:
-  - Total items (active/inactive)
-  - Total orders (pending/completed)
-  - Total revenue
-  - Total users
+- ✅ **72 REST API endpoints** with JWT authentication
+- ✅ **PostgreSQL database** with 11 tables
+- ✅ **Role-based authorization** for all 4 user roles
+- ✅ **Production-ready** with security best practices
+- ✅ **Full TypeScript** support
+- ✅ **API documentation** and setup guides
+
+**Quick Start:** See [GETTING_STARTED.md](./GETTING_STARTED.md)  
+**Setup Checklist:** See [BACKEND_CHECKLIST.md](./BACKEND_CHECKLIST.md)  
+**Full Details:** See [BACKEND_COMPLETE.md](./BACKEND_COMPLETE.md)
+
+## Features Summary
+
+- **Four roles**: Buyer, Seller, Shipping provider, Admin (see [FEATURES.md](./FEATURES.md)).
+- **Buyer**: Browse items; place order (fixed price) or place bid request; manage orders and seller/shipping bids; RFQ create/award; stats.
+- **Seller**: View buyer orders (bid requests); place bids; track my bids; stats.
+- **Shipping provider**: View accepted orders; place shipping bids; track my shipping bids; stats.
+- **Admin**: Overview stats; manage items (CRUD); manage orders; users and create seller accounts.
+- **RFQ**: Create RFQs, invite suppliers, collect quotes, award; supplier portal via invite token (no login).
+- **Market prices**: List/add market prices by product; buyer profile (company name, etc.).
+- **Auth**: Sign in / sign up (buyers and shipping providers self-signup; seller/admin restricted); role-based redirect.
 
 ## 📊 Data Structure
 
@@ -79,51 +58,102 @@ Each item includes:
 - Message to buyer
 - Status (pending/accepted/rejected)
 
-## 🎨 Design Features
+## Design
 
 - **Modern UI**: Gradient backgrounds, smooth animations, hover effects
 - **Responsive**: Works on all screen sizes
-- **Color-coded**: Each dashboard has its own color scheme
-  - Buyer: Purple/Blue gradient
-  - Seller: Emerald/Teal gradient
-  - Admin: Rose/Orange gradient
-- **Interactive**: Dialogs, alerts, and real-time updates
-- **Accessible**: Clear labels, proper contrast, keyboard navigation
+- **Color-coded**: Buyer (purple/blue), Seller (emerald/teal), Shipping provider (blue), Admin (rose/orange)
+- **Interactive**: Dialogs, alerts, real-time updates
+- **Accessible**: Clear labels, contrast, keyboard navigation
 
 ## 🛠️ Tech Stack
 
+### Frontend
 - **Framework**: Next.js 16 with App Router
 - **Language**: TypeScript
-- **Backend**: Supabase (PostgreSQL database)
 - **Styling**: Tailwind CSS
 - **UI Components**: Radix UI primitives
 - **Icons**: Lucide React
 
-## 📁 Project Structure
+### Backend (NEW!)
+- **Framework**: Express.js + TypeScript
+- **Database**: PostgreSQL 12+
+- **Authentication**: JWT (JSON Web Tokens)
+- **Security**: bcrypt, Helmet, CORS
+- **Development**: nodemon, ts-node
+
+## Project Structure
 
 ```
 /app
   /dashboard
-    /buyer      - Buyer dashboard
-    /seller     - Seller dashboard
-    /admin      - Admin panel
-  page.tsx      - Landing page with navigation
-  
+    /buyer           - Buyer dashboard
+    /seller          - Seller dashboard
+    /shipping-provider - Shipping provider dashboard
+    /admin           - Admin panel
+    /rfq/new, /rfq/[id] - RFQ create and detail
+    /market-prices   - Market prices
+    /settings        - Role-based settings
+  /auth              - Sign in / sign up
+  /supplier/[token]  - Supplier portal (invite token)
+  page.tsx           - Landing page
+
 /lib
-  types.ts      - TypeScript interfaces
-  mock-data.ts  - Sample data and helper functions
-  
-/components/ui  - Reusable UI components
+  types.ts           - TypeScript interfaces
+  supabase-api.ts    - Supabase API layer
+  supabase.ts        - Supabase client
+  auto-accept.ts     - Auto-accept lowest bid when time expires
+  cache.ts           - Buyer cache keys
+
+/components
+  dashboard-layout.tsx - Role-based nav and layout
+  /ui                 - Reusable UI components
 ```
 
 ## 🚦 Getting Started
 
-### 1. Install Dependencies
+### Option 1: With Custom Backend (Recommended)
+
+#### Prerequisites
+- Node.js 16+
+- PostgreSQL 12+
+
+#### Quick Start
 ```bash
+# 1. Install PostgreSQL (if not installed)
+# Download from: https://www.postgresql.org/download/
+
+# 2. Create database
+psql -U postgres
+CREATE DATABASE morren_db;
+\q
+
+# 3. Setup backend
+cd backend
 npm install
+# Edit .env with your postgres password
+npm run migrate
+npm run seed        # Optional: creates test accounts
+npm run dev        # Start backend (port 5000)
+
+# 4. Setup frontend (new terminal)
+cd ..
+npm install
+# Add to .env.local:
+#   NEXT_PUBLIC_API_URL=http://localhost:5000
+npm run dev        # Start frontend (port 3000)
 ```
 
-### 2. Set Up Supabase Backend
+**Detailed Setup:** See [GETTING_STARTED.md](./GETTING_STARTED.md) and [BACKEND_CHECKLIST.md](./BACKEND_CHECKLIST.md)
+
+**Test Accounts (after seed):**
+- Admin: admin@morren.com / admin123
+- Buyer: buyer@test.com / buyer123
+- Seller: seller@test.com / seller123
+- Shipper: shipper@test.com / shipper123
+
+### Option 2: With Supabase (Legacy)
+
 Follow the detailed instructions in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) to:
 - Create a Supabase project
 - Run the database schema
@@ -138,18 +168,17 @@ Follow the detailed instructions in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) to:
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
-### 3. Run the Development Server
-```bash
-npm run dev
-```
+### Access the Application
 
-### 4. Open the Application
 Open [http://localhost:3000](http://localhost:3000) in your browser
 
-### 5. Navigate to Dashboards
+### Navigate to Dashboards
 - Buyer: `/dashboard/buyer`
 - Seller: `/dashboard/seller`
+- Shipping provider: `/dashboard/shipping-provider`
 - Admin: `/dashboard/admin`
+- RFQ list: `/dashboard` (home); create: `/dashboard/rfq/new`
+- Market prices: `/dashboard/market-prices`
 
 ## 📝 Sample Data
 
@@ -159,18 +188,14 @@ The application includes sample data for:
 - 2 bids
 - 3 users (buyer, seller, admin)
 
-## 🔄 Future Enhancements
+## Future Enhancements
 
-- ✅ Backend API integration (Supabase connected)
-- User authentication with Supabase Auth
-- Real-time notifications using Supabase Realtime
+- Real-time notifications (Supabase Realtime)
 - Payment processing integration
-- Image upload with Supabase Storage
-- Advanced search and filtering
+- Image upload (Supabase Storage)
 - Analytics and reporting dashboards
-- Export functionality (CSV, PDF)
+- Export (CSV, PDF)
 - Email notifications
-- Mobile responsive improvements
 
 ## 📄 License
 

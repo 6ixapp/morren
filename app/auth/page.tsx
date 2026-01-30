@@ -29,10 +29,6 @@ function AuthForm() {
         confirmPassword: '',
     });
 
-    // Block seller and admin signup - only buyers and shipping providers can sign up
-    const isRestrictedRole = redirectRole === 'seller' || redirectRole === 'admin';
-    const canSignUp = !isRestrictedRole; // Only buyers and shipping providers can sign up themselves
-
     // Redirect if already logged in
     useEffect(() => {
         if (user && !authLoading) {
@@ -49,14 +45,6 @@ function AuthForm() {
 
         try {
             if (isSignUp) {
-                // Block seller and admin signup - only buyers and shipping providers can sign up
-                if (isRestrictedRole) {
-                    const roleName = redirectRole === 'seller' ? 'Seller' : 'Admin';
-                    setError(`${roleName} accounts can only be created by administrators. Please contact your admin for access.`);
-                    setIsLoading(false);
-                    return;
-                }
-
                 if (formData.password !== formData.confirmPassword) {
                     setError('Passwords do not match');
                     setIsLoading(false);
@@ -114,23 +102,8 @@ function AuthForm() {
                 Welcome to Morera Ventures
             </h2>
             <p className="text-neutral-600 text-sm max-w-sm mt-2 dark:text-neutral-300">
-                {isRestrictedRole 
-                    ? `Login to access your ${redirectRole} dashboard` 
-                    : (isSignUp ? `Sign up to access your ${redirectRole} dashboard` : `Login to access your ${redirectRole} dashboard`)
-                }
+                {isSignUp ? `Sign up to access your ${redirectRole} dashboard` : `Login to access your ${redirectRole} dashboard`}
             </p>
-
-            {/* Show info message for restricted roles about signup restriction */}
-            {isRestrictedRole && !isSignUp && (
-                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <p className="text-sm text-blue-600 dark:text-blue-400">
-                        {redirectRole === 'seller' 
-                            ? 'Seller accounts are created by administrators only. If you don\'t have an account, please contact your admin.'
-                            : 'Admin accounts are created by administrators only. If you don\'t have an account, please contact your admin.'
-                        }
-                    </p>
-                </div>
-            )}
 
             {error && (
                 <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -219,9 +192,8 @@ function AuthForm() {
                     )}
                 </button>
 
-                {/* Only show signup toggle for non-seller roles */}
-                {canSignUp && (
-                    <div className="mt-4 text-center">
+                {/* Show signup toggle for all roles */}
+                <div className="mt-4 text-center">
                         <button
                             type="button"
                             onClick={() => {
@@ -240,7 +212,6 @@ function AuthForm() {
                             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
                         </button>
                     </div>
-                )}
             </form>
         </div>
     );

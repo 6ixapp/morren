@@ -16,7 +16,7 @@ import { Item, Order, Bid, User } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { useAuth } from '@/contexts/AuthContext';
-import { getItems, getOrders, getBids, getUsers, createItem, updateItem, deleteItem, deleteOrder, getAdminStats, createSellerAccount } from '@/lib/supabase-api';
+import { getItems, getOrders, getBids, getUsers, createItem, updateItem, deleteItem, deleteOrder, getAdminStats, createSellerAccount } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { useRouter } from 'next/navigation';
@@ -475,7 +475,7 @@ export default function AdminDashboard() {
                                                     <p className="font-medium">{item.quantity} units</p>
                                                 </div>
                                             </div>
-                                            {Object.keys(item.specifications).length > 0 && (
+                                            {item.specifications && Object.keys(item.specifications).length > 0 && (
                                                 <div className="mt-4">
                                                     <Label className="font-semibold mb-2 block text-sm uppercase tracking-wider text-gray-500">Specifications</Label>
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -541,7 +541,7 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <div className="p-3 bg-rose-50 dark:bg-rose-900/10 rounded-lg border border-rose-100 dark:border-rose-900/20">
                                                     <Label className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider">Total Price</Label>
-                                                    <p className="font-bold text-rose-600 dark:text-rose-400">${order.totalPrice.toFixed(2)}</p>
+                                                    <p className="font-bold text-rose-600 dark:text-rose-400">${Number(order.totalPrice).toFixed(2)}</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Created</Label>
@@ -590,7 +590,7 @@ export default function AdminDashboard() {
                                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                                 <div className="p-3 bg-rose-50 dark:bg-rose-900/10 rounded-lg border border-rose-100 dark:border-rose-900/20">
                                                     <Label className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider">Bid Amount</Label>
-                                                    <p className="text-lg font-bold text-rose-600 dark:text-rose-400">${bid.bidAmount.toFixed(2)}</p>
+                                                    <p className="text-lg font-bold text-rose-600 dark:text-rose-400">${Number(bid.bidAmount).toFixed(2)}</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
