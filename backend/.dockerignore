@@ -1,0 +1,32 @@
+# Ignore node_modules
+node_modules
+npm-debug.log
+
+# Ignore source files (we only need dist)
+src
+*.ts
+tsconfig.json
+
+# Ignore development files
+.env
+.env.local
+.env.development
+.env.test
+
+# Ignore Git
+.git
+.gitignore
+
+# Ignore docs and tests
+README.md
+*.md
+__tests__
+*.test.*
+
+# Ignore IDE files
+.vscode
+.idea
+
+# Ignore OS files
+.DS_Store
+Thumbs.db

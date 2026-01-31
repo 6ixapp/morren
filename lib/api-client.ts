@@ -462,3 +462,9 @@ export async function updateBuyerProfile(buyerId: string, profile: Partial<Buyer
     body: JSON.stringify(profile),
   });
 }
+
+// Utility functions
+export function calculatePercentageDiff(currentPrice: number, lowestPrice: number): number {
+  if (lowestPrice === 0) return 0;
+  return Math.round(((currentPrice - lowestPrice) / lowestPrice) * 100);
+}
