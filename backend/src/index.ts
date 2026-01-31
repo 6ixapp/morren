@@ -68,24 +68,21 @@ app.use((req, res) => {
 // Error handler
 app.use(errorHandler);
 
-// Run migrations and start server
-async function startServer() {
-  try {
-    // Run database migrations
-    console.log('🔄 Running database migrations...');
-    await runMigrations();
-    console.log('✅ Database ready');
-    
-    // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Server is running on port ${PORT}`);
-      console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-    });
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
-  }
+// Start server first so Railway healthcheck passes, then run migrations in background.
+// If migrations fail, we exit(1) so deploy logs show the error and container restarts.
+function startServer() {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
+
+    runMigrations()
+      .then(() => console.log('✅ Database migrations complete'))
+      .catch((error) => {
+        console.error('❌ Database migrations failed:', error);
+        process.exit(1);
+      });
+  });
 }
 
 startServer();
