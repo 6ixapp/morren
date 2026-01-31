@@ -1,13 +1,40 @@
 # 📚 Documentation Index
 
-Complete guide to all documentation files for the Morren Marketplace Backend.
+Complete guide to all documentation files for the Morren Marketplace.
 
 ---
 
-## 🚀 Getting Started (Start Here!)
+## 🚀 Deployment
+
+### [RAILWAY_PRISMA_DEPLOYMENT.md](RAILWAY_PRISMA_DEPLOYMENT.md) ⭐ RECOMMENDED
+**Railway + Prisma Database** - Best deployment option:
+- Backend on Railway
+- Database on Prisma (prisma.io)
+- Complete step-by-step guide
+- CLI deployment script included
+- Automatic deployment setup
+
+**Start here for the recommended deployment!**
+
+### [RAILWAY_CLI_GUIDE.md](RAILWAY_CLI_GUIDE.md)
+**Railway CLI Reference** - Command-line deployment:
+- CLI commands and usage
+- Environment variable management
+- Service configuration
+- Troubleshooting tips
+
+### [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)
+**Railway Manual Deployment** - Dashboard deployment:
+- Manual deployment via Railway dashboard
+- Multiple database options
+- Detailed configuration steps
+
+---
+
+## 🎯 Getting Started (Development)
 
 ### [GETTING_STARTED.md](GETTING_STARTED.md)
-**Start with this file!** Complete overview of:
+**Local Development Guide** - Complete overview of:
 - What was built
 - Quick start guide
 - Project structure
@@ -16,7 +43,7 @@ Complete guide to all documentation files for the Morren Marketplace Backend.
 - Test accounts
 - Development workflow
 
-**Read this first for a complete overview.**
+**Read this for local development setup.**
 
 ---
 
@@ -115,7 +142,10 @@ Windows batch script for automated setup:
 
 ## 🎯 Which Document Should I Read?
 
-### I'm just getting started
+### I want to deploy to Railway
+→ Read **[RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)** for production deployment
+
+### I'm just getting started with local development
 → Read **[GETTING_STARTED.md](GETTING_STARTED.md)** first
 
 ### I want step-by-step setup instructions
@@ -147,31 +177,48 @@ Windows batch script for automated setup:
 morren/
 │
 ├── 📚 Main Documentation
-│   ├── README.md                   - Project overview
-│   ├── GETTING_STARTED.md          - ⭐ START HERE
-│   ├── BACKEND_CHECKLIST.md        - Step-by-step setup
-│   ├── BACKEND_SETUP.md            - Detailed setup guide
-│   ├── BACKEND_COMPLETE.md         - Full implementation details
-│   ├── BACKEND_SUMMARY.md          - Executive summary
-│   └── BACKEND_README.md           - Architecture docs
+│   ├── README.md                      - Project overview
+│   ├── RAILWAY_DEPLOYMENT_GUIDE.md    - ⭐ Railway deployment
+│   ├── GETTING_STARTED.md             - Local development setup
+│   ├── BACKEND_CHECKLIST.md           - Step-by-step setup
+│   ├── BACKEND_SETUP.md               - Detailed setup guide
+│   ├── BACKEND_COMPLETE.md            - Full implementation details
+│   ├── BACKEND_SUMMARY.md             - Executive summary
+│   └── BACKEND_README.md              - Architecture docs
 │
 ├── 🎯 Backend Specific
 │   └── backend/
-│       └── README.md               - API documentation
+│       └── README.md                  - API documentation
 │
 ├── 🔧 Scripts
-│   └── setup-backend.bat           - Automated setup (Windows)
+│   └── setup-backend.bat              - Automated setup (Windows)
 │
 └── 💡 Feature Docs
-    ├── FEATURES.md                 - Feature overview
-    └── app.md                      - Application structure
+    ├── FEATURES.md                    - Feature overview
+    └── app.md                         - Application structure
 ```
 
 ---
 
 ## 🗺️ Documentation Roadmap
 
-### For First-Time Setup:
+### For Railway Deployment:
+
+1. **Review Requirements**
+   - [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md) - Prerequisites (5 minutes)
+
+2. **Set Up Database**
+   - [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md) - Step 1 (10 minutes)
+
+3. **Deploy Backend**
+   - [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md) - Step 2 (15 minutes)
+
+4. **Deploy Frontend**
+   - [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md) - Step 3 (15 minutes)
+
+**Total Time: ~45 minutes to production deployment**
+
+### For First-Time Local Setup:
 
 1. **Read Overview**
    - [GETTING_STARTED.md](GETTING_STARTED.md) (10 minutes)
@@ -185,7 +232,7 @@ morren/
 4. **Integrate Frontend**
    - [GETTING_STARTED.md](GETTING_STARTED.md) - Phase 7 (10 minutes)
 
-**Total Time: ~45 minutes to full operation**
+**Total Time: ~45 minutes to full local operation**
 
 ### For Development:
 
@@ -203,10 +250,13 @@ morren/
 
 ## 🆘 Common Questions
 
-**Q: Which file do I read first?**  
+**Q: How do I deploy to Railway?**  
+A: Follow [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md) step-by-step
+
+**Q: Which file do I read first for local dev?**  
 A: Start with [GETTING_STARTED.md](GETTING_STARTED.md)
 
-**Q: How do I install PostgreSQL?**  
+**Q: How do I install PostgreSQL locally?**  
 A: See [BACKEND_CHECKLIST.md](BACKEND_CHECKLIST.md) - Phase 1
 
 **Q: How do I test the API?**  
@@ -228,12 +278,13 @@ A: See [BACKEND_CHECKLIST.md](BACKEND_CHECKLIST.md) - Troubleshooting section
 
 ## 📊 Documentation Statistics
 
-- **Total documentation files**: 8
+- **Total documentation files**: 9
 - **Backend source files**: 70+
-- **Total lines of documentation**: ~5,000
+- **Total lines of documentation**: ~6,000
 - **API endpoints documented**: 72
 - **Code examples**: 50+
-- **Setup steps**: 8 phases
+- **Deployment platforms**: Railway
+- **Setup steps**: 8 phases (local) + 5 steps (Railway)
 
 ---
 
@@ -253,6 +304,14 @@ A: See [BACKEND_CHECKLIST.md](BACKEND_CHECKLIST.md) - Troubleshooting section
 
 ## 🎯 Next Steps
 
+### For Production Deployment:
+1. Read [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)
+2. Set up Supabase database
+3. Deploy to Railway
+4. Configure environment variables
+5. Go live! 🚀
+
+### For Local Development:
 1. Read [GETTING_STARTED.md](GETTING_STARTED.md)
 2. Follow [BACKEND_CHECKLIST.md](BACKEND_CHECKLIST.md)
 3. Start building! 🚀

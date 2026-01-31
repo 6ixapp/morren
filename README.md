@@ -1,23 +1,32 @@
-# Marketplace Platform
+# Morren Marketplace - Railway Ready
 
-A B2B-style marketplace with four roles (buyer, seller, shipping provider, admin), **custom REST API backend**, fixed-price orders, bid requests, RFQ with supplier invites, and market prices.
+A B2B marketplace with four roles (buyer, seller, shipping provider, admin), custom REST API backend, fixed-price orders, bid requests, RFQ with supplier invites, and market prices.
 
-**Full feature overview:** [FEATURES.md](./FEATURES.md)
+**🚀 [Deploy to Railway](RAILWAY_DEPLOYMENT_GUIDE.md)** | **📖 [Full Documentation](DOCUMENTATION_INDEX.md)** | **💻 [Local Dev Setup](GETTING_STARTED.md)**
 
-## 🎉 NEW: Custom Backend Implementation
+## 🚀 Quick Deploy to Railway
 
-The platform now includes a **complete custom REST API backend** built from scratch to replace Supabase!
+This repository is optimized for Railway deployment. Follow the step-by-step guide:
+
+👉 **[RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)**
+
+**Deployment time:** ~45 minutes from zero to production
+
+## 🎉 Custom Backend Implementation
+
+Complete custom REST API backend built from scratch:
 
 - ✅ **72 REST API endpoints** with JWT authentication
 - ✅ **PostgreSQL database** with 11 tables
 - ✅ **Role-based authorization** for all 4 user roles
 - ✅ **Production-ready** with security best practices
+- ✅ **Railway-optimized** Dockerfiles
 - ✅ **Full TypeScript** support
-- ✅ **API documentation** and setup guides
+- ✅ **Comprehensive documentation**
 
-**Quick Start:** See [GETTING_STARTED.md](./GETTING_STARTED.md)  
-**Setup Checklist:** See [BACKEND_CHECKLIST.md](./BACKEND_CHECKLIST.md)  
-**Full Details:** See [BACKEND_COMPLETE.md](./BACKEND_COMPLETE.md)
+**Deploy to Railway:** [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)  
+**Local Development:** [GETTING_STARTED.md](GETTING_STARTED.md)  
+**Full Details:** [BACKEND_COMPLETE.md](BACKEND_COMPLETE.md)
 
 ## Features Summary
 
@@ -112,7 +121,20 @@ Each item includes:
 
 ## 🚦 Getting Started
 
-### Option 1: With Custom Backend (Recommended)
+### For Production: Deploy to Railway
+
+Follow the complete Railway deployment guide:
+
+👉 **[RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)**
+
+**Time to deploy:** ~45 minutes
+
+**What you'll need:**
+- Railway account (free tier available)
+- Supabase account (for PostgreSQL database)
+- GitHub repository
+
+### For Local Development
 
 #### Prerequisites
 - Node.js 16+
@@ -144,7 +166,7 @@ npm install
 npm run dev        # Start frontend (port 3000)
 ```
 
-**Detailed Setup:** See [GETTING_STARTED.md](./GETTING_STARTED.md) and [BACKEND_CHECKLIST.md](./BACKEND_CHECKLIST.md)
+**Detailed Setup:** [GETTING_STARTED.md](GETTING_STARTED.md) | [BACKEND_CHECKLIST.md](BACKEND_CHECKLIST.md)
 
 **Test Accounts (after seed):**
 - Admin: admin@morren.com / admin123
@@ -152,32 +174,27 @@ npm run dev        # Start frontend (port 3000)
 - Seller: seller@test.com / seller123
 - Shipper: shipper@test.com / shipper123
 
-### Option 2: With Supabase (Legacy)
+## 📚 Documentation
 
-Follow the detailed instructions in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) to:
-- Create a Supabase project
-- Run the database schema
-- Configure environment variables
+Complete documentation available:
 
-**Quick Setup:**
-1. Create a Supabase project at https://supabase.com
-2. Run the SQL from `supabase-schema.sql` in your Supabase SQL Editor
-3. Create `.env.local` with your Supabase credentials:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   ```
+- **[RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)** - Deploy to Railway (production)
+- **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - All documentation files
+- **[GETTING_STARTED.md](GETTING_STARTED.md)** - Local development setup
+- **[BACKEND_CHECKLIST.md](BACKEND_CHECKLIST.md)** - Step-by-step backend setup
+- **[backend/README.md](backend/README.md)** - Complete API documentation
+- **[FEATURES.md](FEATURES.md)** - Full feature overview
 
-### Access the Application
+## 🎯 Access the Application
 
-Open [http://localhost:3000](http://localhost:3000) in your browser
+Open [http://localhost:3000](http://localhost:3000) (local) or your Railway URL (production)
 
 ### Navigate to Dashboards
 - Buyer: `/dashboard/buyer`
 - Seller: `/dashboard/seller`
 - Shipping provider: `/dashboard/shipping-provider`
 - Admin: `/dashboard/admin`
-- RFQ list: `/dashboard` (home); create: `/dashboard/rfq/new`
+- RFQ list: `/dashboard`; create: `/dashboard/rfq/new`
 - Market prices: `/dashboard/market-prices`
 
 ## 📝 Sample Data

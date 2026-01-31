@@ -2,6 +2,8 @@
 
 Custom REST API backend for the Morren marketplace application.
 
+**Deploy to Railway:** See [DEPLOY_RAILWAY.md](../DEPLOY_RAILWAY.md) in the repo root for step-by-step Railway deployment (PostgreSQL + backend service, env vars, frontend API URL).
+
 ## Features
 
 - JWT-based authentication
