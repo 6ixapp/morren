@@ -154,6 +154,19 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
     status,
   } = req.body as CreateItemRequest;
 
+  // Validate required fields
+  if (!name) {
+    throw new AppError('Item name is required', 400);
+  }
+  
+  if (price === null || price === undefined || isNaN(Number(price)) || Number(price) < 0) {
+    throw new AppError('Valid price is required (must be 0 or greater)', 400);
+  }
+
+  if (!category) {
+    throw new AppError('Category is required', 400);
+  }
+
   const result = await query(
     `INSERT INTO items (name, description, image, price, size, category, condition, quantity, specifications, seller_id, status) 
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
@@ -162,11 +175,11 @@ export const createItem = asyncHandler(async (req: Request, res: Response) => {
       name,
       description || null,
       image || null,
-      price || null,
+      Number(price), // Ensure price is a number, not null
       size || null,
-      category || null,
-      condition || null,
-      quantity,
+      category,
+      condition || 'new',
+      quantity || 1,
       specifications ? JSON.stringify(specifications) : null,
       sellerId || null,
       status || 'active',
@@ -185,6 +198,14 @@ export const updateItem = asyncHandler(async (req: Request, res: Response) => {
 
   if (Object.keys(updates).length === 0) {
     throw new AppError('No update fields provided', 400);
+  }
+
+  // Validate price if it's being updated
+  if ('price' in updates) {
+    if (updates.price === null || updates.price === undefined || isNaN(Number(updates.price)) || Number(updates.price) < 0) {
+      throw new AppError('Valid price is required (must be 0 or greater)', 400);
+    }
+    updates.price = Number(updates.price);
   }
 
   // Handle specifications JSON

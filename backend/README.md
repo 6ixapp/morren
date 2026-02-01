@@ -35,12 +35,12 @@ Copy `.env.example` to `.env` and update the values:
 cp .env.example .env
 ```
 
-Edit `.env` with your database credentials:
+Edit `.env` with your database credentials. Use `127.0.0.1` (not `localhost`) in DATABASE_URL on Windows to avoid IPv6 connection issues:
 
 ```env
 PORT=5000
 NODE_ENV=development
-DATABASE_URL=postgresql://username:password@localhost:5432/morren_db
+DATABASE_URL=postgresql://username:password@127.0.0.1:5432/morren_db
 JWT_SECRET=your-secret-key
 JWT_REFRESH_SECRET=your-refresh-secret-key
 CORS_ORIGIN=http://localhost:3000
@@ -71,6 +71,14 @@ npm run dev
 ```
 
 The server will start on `http://localhost:5000`.
+
+### Troubleshooting: ECONNREFUSED ::1:5432
+
+- **PostgreSQL not running**: Start PostgreSQL (e.g. Windows: start the postgres service; Mac: `brew services start postgresql`).
+- **Wrong host**: In `backend/.env`, set `DATABASE_URL` with `127.0.0.1` (not `localhost`) so the client uses IPv4; on Windows `localhost` can resolve to `::1` and fail.
+- **Wrong port/password**: Use the same port (default 5432) and password as your local Postgres. Create the database: `psql -U postgres -c "CREATE DATABASE morren_db;"`.
+
+In development, if migrations fail the server still starts so you can hit `/health`; fix `DATABASE_URL` and restart to run migrations.
 
 ## API Endpoints
 

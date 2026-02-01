@@ -23,13 +23,18 @@ import buyerProfileRoutes from './routes/buyerProfileRoutes';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Middleware
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: [
+      'http://localhost:3000',
+      'http://10.34.242.101:3000',
+      /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/, // Allow any device on local/hotspot network
+      /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Home network devices
+    ],
     credentials: true,
   })
 );
@@ -69,8 +74,11 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start server first so Railway healthcheck passes, then run migrations in background.
-// If migrations fail, we exit(1) so deploy logs show the error and container restarts.
 function startServer() {
+  if (!process.env.DATABASE_URL) {
+    console.warn('⚠️  DATABASE_URL is not set. Set it in backend/.env (e.g. postgresql://user:password@127.0.0.1:5432/morren_db) and ensure PostgreSQL is running.');
+  }
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server is running on port ${PORT}`);
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -80,7 +88,10 @@ function startServer() {
       .then(() => console.log('✅ Database migrations complete'))
       .catch((error) => {
         console.error('❌ Database migrations failed:', error);
-        process.exit(1);
+        if (process.env.NODE_ENV === 'production') {
+          process.exit(1);
+        }
+        console.warn('⚠️  Server kept running (development). Fix DATABASE_URL and restart to run migrations.');
       });
   });
 }

@@ -228,7 +228,7 @@ export interface CreateItemRequest {
   name: string;
   description?: string;
   image?: string;
-  price?: number;
+  price: number; // Required field
   size?: string;
   category?: string;
   condition?: string;
