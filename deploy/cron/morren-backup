@@ -1,0 +1,25 @@
+# Morren Marketplace - Production Cron Jobs
+# These are installed automatically by setup-server.sh
+# Manual install: crontab -u morren deploy/cron/morren-backup
+# -----------------------------------------------
+
+# Full database backup every 3 days at 2 AM
+0 2 */3 * * /opt/morren/deploy/backup-db.sh >> /var/log/morren/backup.log 2>&1
+
+# WAL archive sync to Spaces every 6 hours
+0 */6 * * * /opt/morren/deploy/sync-wal-to-spaces.sh >> /var/log/morren/wal-sync.log 2>&1
+
+# Health monitoring every 5 minutes
+*/5 * * * * /opt/morren/deploy/health-monitor.sh >> /var/log/morren/monitor.log 2>&1
+
+# Disk space check daily at 6 AM
+0 6 * * * /opt/morren/deploy/disk-check.sh >> /var/log/morren/monitor.log 2>&1
+
+# Verify latest backup integrity weekly (Sunday 3 AM)
+0 3 * * 0 /opt/morren/deploy/verify-backup.sh >> /var/log/morren/backup.log 2>&1
+
+# SSL renewal check monthly
+0 3 1 * * certbot renew --quiet >> /var/log/morren/certbot.log 2>&1
+
+# Clean old WAL files monthly (keep 7 days)
+0 4 1 * * find /var/backups/morren/wal-archive -type f -mtime +7 -delete >> /var/log/morren/backup.log 2>&1
