@@ -1,16 +1,17 @@
-# Morren Marketplace - Railway Ready
+# Morren Marketplace - Production Ready
 
 A B2B marketplace with four roles (buyer, seller, shipping provider, admin), custom REST API backend, fixed-price orders, bid requests, RFQ with supplier invites, and market prices.
 
-**🚀 [Deploy to Railway](RAILWAY_DEPLOYMENT_GUIDE.md)** | **📖 [Full Documentation](DOCUMENTATION_INDEX.md)** | **💻 [Local Dev Setup](GETTING_STARTED.md)**
+**🚀 [Deploy to Digital Ocean](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)** | **📖 [Full Documentation](DOCUMENTATION_INDEX.md)** | **💻 [Local Dev Setup](GETTING_STARTED.md)**
 
-## 🚀 Quick Deploy to Railway
+## 🚀 Quick Deploy to Digital Ocean Droplet
 
-This repository is optimized for Railway deployment. Follow the step-by-step guide:
+This repository includes automated deployment scripts for Digital Ocean droplets. Follow the comprehensive step-by-step guide:
 
-👉 **[RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)**
+👉 **[DIGITALOCEAN_DEPLOYMENT_GUIDE.md](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)**
 
-**Deployment time:** ~45 minutes from zero to production
+**Deployment time:** ~60 minutes from zero to production  
+**Monthly cost:** $18-24 (includes database, backups, monitoring)
 
 ## 🎉 Custom Backend Implementation
 
@@ -20,11 +21,11 @@ Complete custom REST API backend built from scratch:
 - ✅ **PostgreSQL database** with 11 tables
 - ✅ **Role-based authorization** for all 4 user roles
 - ✅ **Production-ready** with security best practices
-- ✅ **Railway-optimized** Dockerfiles
+- ✅ **Digital Ocean optimized** deployment scripts
 - ✅ **Full TypeScript** support
 - ✅ **Comprehensive documentation**
 
-**Deploy to Railway:** [RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)  
+**Deploy to Digital Ocean:** [DIGITALOCEAN_DEPLOYMENT_GUIDE.md](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)  
 **Local Development:** [GETTING_STARTED.md](GETTING_STARTED.md)  
 **Full Details:** [BACKEND_COMPLETE.md](BACKEND_COMPLETE.md)
 
@@ -121,18 +122,18 @@ Each item includes:
 
 ## 🚦 Getting Started
 
-### For Production: Deploy to Railway
+### For Production: Deploy to Digital Ocean
 
-Follow the complete Railway deployment guide:
+Follow the complete Digital Ocean deployment guide:
 
-👉 **[RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)**
+👉 **[DIGITALOCEAN_DEPLOYMENT_GUIDE.md](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)**
 
-**Time to deploy:** ~45 minutes
+**Time to deploy:** ~60 minutes
 
 **What you'll need:**
-- Railway account (free tier available)
-- Supabase account (for PostgreSQL database)
+- Digital Ocean account (starts at $18/month)
 - GitHub repository
+- SSH access to your droplet
 
 ### For Local Development
 
@@ -178,7 +179,7 @@ npm run dev        # Start frontend (port 3000)
 
 Complete documentation available:
 
-- **[RAILWAY_DEPLOYMENT_GUIDE.md](RAILWAY_DEPLOYMENT_GUIDE.md)** - Deploy to Railway (production)
+- **[DIGITALOCEAN_DEPLOYMENT_GUIDE.md](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)** - Deploy to Digital Ocean (production)
 - **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** - All documentation files
 - **[GETTING_STARTED.md](GETTING_STARTED.md)** - Local development setup
 - **[BACKEND_CHECKLIST.md](BACKEND_CHECKLIST.md)** - Step-by-step backend setup

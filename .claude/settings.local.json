@@ -22,7 +22,12 @@
       "Bash(node create-test-users.js:*)",
       "Bash(psql:*)",
       "Bash(node ../setup-admin-seller.js:*)",
-      "Bash(node setup-all-test-users.js:*)"
+      "Bash(node setup-all-test-users.js:*)",
+      "Bash(__NEW_LINE_8d7d813650045d61__ TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwMzQwYmU5Mi05YmJjLTQ2NWQtYWRiZC1iMzI5ZDI1MjA4MzIiLCJlbWFpbCI6InRlc3R1c2VyMTc3MTAwNzU5OUBleGFtcGxlLmNvbSIsInJvbGUiOiJidXllciIsImlhdCI6MTc3MTAwNzU5OSwiZXhwIjoxNzcxMDExMTk5fQ.cDETplhUzp8kvhcx05-pOHzB8C0D43rRsuVX4Xw2CcY\")",
+      "Bash(__NEW_LINE_8d7d813650045d61__ echo \"=== Testing GET /api/bids \\(Authenticated\\) ===\")",
+      "Bash(__NEW_LINE_e66fbf78e159afa8__ TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwMzQwYmU5Mi05YmJjLTQ2NWQtYWRiZC1iMzI5ZDI1MjA4MzIiLCJlbWFpbCI6InRlc3R1c2VyMTc3MTAwNzU5OUBleGFtcGxlLmNvbSIsInJvbGUiOiJidXllciIsImlhdCI6MTc3MTAwNzU5OSwiZXhwIjoxNzcxMDExMTk5fQ.cDETplhUzp8kvhcx05-pOHzB8C0D43rRsuVX4Xw2CcY\")",
+      "Bash(__NEW_LINE_e66fbf78e159afa8__ echo \"=== Testing GET /api/notifications \\(Authenticated\\) ===\")",
+      "Bash(npm run build:*)"
     ]
   }
 }

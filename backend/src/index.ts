@@ -30,12 +30,20 @@ const PORT = Number(process.env.PORT) || 5000;
 app.use(helmet());
 app.use(
   cors({
-    origin: [
-      'http://localhost:3000',
-      'http://10.34.242.101:3000',
-      /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/, // Allow any device on local/hotspot network
-      /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Home network devices
-    ],
+    origin: process.env.NODE_ENV === 'production'
+      ? [
+          'https://zentrip.social',
+          'https://www.zentrip.social',
+          'https://app.zentrip.social',
+          /^https:\/\/.*\.vercel\.app$/,  // Allow all Vercel deployments
+          'http://localhost:3000',  // For local testing
+        ]
+      : [
+          'http://localhost:3000',
+          'http://10.34.242.101:3000',
+          /^http:\/\/10\.\d+\.\d+\.\d+:\d+$/, // Allow any device on local/hotspot network
+          /^http:\/\/192\.168\.\d+\.\d+:\d+$/, // Home network devices
+        ],
     credentials: true,
   })
 );
