@@ -19,6 +19,7 @@ import rfqRoutes from './routes/rfqRoutes';
 import marketPriceRoutes from './routes/marketPriceRoutes';
 import buyerProfileRoutes from './routes/buyerProfileRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import sellerPublicRoutes from './routes/sellerPublicRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -74,6 +75,7 @@ app.use('/api/rfqs', rfqRoutes);
 app.use('/api/market-prices', marketPriceRoutes);
 app.use('/api/buyer-profiles', buyerProfileRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/sellers', sellerPublicRoutes);
 
 // 404 handler
 app.use((req, res) => {

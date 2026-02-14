@@ -10,6 +10,7 @@ const parseBidRow = (row: any, maskSellerInfo: boolean = false) => {
     id: row.id,
     orderId: row.order_id,
     sellerId: maskSellerInfo ? undefined : row.seller_id,
+    anonymizedSellerId: row.seller_id ? `SLR-${row.seller_id.substring(0, 4)}` : undefined,
     bidAmount: row.bid_amount,
     estimatedDelivery: row.estimated_delivery,
     message: row.message,
