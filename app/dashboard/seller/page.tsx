@@ -41,10 +41,9 @@ export default function SellerDashboard() {
         bidAmount: '',
         estimatedDelivery: '',
         message: '',
-        pickupAddress: '',
     });
     const [searchQuery, setSearchQuery] = useState('');
-    const [inlineBidForms, setInlineBidForms] = useState<Record<string, { bidAmount: string; estimatedDelivery: string; message: string; pickupAddress: string }>>({});
+    const [inlineBidForms, setInlineBidForms] = useState<Record<string, { bidAmount: string; estimatedDelivery: string; message: string }>>({});
 
     // Enhanced search and filtering states
     const [bidSearchQuery, setBidSearchQuery] = useState('');
@@ -175,8 +174,13 @@ export default function SellerDashboard() {
         return ['all', ...categories];
     }, [orders]);
 
-    // Filter and sort orders
-    const filteredAndSortedOrders = useMemo(() => {
+    // Create a map of order IDs where seller has already bid
+    const myBidOrderIds = useMemo(() => {
+        return new Set(bids.map(bid => bid.orderId));
+    }, [bids]);
+
+    // Filter and sort orders - separate into new and live
+    const { newOrders, liveOrders } = useMemo(() => {
         let filtered = orders.filter(order => {
             const matchesSearch = !searchQuery ||
                 order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -189,41 +193,63 @@ export default function SellerDashboard() {
             return matchesSearch && matchesCategory;
         });
 
-        // Sort orders
-        filtered.sort((a, b) => {
-            let aValue: any, bValue: any;
+        // Separate into new (no bid) and live (already bid)
+        const newOrd: Order[] = [];
+        const liveOrd: Order[] = [];
 
-            switch (orderSortBy) {
-                case 'date':
-                    aValue = new Date(a.createdAt);
-                    bValue = new Date(b.createdAt);
-                    break;
-                case 'quantity':
-                    aValue = a.quantity || 0;
-                    bValue = b.quantity || 0;
-                    break;
-                case 'price':
-                    aValue = a.totalPrice || 0;
-                    bValue = b.totalPrice || 0;
-                    break;
-                case 'name':
-                    aValue = (a.item?.name || '').toLowerCase();
-                    bValue = (b.item?.name || '').toLowerCase();
-                    break;
-                default:
-                    aValue = new Date(a.createdAt);
-                    bValue = new Date(b.createdAt);
-            }
-
-            if (orderSortDirection === 'asc') {
-                return aValue > bValue ? 1 : -1;
+        filtered.forEach(order => {
+            if (myBidOrderIds.has(order.id)) {
+                liveOrd.push(order);
             } else {
-                return aValue < bValue ? 1 : -1;
+                newOrd.push(order);
             }
         });
 
-        return filtered;
-    }, [orders, searchQuery, orderCategoryFilter, orderSortBy, orderSortDirection]);
+        // Sort function
+        const sortOrders = (ordersToSort: Order[]) => {
+            return ordersToSort.sort((a, b) => {
+                let aValue: any, bValue: any;
+
+                switch (orderSortBy) {
+                    case 'date':
+                        aValue = new Date(a.createdAt);
+                        bValue = new Date(b.createdAt);
+                        break;
+                    case 'quantity':
+                        aValue = a.quantity || 0;
+                        bValue = b.quantity || 0;
+                        break;
+                    case 'price':
+                        aValue = a.totalPrice || 0;
+                        bValue = b.totalPrice || 0;
+                        break;
+                    case 'name':
+                        aValue = (a.item?.name || '').toLowerCase();
+                        bValue = (b.item?.name || '').toLowerCase();
+                        break;
+                    default:
+                        aValue = new Date(a.createdAt);
+                        bValue = new Date(b.createdAt);
+                }
+
+                if (orderSortDirection === 'asc') {
+                    return aValue > bValue ? 1 : -1;
+                } else {
+                    return aValue < bValue ? 1 : -1;
+                }
+            });
+        };
+
+        return {
+            newOrders: sortOrders(newOrd),
+            liveOrders: sortOrders(liveOrd)
+        };
+    }, [orders, searchQuery, orderCategoryFilter, orderSortBy, orderSortDirection, myBidOrderIds]);
+
+    // Keep legacy variable for compatibility
+    const filteredAndSortedOrders = useMemo(() => {
+        return [...liveOrders, ...newOrders];
+    }, [liveOrders, newOrders]);
 
     // Filter and sort bids
     const filteredAndSortedBids = useMemo(() => {
@@ -603,7 +629,6 @@ export default function SellerDashboard() {
             bidAmount: (order.totalPrice || 0).toString(),
             estimatedDelivery: '',
             message: '',
-            pickupAddress: '',
         });
         setIsBidDialogOpen(true);
     };
@@ -638,15 +663,8 @@ export default function SellerDashboard() {
             return;
         }
 
-        // Validate pickup address
-        if (!bidData.pickupAddress || bidData.pickupAddress.trim() === '') {
-            toast({
-                title: "Validation Error",
-                description: "Please enter your pickup address for shipping.",
-                variant: "destructive",
-            });
-            return;
-        }
+        // Use default pickup address
+        const pickupAddress = 'Warehouse Location, India';
 
         setSubmittingBid(true);
         try {
@@ -656,7 +674,7 @@ export default function SellerDashboard() {
                 bidAmount: bidAmount,
                 estimatedDelivery: bidData.estimatedDelivery,
                 message: bidData.message || undefined,
-                pickupAddress: bidData.pickupAddress,
+                pickupAddress: pickupAddress,
                 status: 'pending',
             });
 
@@ -715,15 +733,8 @@ export default function SellerDashboard() {
             return;
         }
 
-        // Validate pickup address
-        if (!bidForm.pickupAddress || bidForm.pickupAddress.trim() === '') {
-            toast({
-                title: "Validation Error",
-                description: "Please enter your pickup address for shipping.",
-                variant: "destructive",
-            });
-            return;
-        }
+        // Use default pickup address
+        const pickupAddress = 'Warehouse Location, India';
 
         setSubmittingBid(true);
         try {
@@ -733,7 +744,7 @@ export default function SellerDashboard() {
                 bidAmount: bidAmount,
                 estimatedDelivery: bidForm.estimatedDelivery,
                 message: bidForm.message || undefined,
-                pickupAddress: bidForm.pickupAddress,
+                pickupAddress: pickupAddress,
                 status: 'pending',
             });
 
@@ -743,7 +754,7 @@ export default function SellerDashboard() {
             });
 
             setIsBidDialogOpen(false);
-            setBidForm({ bidAmount: '', estimatedDelivery: '', message: '', pickupAddress: '' });
+            setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
             setSelectedOrder(null);
 
             // Refresh data immediately
@@ -803,7 +814,7 @@ export default function SellerDashboard() {
             });
 
             setIsBidDialogOpen(false);
-            setBidForm({ bidAmount: '', estimatedDelivery: '', message: '', pickupAddress: '' });
+            setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
             setEditingBid(null);
 
             // Refresh data immediately
@@ -828,7 +839,6 @@ export default function SellerDashboard() {
             bidAmount: bid.bidAmount.toString(),
             estimatedDelivery: new Date(bid.estimatedDelivery).toISOString().split('T')[0],
             message: bid.message || '',
-            pickupAddress: bid.pickupAddress || '',
         });
         setIsBidDialogOpen(true);
     };
@@ -880,14 +890,28 @@ export default function SellerDashboard() {
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Available Orders</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Package className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">New Requests</CardTitle>
+                                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalOrders}</div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{newOrders.length}</div>
                                 <p className="text-xs text-gray-500 mt-1">Orders available for bidding</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="border border-green-200 dark:border-green-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Live Bids</CardTitle>
+                                <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-110 transition-transform relative">
+                                    <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                    <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse top-0 right-0"></div>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{liveOrders.length}</div>
+                                <p className="text-xs text-gray-500 mt-1">Active bids placed</p>
                             </CardContent>
                         </Card>
 
@@ -937,8 +961,9 @@ export default function SellerDashboard() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Package className="h-5 w-5 text-emerald-600" />
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Available Orders</h2>
-                                    <Badge variant="secondary" className="ml-2">{filteredAndSortedOrders.length} orders</Badge>
+                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Orders Dashboard</h2>
+                                    <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} new</Badge>
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{liveOrders.length} live</Badge>
                                 </div>
                                 <Button
                                     variant="ghost"
@@ -1022,7 +1047,118 @@ export default function SellerDashboard() {
                         </div>
 
                         <div className="grid gap-6">
-                            {filteredAndSortedOrders.length === 0 ? (
+                            {/* Live Bids Section */}
+                            {liveOrders.length > 0 && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border-2 border-green-200 dark:border-green-800">
+                                        <div className="relative flex items-center">
+                                            <div className="absolute w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
+                                            <div className="relative w-3 h-3 bg-green-500 rounded-full"></div>
+                                        </div>
+                                        <h3 className="text-lg font-bold text-green-700 dark:text-green-400">LIVE BIDS</h3>
+                                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{liveOrders.length} active</Badge>
+                                    </div>
+
+                                    {(showAllOrders ? liveOrders : liveOrders.slice(0, 3)).map((order) => (
+                                        <Card key={order.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 border-2 border-green-200 dark:border-green-800 group">
+                                            <CardHeader>
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-105 transition-transform relative">
+                                                            <ShoppingCart className="h-6 w-6 text-green-600" />
+                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                                                        </div>
+                                                        <div>
+                                                            <CardTitle className="flex items-center gap-2">
+                                                                {order.item?.name || 'Unknown Item'}
+                                                                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{order.item?.category}</Badge>
+                                                                <Badge className="bg-green-500 text-white">LIVE</Badge>
+                                                            </CardTitle>
+                                                            <CardDescription>
+                                                                Enquiry Number: {order.id}
+                                                            </CardDescription>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col gap-2 w-full">
+                                                        <div className="flex items-center gap-2">
+                                                            {order.item?.specifications && (
+                                                                <ClockTimer
+                                                                    endTime={calculateBidEndTime(order)}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-4">
+                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
+                                                            <p className="font-medium">{order.quantity} units</p>
+                                                        </div>
+                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Budget</Label>
+                                                            <p className="font-medium">${Number(order.totalPrice).toFixed(2)}</p>
+                                                        </div>
+                                                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                                            <Label className="text-xs text-green-600 dark:text-green-400 uppercase tracking-wider">Your Bid</Label>
+                                                            <p className="font-bold text-green-700 dark:text-green-400">
+                                                                ${bids.find(b => b.orderId === order.id)?.bidAmount.toFixed(2) || 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Inline bid form for live orders */}
+                                                    <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                                                        <Input
+                                                            type="number"
+                                                            placeholder="Update Bid Amount"
+                                                            className="h-9 w-48"
+                                                            value={inlineBidForms[order.id]?.bidAmount || ''}
+                                                            onChange={(e) => setInlineBidForms(prev => ({
+                                                                ...prev,
+                                                                [order.id]: {
+                                                                    ...prev[order.id],
+                                                                    bidAmount: e.target.value,
+                                                                    estimatedDelivery: prev[order.id]?.estimatedDelivery || '',
+                                                                    message: prev[order.id]?.message || ''
+                                                                }
+                                                            }))}
+                                                        />
+                                                        <Input
+                                                            type="date"
+                                                            placeholder="Delivery Date"
+                                                            className="h-9 w-44"
+                                                            value={inlineBidForms[order.id]?.estimatedDelivery || ''}
+                                                            onChange={(e) => setInlineBidForms(prev => ({
+                                                                ...prev,
+                                                                [order.id]: {
+                                                                    ...prev[order.id],
+                                                                    bidAmount: prev[order.id]?.bidAmount || '',
+                                                                    estimatedDelivery: e.target.value,
+                                                                    message: prev[order.id]?.message || ''
+                                                                }
+                                                            }))}
+                                                        />
+                                                        <Button
+                                                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/20"
+                                                            onClick={() => handleInlineBidSubmit(order)}
+                                                            disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
+                                                        >
+                                                            <Send className="mr-2 h-4 w-4" />
+                                                            {submittingBid ? "Updating..." : "Update Bid"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* New Requests Section */}
+                            {newOrders.length === 0 && liveOrders.length === 0 ? (
                                 orders.length === 0 ? (
                                     <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -1041,9 +1177,15 @@ export default function SellerDashboard() {
                                         </Button>
                                     </Card>
                                 )
-                            ) : (
+                            ) : newOrders.length > 0 ? (
                                 <>
-                                    {(showAllOrders ? filteredAndSortedOrders : filteredAndSortedOrders.slice(0, 5)).map((order) => (
+                                    <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                        <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                                        <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400">NEW REQUESTS</h3>
+                                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} available</Badge>
+                                    </div>
+
+                                    {(showAllOrders ? newOrders : newOrders.slice(0, 5)).map((order) => (
                                         <Card key={order.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 group">
                                             <CardHeader>
                                                 <div className="flex items-center justify-between">
@@ -1075,8 +1217,7 @@ export default function SellerDashboard() {
                                                                         ...prev[order.id],
                                                                         bidAmount: e.target.value,
                                                                         estimatedDelivery: prev[order.id]?.estimatedDelivery || '',
-                                                                        message: prev[order.id]?.message || '',
-                                                                        pickupAddress: prev[order.id]?.pickupAddress || ''
+                                                                        message: prev[order.id]?.message || ''
                                                                     }
                                                                 }))}
                                                             />
@@ -1090,30 +1231,14 @@ export default function SellerDashboard() {
                                                                         ...prev[order.id],
                                                                         bidAmount: prev[order.id]?.bidAmount || '',
                                                                         estimatedDelivery: e.target.value,
-                                                                        message: prev[order.id]?.message || '',
-                                                                        pickupAddress: prev[order.id]?.pickupAddress || ''
-                                                                    }
-                                                                }))}
-                                                            />
-                                                            <AddressAutocomplete
-                                                                placeholder="Pickup Address *"
-                                                                className="h-9 min-h-[36px] w-64"
-                                                                value={inlineBidForms[order.id]?.pickupAddress || ''}
-                                                                onChange={(value) => setInlineBidForms(prev => ({
-                                                                    ...prev,
-                                                                    [order.id]: {
-                                                                        ...prev[order.id],
-                                                                        bidAmount: prev[order.id]?.bidAmount || '',
-                                                                        estimatedDelivery: prev[order.id]?.estimatedDelivery || '',
-                                                                        message: prev[order.id]?.message || '',
-                                                                        pickupAddress: value
+                                                                        message: prev[order.id]?.message || ''
                                                                     }
                                                                 }))}
                                                             />
                                                             <Button
                                                                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20"
                                                                 onClick={() => handleInlineBidSubmit(order)}
-                                                                disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || !inlineBidForms[order.id]?.pickupAddress || submittingBid}
+                                                                disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
                                                             >
                                                                 <Send className="mr-2 h-4 w-4" />
                                                                 {submittingBid ? "Placing..." : "Place Bid"}
@@ -1166,10 +1291,12 @@ export default function SellerDashboard() {
                                             </CardContent>
                                         </Card>
                                     ))}
-                                    {filteredAndSortedOrders.length > 5 && (
+
+                                    {/* Show More/Less button for New Orders */}
+                                    {newOrders.length > 5 && (
                                         <Button
                                             variant="outline"
-                                            className="w-full border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                            className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                                             onClick={() => setShowAllOrders(!showAllOrders)}
                                         >
                                             {showAllOrders ? (
@@ -1180,13 +1307,13 @@ export default function SellerDashboard() {
                                             ) : (
                                                 <>
                                                     <ChevronDown className="mr-2 h-4 w-4" />
-                                                    Load More ({filteredAndSortedOrders.length - 5} more)
+                                                    Load More ({newOrders.length - 5} more)
                                                 </>
                                             )}
                                         </Button>
                                     )}
                                 </>
-                            )}
+                            ) : null}
                         </div>
                     </div>
 
@@ -1691,21 +1818,6 @@ export default function SellerDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="pickupAddress" className="text-sm font-medium flex items-center gap-2">
-                                        <Package className="h-4 w-4" />
-                                        Pickup Address (For Shipping Provider) *
-                                    </Label>
-                                    <AddressAutocomplete
-                                        placeholder="Enter your warehouse/facility address where goods will be collected from..."
-                                        value={bidForm.pickupAddress}
-                                        onChange={(value) => setBidForm({ ...bidForm, pickupAddress: value })}
-                                        className="min-h-[80px]"
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                        This address will be shared with the shipping provider for goods collection
-                                    </p>
-                                </div>
-                                <div className="space-y-2">
                                     <Label htmlFor="message" className="text-sm font-medium">Message (Optional)</Label>
                                     <Textarea
                                         id="message"
@@ -1721,14 +1833,14 @@ export default function SellerDashboard() {
                                 <Button variant="outline" onClick={() => {
                                     setIsBidDialogOpen(false);
                                     setEditingBid(null);
-                                    setBidForm({ bidAmount: '', estimatedDelivery: '', message: '', pickupAddress: '' });
+                                    setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
                                 }}>
                                     Cancel
                                 </Button>
                                 <Button
                                     className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20"
                                     onClick={editingBid ? updateExistingBid : submitBid}
-                                    disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery || !bidForm.pickupAddress}
+                                    disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
                                 >
                                     <Send className="mr-2 h-4 w-4" />
                                     {submittingBid ? (editingBid ? "Updating..." : "Submitting...") : (editingBid ? "Update Bid" : "Submit Bid")}

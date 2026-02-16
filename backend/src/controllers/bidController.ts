@@ -35,7 +35,16 @@ const parseBidRow = (row: any, maskSellerInfo: boolean = false) => {
       quantity: row.order_quantity,
       totalPrice: row.order_total_price,
       status: row.order_status,
+      createdAt: row.order_created_at,
     });
+
+    // Add item details if available
+    bid.order!.item = {
+      id: row.order_item_id,
+      name: row.order_item_name,
+      size: row.order_item_size,
+      specifications: row.order_item_specifications || {},
+    } as any;
   }
 
   if (row.seller_name && !maskSellerInfo) {
@@ -53,9 +62,9 @@ const parseBidRow = (row: any, maskSellerInfo: boolean = false) => {
 export const getBids = asyncHandler(async (req: Request, res: Response) => {
   const result = await query(`
     SELECT b.*,
-           o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity, 
-           o.total_price as order_total_price, o.status as order_status,
-           i.name as order_item_name,
+           o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity,
+           o.total_price as order_total_price, o.status as order_status, o.created_at as order_created_at,
+           i.name as order_item_name, i.specifications as order_item_specifications, i.size as order_item_size,
            u.name as seller_name, u.email as seller_email
     FROM bids b
     LEFT JOIN orders o ON b.order_id = o.id
@@ -75,9 +84,9 @@ export const getBidById = asyncHandler(async (req: Request, res: Response) => {
 
   const result = await query(
     `SELECT b.*,
-            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity, 
-            o.total_price as order_total_price, o.status as order_status,
-            i.name as order_item_name,
+            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity,
+            o.total_price as order_total_price, o.status as order_status, o.created_at as order_created_at,
+            i.name as order_item_name, i.specifications as order_item_specifications, i.size as order_item_size,
             u.name as seller_name, u.email as seller_email
      FROM bids b
      LEFT JOIN orders o ON b.order_id = o.id
@@ -103,9 +112,9 @@ export const getBidsByOrder = asyncHandler(async (req: Request, res: Response) =
 
   const result = await query(
     `SELECT b.*,
-            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity, 
-            o.total_price as order_total_price, o.status as order_status,
-            i.name as order_item_name,
+            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity,
+            o.total_price as order_total_price, o.status as order_status, o.created_at as order_created_at,
+            i.name as order_item_name, i.specifications as order_item_specifications, i.size as order_item_size,
             u.name as seller_name, u.email as seller_email
      FROM bids b
      LEFT JOIN orders o ON b.order_id = o.id
@@ -127,9 +136,9 @@ export const getBidsBySeller = asyncHandler(async (req: Request, res: Response) 
 
   const result = await query(
     `SELECT b.*,
-            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity, 
-            o.total_price as order_total_price, o.status as order_status,
-            i.name as order_item_name,
+            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity,
+            o.total_price as order_total_price, o.status as order_status, o.created_at as order_created_at,
+            i.name as order_item_name, i.specifications as order_item_specifications, i.size as order_item_size,
             u.name as seller_name, u.email as seller_email
      FROM bids b
      LEFT JOIN orders o ON b.order_id = o.id
@@ -157,9 +166,12 @@ export const createBid = asyncHandler(async (req: Request, res: Response) => {
     status,
   } = req.body as CreateBidRequest;
 
+  // Use default pickup address if not provided
+  const finalPickupAddress = pickupAddress || 'Warehouse Location, India';
+
   const result = await query(
-    `INSERT INTO bids (order_id, seller_id, bid_amount, estimated_delivery, message, pickup_address, status) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7) 
+    `INSERT INTO bids (order_id, seller_id, bid_amount, estimated_delivery, message, pickup_address, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       orderId,
@@ -167,7 +179,7 @@ export const createBid = asyncHandler(async (req: Request, res: Response) => {
       bidAmount,
       estimatedDelivery || null,
       message || null,
-      pickupAddress || null,
+      finalPickupAddress,
       status || 'pending',
     ]
   );

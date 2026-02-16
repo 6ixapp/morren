@@ -2,6 +2,12 @@
 
 export type UserRole = 'buyer' | 'seller' | 'admin' | 'shipping_provider';
 
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -52,7 +58,8 @@ export interface Bid {
   id: string;
   orderId: string;
   order?: Order;
-  sellerId: string;
+  sellerId?: string;
+  anonymizedSellerId?: string; // Anonymized seller ID for buyer view
   seller?: User;
   bidAmount: number;
   estimatedDelivery: string;

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ShoppingCart, Package, DollarSign, TrendingUp, TrendingDown, Eye, Plus, Check, X, Clock, Search, Leaf, Wheat, Apple, Nut, List, Trash2, Send, MoreHorizontal, Copy, Edit, Filter, SortAsc, SortDesc, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { ShoppingCart, Package, DollarSign, TrendingUp, TrendingDown, Eye, Plus, Check, X, Clock, Search, Leaf, Wheat, Apple, Nut, List, Trash2, Send, MoreHorizontal, Copy, Edit, Filter, SortAsc, SortDesc, ChevronDown, ChevronUp, Calendar, Users, Trophy, BarChart3, PieChart, Activity } from 'lucide-react';
 import { Item, Order, Bid, ShippingBid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { CardContainer, CardBody, CardItem } from '@/components/ui/aceternity/3d-card';
@@ -27,6 +27,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { LocalCache, CacheKeys, CacheDuration } from '@/lib/cache';
 import { processAutoAccepts } from '@/lib/auto-accept';
 import { getErrorMessage } from '@/lib/utils';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
 
 // Predefined Product Catalog with Varieties
 const PRODUCT_CATALOG = {
@@ -75,18 +77,26 @@ const PRODUCT_CATALOG = {
         { name: "Cinnamon - Stick", hsn: "0906", variety: "Stick" },
         { name: "Cinnamon - Powder", hsn: "0906", variety: "Powder" },
 
-        // Cardamom Green varieties
-        { name: "Cardamom Green - 5-6mm", hsn: "0908", variety: "5-6mm" },
-        { name: "Cardamom Green - 6-7mm", hsn: "0908", variety: "6-7mm" },
-        { name: "Cardamom Green - 7-8mm", hsn: "0908", variety: "7-8mm" },
-        { name: "Cardamom Green - 8mm+", hsn: "0908", variety: "8mm+ (Bold)" },
-        { name: "Cardamom Green - AGB", hsn: "0908", variety: "AGB (Alleppey Green Bold)" },
-        { name: "Cardamom Green - AGS", hsn: "0908", variety: "AGS (Alleppey Green Superior)" },
+        // Cardamom Green varieties (ACTIVE: specific sizes for launch)
+        { name: "Green Cardamom - 9 MM", hsn: "0908", variety: "9 MM" },
+        { name: "Green Cardamom - 8.5-9 MM", hsn: "0908", variety: "8.5-9 MM" },
+        { name: "Green Cardamom - 8-9 MM", hsn: "0908", variety: "8-9 MM" },
+        { name: "Green Cardamom - 8 MM", hsn: "0908", variety: "8 MM" },
+        { name: "Green Cardamom - 7.5-8 MM Bold", hsn: "0908", variety: "7.5-8 MM Bold" },
+        { name: "Green Cardamom - 7.5-8 MM", hsn: "0908", variety: "7.5-8 MM" },
+        { name: "Green Cardamom - 7-8 MM", hsn: "0908", variety: "7-8 MM" },
+        { name: "Green Cardamom - 7-7.5 MM", hsn: "0908", variety: "7-7.5 MM" },
+        { name: "Green Cardamom - 6-7 MM", hsn: "0908", variety: "6-7 MM" },
+        { name: "Green Cardamom - 5-6 MM", hsn: "0908", variety: "5-6 MM" },
 
-        // Cardamom Black varieties
-        { name: "Cardamom Black - Large", hsn: "0908", variety: "Large" },
-        { name: "Cardamom Black - Medium", hsn: "0908", variety: "Medium" },
-        { name: "Cardamom Black - Small", hsn: "0908", variety: "Small" },
+        // Cardamom Green varieties (HIDDEN: will be enabled later)
+        // { name: "Cardamom Green - AGB", hsn: "0908", variety: "AGB (Alleppey Green Bold)" },
+        // { name: "Cardamom Green - AGS", hsn: "0908", variety: "AGS (Alleppey Green Superior)" },
+
+        // Cardamom Black varieties (HIDDEN: will be enabled later)
+        // { name: "Cardamom Black - Large", hsn: "0908", variety: "Large" },
+        // { name: "Cardamom Black - Medium", hsn: "0908", variety: "Medium" },
+        // { name: "Cardamom Black - Small", hsn: "0908", variety: "Small" },
 
         { name: "Bay Leaf (Tej Patta) - Whole", hsn: "0910", variety: "Whole" },
         { name: "Bay Leaf (Tej Patta) - Broken", hsn: "0910", variety: "Broken" },
@@ -360,12 +370,18 @@ const PRODUCT_CATALOG = {
 };
 
 // Flatten catalog for search
-const ALL_PRODUCTS = [
+// FULL catalog (all products - for future use)
+const ALL_PRODUCTS_FULL = [
     ...PRODUCT_CATALOG.spices.map(p => ({ ...p, category: 'Spices' })),
     ...PRODUCT_CATALOG.vegetables.map(p => ({ ...p, category: 'Vegetables' })),
     ...PRODUCT_CATALOG.pulses.map(p => ({ ...p, category: 'Pulses' })),
     ...PRODUCT_CATALOG.dry_fruits_and_nuts.map(p => ({ ...p, category: 'Dry Fruits & Nuts' })),
 ];
+
+// ACTIVE catalog (currently only Green Cardamom - expand later)
+const ALL_PRODUCTS = ALL_PRODUCTS_FULL.filter(p =>
+    p.name.includes('Green Cardamom')
+);
 
 type CatalogProduct = { name: string; hsn: string; category: string; variety: string };
 
@@ -654,14 +670,22 @@ function BuyerDashboardContent() {
 
         let filtered = liveBidsData.filter(bid => {
             if (!liveBidsSearchQuery) return true;
-            const query = liveBidsSearchQuery.toLowerCase();
+
+            // Split search query into individual words
+            const searchWords = liveBidsSearchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0);
             const order = orders.find(o => o.id === bid.orderId);
-            return (
-                order?.item?.name?.toLowerCase().includes(query) ||
-                bid.orderId.toLowerCase().includes(query) ||
-                bid.sellerId?.toLowerCase().includes(query) ||
-                order?.shippingAddress?.toLowerCase().includes(query)
-            );
+
+            // Combine all searchable text
+            const searchableText = [
+                order?.item?.name || '',
+                bid.orderId,
+                bid.sellerId || '',
+                order?.shippingAddress || '',
+                JSON.stringify(order?.item?.specifications || {})
+            ].join(' ').toLowerCase();
+
+            // Check if ALL search words are found in the searchable text
+            return searchWords.every(word => searchableText.includes(word));
         });
 
         console.log('Filtered bids:', filtered);
@@ -795,13 +819,21 @@ function BuyerDashboardContent() {
     const filteredAndSortedMyBids = useMemo(() => {
         let filtered = myBidOrders.filter(order => {
             if (!myBidsSearchQuery) return true;
-            const query = myBidsSearchQuery.toLowerCase();
-            return (
-                order.item?.name?.toLowerCase().includes(query) ||
-                order.id.toLowerCase().includes(query) ||
-                (order.item?.specifications as any)?.['HSN Code']?.toLowerCase().includes(query) ||
-                order.shippingAddress?.toLowerCase().includes(query)
-            );
+
+            // Split search query into individual words
+            const searchWords = myBidsSearchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0);
+
+            // Combine all searchable text
+            const searchableText = [
+                order.item?.name || '',
+                order.id,
+                (order.item?.specifications as any)?.['HSN Code'] || '',
+                order.shippingAddress || '',
+                JSON.stringify(order.item?.specifications || {})
+            ].join(' ').toLowerCase();
+
+            // Check if ALL search words are found in the searchable text
+            return searchWords.every(word => searchableText.includes(word));
         });
 
         // Sort My Bids
@@ -877,11 +909,27 @@ function BuyerDashboardContent() {
     // Filter catalog products based on search query and category
     const filteredCatalogProducts = useMemo(() => {
         return ALL_PRODUCTS.filter(product => {
-            const searchLower = catalogSearchQuery.toLowerCase();
-            const matchesSearch = catalogSearchQuery === '' ||
-                product.name.toLowerCase().includes(searchLower) ||
-                product.hsn.includes(catalogSearchQuery) ||
-                product.variety.toLowerCase().includes(searchLower);
+            // Split search query into individual words
+            const searchWords = catalogSearchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0);
+
+            // If no search query, match all
+            if (searchWords.length === 0) {
+                const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+                return matchesCategory;
+            }
+
+            // Combine all searchable text
+            const searchableText = [
+                product.name,
+                product.variety,
+                product.category,
+                product.hsn,
+                (product as any).description || ''
+            ].join(' ').toLowerCase();
+
+            // Check if ALL search words are found in the searchable text
+            const matchesSearch = searchWords.every(word => searchableText.includes(word));
+
             const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
             return matchesSearch && matchesCategory;
         });
@@ -890,11 +938,27 @@ function BuyerDashboardContent() {
     // Filter items for browsing based on search and category
     const filteredItems = useMemo(() => {
         return items.filter(item => {
-            const searchLower = itemSearchQuery.toLowerCase();
-            const matchesSearch = itemSearchQuery === '' ||
-                item.name.toLowerCase().includes(searchLower) ||
-                item.description?.toLowerCase().includes(searchLower) ||
-                item.category?.toLowerCase().includes(searchLower);
+            // Split search query into individual words
+            const searchWords = itemSearchQuery.toLowerCase().trim().split(/\s+/).filter(w => w.length > 0);
+
+            // If no search query, match all
+            if (searchWords.length === 0) {
+                const matchesCategory = itemCategoryFilter === 'all' ||
+                    item.category?.toLowerCase().includes(itemCategoryFilter.toLowerCase());
+                return matchesCategory;
+            }
+
+            // Combine all searchable text
+            const searchableText = [
+                item.name,
+                item.description || '',
+                item.category || '',
+                JSON.stringify(item.specifications || {})
+            ].join(' ').toLowerCase();
+
+            // Check if ALL search words are found in the searchable text
+            const matchesSearch = searchWords.every(word => searchableText.includes(word));
+
             const matchesCategory = itemCategoryFilter === 'all' ||
                 item.category?.toLowerCase().includes(itemCategoryFilter.toLowerCase());
             return matchesSearch && matchesCategory;
@@ -1780,6 +1844,100 @@ function BuyerDashboardContent() {
         return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-200';
     };
 
+    // ============================================================================
+    // ANALYTICS DATA CALCULATIONS
+    // ============================================================================
+
+    // Calculate buyer stats
+    const buyerStats = {
+        totalOrders: orders.length,
+        pendingOrders: orders.filter(o => o.status === 'pending').length,
+        completedOrders: orders.filter(o => o.status === 'completed').length,
+        cancelledOrders: orders.filter(o => o.status === 'cancelled').length,
+        totalSpent: orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.totalPrice || 0), 0),
+        activeBidRequests: myBidOrders.length,
+        totalBidsReceived: bids.length,
+    };
+
+    // Order Status Distribution for Pie Chart
+    const orderStatusData = [
+        { name: 'Pending', value: buyerStats.pendingOrders, fill: '#eab308' },
+        { name: 'Completed', value: buyerStats.completedOrders, fill: '#22c55e' },
+        { name: 'Cancelled', value: buyerStats.cancelledOrders, fill: '#ef4444' },
+    ].filter(item => item.value > 0);
+
+    // Calculate cost savings from bids
+    const calculateSavings = () => {
+        let totalSavings = 0;
+        let totalOriginalCost = 0;
+
+        myBidOrders.forEach(order => {
+            const orderBids = bids.filter(b => b.orderId === order.id && b.status === 'pending');
+            if (orderBids.length > 0) {
+                const bidAmounts = orderBids.map(b => b.bidAmount);
+                const lowest = Math.min(...bidAmounts);
+                const highest = Math.max(...bidAmounts);
+                totalSavings += (highest - lowest);
+                totalOriginalCost += highest;
+            }
+        });
+
+        return { totalSavings, totalOriginalCost, savingsPercent: totalOriginalCost > 0 ? ((totalSavings / totalOriginalCost) * 100) : 0 };
+    };
+
+    const savings = calculateSavings();
+
+    // Monthly spending trend (last 6 months)
+    const monthlySpendingData = useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        const now = new Date();
+        const data = months.map((month, index) => {
+            const monthIndex = (now.getMonth() - (5 - index) + 12) % 12;
+            const year = now.getFullYear() - (now.getMonth() < (5 - index) ? 1 : 0);
+
+            const monthOrders = orders.filter(order => {
+                const orderDate = new Date(order.createdAt);
+                return orderDate.getMonth() === monthIndex && orderDate.getFullYear() === year;
+            });
+
+            const spending = monthOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+            const orderCount = monthOrders.length;
+
+            return { month, spending, orders: orderCount };
+        });
+        return data;
+    }, [orders]);
+
+    // Bid activity timeline (last 6 months)
+    const bidActivityData = useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        const now = new Date();
+        const data = months.map((month, index) => {
+            const monthIndex = (now.getMonth() - (5 - index) + 12) % 12;
+            const year = now.getFullYear() - (now.getMonth() < (5 - index) ? 1 : 0);
+
+            const monthBids = bids.filter(bid => {
+                const bidDate = new Date(bid.createdAt);
+                return bidDate.getMonth() === monthIndex && bidDate.getFullYear() === year;
+            });
+
+            return { month, bids: monthBids.length };
+        });
+        return data;
+    }, [bids]);
+
+    // Chart configurations
+    const orderStatusChartConfig = {
+        pending: { label: 'Pending', color: '#eab308' },
+        completed: { label: 'Completed', color: '#22c55e' },
+        cancelled: { label: 'Cancelled', color: '#ef4444' },
+    };
+
+    const spendingChartConfig = {
+        spending: { label: 'Spending', color: '#8b5cf6' },
+        orders: { label: 'Orders', color: '#3b82f6' },
+    };
+
     if (authLoading || loading) {
         return (
             <DashboardLayout role="buyer">
@@ -2059,40 +2217,49 @@ function BuyerDashboardContent() {
                                                         const size = order.item?.size || '-';
                                                         const expectedDelivery = (specifications as any)['Expected Delivery'] || '-';
                                                         const sellerBidTime = (specifications as any)['Seller Bid Running Time (days)'] || (specifications as any)['Bid Running Time (days)'] || '-';
-                                                        const remainingTime = calculateRemainingTime(order.createdAt, sellerBidTime);
+                                                        const remainingTime = calculateRemainingTime(order.createdAt.toString(), sellerBidTime);
                                                         const pincodeMatch = order.shippingAddress?.match(/(\d{6})(?!.*\d{6})/);
                                                         const pincode = pincodeMatch ? pincodeMatch[1] : '-';
+
+                                                        // Calculate bid statistics for this order
+                                                        const orderBids = bids.filter(b => b.orderId === order.id && b.status === 'pending');
+                                                        const bidAmounts = orderBids.map(b => b.bidAmount);
+                                                        const lowestBid = bidAmounts.length > 0 ? Math.min(...bidAmounts) : null;
+                                                        const highestBid = bidAmounts.length > 0 ? Math.max(...bidAmounts) : null;
+                                                        const totalBids = orderBids.length;
+                                                        const uniqueSellers = new Set(orderBids.map(b => b.sellerId || b.anonymizedSellerId)).size;
 
                                                         return (
                                                             <div
                                                                 key={order.id}
-                                                                className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-md bg-background px-4 py-4 border border-dashed border-purple-200 dark:border-purple-700"
+                                                                className="flex flex-col gap-2 rounded-md bg-background px-4 py-4 border border-dashed border-purple-200 dark:border-purple-700"
                                                             >
-                                                                <div className="flex items-start gap-2 text-sm md:text-base">
-                                                                    <span className="font-semibold w-5">{serial}.</span>
-                                                                    <div className="space-y-0.5">
-                                                                        <p className="font-medium line-clamp-1">
-                                                                            {order.item?.name || 'Bid Request'}
-                                                                        </p>
-                                                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm text-muted-foreground">
-                                                                            <span>HSN: <span className="font-medium text-foreground">{hsnCode}</span></span>
-                                                                            <span>Quality: <span className="font-medium text-foreground">{quality}</span></span>
-                                                                            <span>Qty: <span className="font-medium text-foreground">{order.quantity}</span></span>
-                                                                            <span>Size: <span className="font-medium text-foreground">{size}</span></span>
-                                                                            <span>Expected: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
-                                                                            <span>Pincode: <span className="font-medium text-foreground">{pincode}</span></span>
-                                                                            <span className="flex items-center gap-1">
-                                                                                Time Remaining:
-                                                                                <ClockTimer
-                                                                                    endTime={calculateBidEndTime(order)}
-                                                                                    size={16}
-                                                                                />
-                                                                            </span>
+                                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                                                    <div className="flex items-start gap-2 text-sm md:text-base">
+                                                                        <span className="font-semibold w-5">{serial}.</span>
+                                                                        <div className="space-y-0.5">
+                                                                            <p className="font-medium line-clamp-1">
+                                                                                {order.item?.name || 'Bid Request'}
+                                                                            </p>
+                                                                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm text-muted-foreground">
+                                                                                <span>HSN: <span className="font-medium text-foreground">{hsnCode}</span></span>
+                                                                                <span>Quality: <span className="font-medium text-foreground">{quality}</span></span>
+                                                                                <span>Qty: <span className="font-medium text-foreground">{order.quantity}</span></span>
+                                                                                <span>Size: <span className="font-medium text-foreground">{size}</span></span>
+                                                                                <span>Expected: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
+                                                                                <span>Pincode: <span className="font-medium text-foreground">{pincode}</span></span>
+                                                                                <span className="flex items-center gap-1">
+                                                                                    Time Remaining:
+                                                                                    <ClockTimer
+                                                                                        endTime={calculateBidEndTime(order)}
+                                                                                        size={16}
+                                                                                    />
+                                                                                </span>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
-                                                                <div className="flex justify-end">
-                                                                    <DropdownMenu
+                                                                    <div className="flex justify-end">
+                                                                        <DropdownMenu
                                                                         open={openDropdowns[order.id] || false}
                                                                         onOpenChange={(isOpen) =>
                                                                             setOpenDropdowns(prev => ({ ...prev, [order.id]: isOpen }))
@@ -2166,7 +2333,65 @@ function BuyerDashboardContent() {
                                                                             </DropdownMenuItem>
                                                                         </DropdownMenuContent>
                                                                     </DropdownMenu>
+                                                                    </div>
                                                                 </div>
+
+                                                                {/* Bid Statistics and Price Comparison Bar */}
+                                                                {totalBids > 0 && (
+                                                                    <div className="mt-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                                                        <div className="flex items-center justify-between mb-2">
+                                                                            <div className="flex items-center gap-4 text-xs">
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <Users className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                                                                    <span className="font-semibold text-green-700 dark:text-green-300">{uniqueSellers} Supplier{uniqueSellers !== 1 ? 's' : ''}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <Trophy className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                                                                    <span className="font-semibold text-green-700 dark:text-green-300">{totalBids} Bid{totalBids !== 1 ? 's' : ''}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="text-xs font-medium text-green-700 dark:text-green-300">
+                                                                                Price Range
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Visual Price Bar */}
+                                                                        <div className="relative h-6 bg-white dark:bg-gray-800 rounded-full overflow-hidden border border-green-300 dark:border-green-700 mb-2">
+                                                                            <div
+                                                                                className="absolute h-full bg-gradient-to-r from-green-400 to-emerald-500 dark:from-green-600 dark:to-emerald-700 rounded-full"
+                                                                                style={{ width: '100%' }}
+                                                                            />
+                                                                            <div className="absolute inset-0 flex items-center justify-between px-3 text-xs font-bold text-white">
+                                                                                <span>₹{lowestBid?.toFixed(0)}</span>
+                                                                                <span>₹{highestBid?.toFixed(0)}</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Price Labels */}
+                                                                        <div className="flex items-center justify-between text-xs">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                                                                <span className="font-medium text-green-700 dark:text-green-300">Lowest: ₹{lowestBid?.toFixed(2)}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <div className="w-2 h-2 rounded-full bg-emerald-600"></div>
+                                                                                <span className="font-medium text-emerald-700 dark:text-emerald-300">Highest: ₹{highestBid?.toFixed(2)}</span>
+                                                                            </div>
+                                                                            {lowestBid && highestBid && lowestBid !== highestBid && (
+                                                                                <span className="text-muted-foreground">
+                                                                                    Savings: ₹{(highestBid - lowestBid).toFixed(2)} ({(((highestBid - lowestBid) / highestBid) * 100).toFixed(1)}%)
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* No Bids Message */}
+                                                                {totalBids === 0 && (
+                                                                    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+                                                                        <p className="text-xs text-muted-foreground">No bids received yet</p>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         );
                                                     }))}
@@ -2601,14 +2826,7 @@ function BuyerDashboardContent() {
                                                         <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                     </div>
 
-                                                    {/* Pickup Address */}
-                                                    {bid.pickupAddress && (
-                                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
-                                                            <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">Pickup Address</Label>
-                                                            <p className="font-medium text-sm mt-1">{bid.pickupAddress}</p>
-                                                            <p className="text-xs text-muted-foreground mt-1">Seller's goods location for shipping provider pickup</p>
-                                                        </div>
-                                                    )}
+                                                    {/* Pickup Address - Hidden as per requirements */}
 
                                                     {/* Bid Comparison */}
                                                     {percentLowerThanHighest && allOrderBids.length > 1 && (
@@ -2716,6 +2934,196 @@ function BuyerDashboardContent() {
                             </div>
                         </div>
                     )}
+
+                    {/* Analytics Section */}
+                    <div className="space-y-6 mt-12">
+                        <div className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-purple-600" />
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Analytics Overview</h2>
+                        </div>
+
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {/* Order Status Pie Chart */}
+                            <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
+                                        <PieChart className="h-5 w-5 text-purple-600" />
+                                        Order Status Distribution
+                                    </CardTitle>
+                                    <CardDescription>Overview of your orders</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {orderStatusData.length > 0 ? (
+                                        <ChartContainer config={orderStatusChartConfig} className="h-[220px] w-full">
+                                            <RechartsPieChart>
+                                                <Pie
+                                                    data={orderStatusData}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={50}
+                                                    outerRadius={80}
+                                                    paddingAngle={2}
+                                                    dataKey="value"
+                                                    label={({ name, percent }) => percent !== undefined ? `${name} ${(percent * 100).toFixed(0)}%` : name}
+                                                    labelLine={false}
+                                                >
+                                                    {orderStatusData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                    ))}
+                                                </Pie>
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                            </RechartsPieChart>
+                                        </ChartContainer>
+                                    ) : (
+                                        <div className="h-[220px] flex items-center justify-center text-muted-foreground">
+                                            <div className="text-center">
+                                                <PieChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                                                <p>No order data available</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-center gap-4 mt-4 flex-wrap">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                                            <span className="text-xs text-muted-foreground">Pending ({buyerStats.pendingOrders})</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-3 w-3 rounded-full bg-green-500" />
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Completed ({buyerStats.completedOrders})</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-3 w-3 rounded-full bg-red-500" />
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">Cancelled ({buyerStats.cancelledOrders})</span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Procurement Metrics */}
+                            <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
+                                        <TrendingUp className="h-5 w-5 text-purple-600" />
+                                        Procurement Metrics
+                                    </CardTitle>
+                                    <CardDescription>Your purchasing activity</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="flex flex-col items-center">
+                                        <div className="relative h-32 w-32">
+                                            <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
+                                                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="text-gray-200 dark:text-gray-700" />
+                                                <circle
+                                                    cx="50" cy="50" r="40"
+                                                    stroke="currentColor" strokeWidth="8" fill="none"
+                                                    strokeDasharray={`${Math.min((buyerStats.totalBidsReceived / Math.max(buyerStats.activeBidRequests, 1)) * 2.51, 251)} 251`}
+                                                    className="text-purple-500"
+                                                    strokeLinecap="round"
+                                                />
+                                            </svg>
+                                            <div className="absolute inset-0 flex items-center justify-center flex-col">
+                                                <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{buyerStats.totalBidsReceived}</span>
+                                                <span className="text-xs text-muted-foreground">Bids</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mt-2">Total Bids Received</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                            <p className="text-2xl font-bold text-purple-600">{buyerStats.activeBidRequests}</p>
+                                            <p className="text-xs text-muted-foreground">Active Requests</p>
+                                        </div>
+                                        <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                            <p className="text-2xl font-bold text-blue-600">{buyerStats.totalOrders}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">Total Orders</p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Cost Savings Summary */}
+                            <Card className="border border-green-200 dark:border-green-800 shadow-sm bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg text-white">
+                                        <DollarSign className="h-5 w-5" />
+                                        Cost Savings Summary
+                                    </CardTitle>
+                                    <CardDescription className="text-green-100">Your procurement savings</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
+                                            <span className="text-green-100">Total Spent</span>
+                                            <span className="text-xl font-bold">₹{Number(buyerStats.totalSpent).toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
+                                            <span className="text-green-100">Potential Savings</span>
+                                            <span className="text-xl font-bold">₹{Number(savings.totalSavings).toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
+                                            <span className="text-green-100">Savings Rate</span>
+                                            <span className="text-xl font-bold">
+                                                {savings.savingsPercent.toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Full Width Charts */}
+                        <div className="grid gap-6 lg:grid-cols-2">
+                            {/* Monthly Spending Trends */}
+                            <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Activity className="h-5 w-5 text-purple-600" />
+                                        Monthly Spending Trends
+                                    </CardTitle>
+                                    <CardDescription>Your procurement spending over time</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ChartContainer config={spendingChartConfig} className="h-[250px] w-full">
+                                        <AreaChart data={monthlySpendingData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorSpending" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                            <XAxis dataKey="month" className="text-xs" />
+                                            <YAxis className="text-xs" />
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <Area type="monotone" dataKey="spending" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorSpending)" />
+                                        </AreaChart>
+                                    </ChartContainer>
+                                </CardContent>
+                            </Card>
+
+                            {/* Bid Activity Timeline */}
+                            <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <Trophy className="h-5 w-5 text-purple-600" />
+                                        Bid Activity Timeline
+                                    </CardTitle>
+                                    <CardDescription>Number of bids received per month</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ChartContainer config={spendingChartConfig} className="h-[250px] w-full">
+                                        <LineChart data={bidActivityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                            <XAxis dataKey="month" className="text-xs" />
+                                            <YAxis className="text-xs" />
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <Line type="monotone" dataKey="bids" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 4 }} />
+                                        </LineChart>
+                                    </ChartContainer>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
 
                     {/* Place Order Dialog */}
                     <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
