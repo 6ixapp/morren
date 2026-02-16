@@ -9,6 +9,13 @@ import { Request, Response } from 'express';
 import { query } from '../db';
 import { AppError } from '../utils/errorHandler';
 
+// Helper to generate consistent anonymized seller ID
+const generateAnonymizedSellerId = (sellerId: string): string => {
+  const hash = sellerId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const anonymizedCode = (hash % 10000).toString().padStart(4, '0');
+  return `SLR-${anonymizedCode}`;
+};
+
 /**
  * Get public profile for a seller
  * Accessible by any authenticated user
@@ -34,8 +41,8 @@ export const getSellerPublicProfile = async (req: Request, res: Response) => {
       throw new AppError('User is not a seller', 400);
     }
 
-    // Generate anonymized ID (SLR- + first 4 chars of seller ID)
-    const anonymizedId = `SLR-${sellerId.substring(0, 4)}`;
+    // Generate anonymized ID using consistent hash function
+    const anonymizedId = generateAnonymizedSellerId(sellerId);
 
     // Get seller statistics
     const statsResult = await query(

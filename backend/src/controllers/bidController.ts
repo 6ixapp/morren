@@ -4,13 +4,20 @@ import { asyncHandler, AppError } from '../utils/errorHandler';
 import { keysToCamel, buildUpdateClause } from '../utils/dbHelpers';
 import { Bid, CreateBidRequest } from '../types';
 
+// Helper to generate consistent anonymized seller ID
+const generateAnonymizedSellerId = (sellerId: string): string => {
+  const hash = sellerId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const anonymizedCode = (hash % 10000).toString().padStart(4, '0');
+  return `SLR-${anonymizedCode}`;
+};
+
 // Helper to parse bid with order and seller
 const parseBidRow = (row: any, maskSellerInfo: boolean = false) => {
   const bid = keysToCamel({
     id: row.id,
     orderId: row.order_id,
     sellerId: maskSellerInfo ? undefined : row.seller_id,
-    anonymizedSellerId: row.seller_id ? `SLR-${row.seller_id.substring(0, 4)}` : undefined,
+    anonymizedSellerId: row.seller_id ? generateAnonymizedSellerId(row.seller_id) : undefined,
     bidAmount: row.bid_amount,
     estimatedDelivery: row.estimated_delivery,
     message: row.message,

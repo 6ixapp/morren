@@ -593,8 +593,8 @@ function BuyerDashboardContent() {
         incoterms: '',
         shippingAddress: '',
         notes: '',
-        sellerBidRunningTime: '', // Phase 1: Seller bid running time in days
-        shippingBidRunningTime: '', // Phase 2: Shipping bid running time in days
+        sellerBidRunningTime: '1', // Phase 1: Seller bid running time in days (default 1 day)
+        shippingBidRunningTime: '1', // Phase 2: Shipping bid running time in days (default 1 day)
     });
     const [selectedCatalogProduct, setSelectedCatalogProduct] = useState<CatalogProduct | null>(null);
 
@@ -1490,8 +1490,8 @@ function BuyerDashboardContent() {
                 incoterms: '',
                 shippingAddress: '',
                 notes: '',
-                sellerBidRunningTime: '',
-                shippingBidRunningTime: '',
+                sellerBidRunningTime: '1',
+                shippingBidRunningTime: '1',
             });
             setSelectedCatalogProduct(null);
 
@@ -3395,12 +3395,10 @@ function BuyerDashboardContent() {
 
                                         <div>
                                             <Label htmlFor="sellerBidRunningTime" className="text-purple-700 dark:text-purple-300 font-semibold">
-                                                Seller Bid Running Time (days) *
+                                                Seller Bid Running Time *
                                             </Label>
-                                            <Input
+                                            <select
                                                 id="sellerBidRunningTime"
-                                                type="number"
-                                                min="1"
                                                 value={bidForm.sellerBidRunningTime}
                                                 onChange={(e) => {
                                                     setBidForm({
@@ -3409,9 +3407,13 @@ function BuyerDashboardContent() {
                                                         shippingBidRunningTime: '1' // Auto-set to 1 day
                                                     });
                                                 }}
-                                                placeholder="e.g., 3"
-                                                className="mt-1"
-                                            />
+                                                className="mt-1 w-full px-3 py-2 border border-purple-300 dark:border-purple-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
+                                            >
+                                                <option value="">Select duration...</option>
+                                                <option value="1">1 Day</option>
+                                                <option value="2">2 Days</option>
+                                                <option value="3">3 Days</option>
+                                            </select>
                                             <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
                                                 Sellers will have this many days to place their bids
                                             </p>
