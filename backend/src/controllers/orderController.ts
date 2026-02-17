@@ -27,6 +27,7 @@ const parseOrderRow = (row: any) => {
       image: row.item_image,
       price: row.item_price,
       category: row.item_category,
+      specifications: row.item_specifications,
     });
   }
 
@@ -45,7 +46,7 @@ const parseOrderRow = (row: any) => {
 export const getOrders = asyncHandler(async (req: Request, res: Response) => {
   const result = await query(`
     SELECT o.*,
-           i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category,
+           i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
            u.name as buyer_name, u.email as buyer_email
     FROM orders o
     LEFT JOIN items i ON o.item_id = i.id
@@ -64,7 +65,7 @@ export const getOrderById = asyncHandler(async (req: Request, res: Response) => 
 
   const result = await query(
     `SELECT o.*,
-            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category,
+            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
             u.name as buyer_name, u.email as buyer_email
      FROM orders o
      LEFT JOIN items i ON o.item_id = i.id
@@ -88,7 +89,7 @@ export const getOrdersByBuyer = asyncHandler(async (req: Request, res: Response)
 
   const result = await query(
     `SELECT o.*,
-            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category,
+            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
             u.name as buyer_name, u.email as buyer_email
      FROM orders o
      LEFT JOIN items i ON o.item_id = i.id
@@ -110,7 +111,7 @@ export const getOrdersBySeller = asyncHandler(async (req: Request, res: Response
   // Orders for seller to bid on (status = pending)
   const result = await query(
     `SELECT o.*,
-            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category,
+            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
             u.name as buyer_name, u.email as buyer_email
      FROM orders o
      LEFT JOIN items i ON o.item_id = i.id
@@ -130,7 +131,7 @@ export const getSellerItemOrders = asyncHandler(async (req: Request, res: Respon
 
   const result = await query(
     `SELECT o.*,
-            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category,
+            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
             u.name as buyer_name, u.email as buyer_email
      FROM orders o
      JOIN items i ON o.item_id = i.id
@@ -149,7 +150,7 @@ export const getSellerItemOrders = asyncHandler(async (req: Request, res: Respon
 export const getOrdersForShipping = asyncHandler(async (req: Request, res: Response) => {
   const result = await query(
     `SELECT o.*,
-            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category,
+            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
             u.name as buyer_name, u.email as buyer_email
      FROM orders o
      LEFT JOIN items i ON o.item_id = i.id

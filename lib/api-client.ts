@@ -482,6 +482,30 @@ export async function updateBuyerProfile(buyerId: string, profile: Partial<Buyer
   });
 }
 
+// Notifications
+export async function sendNotificationToUser(externalUserId: string, title: string, message: string, data?: Record<string, string>): Promise<void> {
+  try {
+    await apiCall('/api/notifications/send-to-user', {
+      method: 'POST',
+      body: JSON.stringify({ externalUserId, title, message, data: data || {} }),
+    });
+  } catch (error) {
+    console.error('Failed to send notification:', error);
+    // Non-critical — don't throw
+  }
+}
+
+export async function sendNotificationToRole(targetRole: string, title: string, message: string, data?: Record<string, string>): Promise<void> {
+  try {
+    await apiCall('/api/notifications/send', {
+      method: 'POST',
+      body: JSON.stringify({ targetRole, title, message, data: data || {} }),
+    });
+  } catch (error) {
+    console.error('Failed to send notification to role:', error);
+  }
+}
+
 // Utility functions
 export function calculatePercentageDiff(currentPrice: number, lowestPrice: number): number {
   if (lowestPrice === 0) return 0;

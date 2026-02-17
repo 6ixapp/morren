@@ -9,13 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Package, DollarSign, TrendingUp, Users, Send, Calendar, ShoppingCart, RefreshCw, BarChart3, PieChart, Activity, ArrowUp, ArrowDown, Minus, Trophy, AlertTriangle, ChevronDown, ChevronUp, Search, Filter, SortAsc, SortDesc, X } from 'lucide-react';
+import { Package, IndianRupee, TrendingUp, Users, Send, Calendar, ShoppingCart, RefreshCw, BarChart3, PieChart, Activity, ArrowUp, ArrowDown, Minus, Trophy, AlertTriangle, ChevronDown, ChevronUp, Search, Filter, SortAsc, SortDesc, X } from 'lucide-react';
 import { Order, Bid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
-import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder } from '@/lib/api-client';
+import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder, sendNotificationToUser } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -590,7 +590,7 @@ export default function SellerDashboard() {
                             {/* Tooltip-like label */}
                             <div className={`absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-bold shadow-lg flex flex-col items-center ${isLowest ? 'bg-emerald-600' : ''}`}>
                                 <span>YOU</span>
-                                <span className="text-[10px] font-normal opacity-90">${myBid.toFixed(0)}</span>
+                                <span className="text-[10px] font-normal opacity-90">₹{myBid.toFixed(0)}</span>
                                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" style={{ borderTopColor: isLowest ? '#059669' : '#111827' }}></div>
                             </div>
                         </div>
@@ -680,8 +680,18 @@ export default function SellerDashboard() {
 
             toast({
                 title: "Bid Submitted Successfully! 🎉",
-                description: `Your bid of $${bidAmount.toFixed(2)} has been submitted for this order.`,
+                description: `Your bid of ₹${bidAmount.toFixed(2)} has been submitted for this order.`,
             });
+
+            // Notify the buyer about the new bid
+            if (order.buyerId) {
+                sendNotificationToUser(
+                    order.buyerId,
+                    '💰 New Bid Received!',
+                    `A seller has submitted a bid of ₹${bidAmount.toFixed(2)} for your order: ${order.item?.name || 'your request'}`,
+                    { type: 'new_bid', orderId: order.id }
+                ).catch(console.error);
+            }
 
             // Clear the inline form
             setInlineBidForms(prev => {
@@ -750,8 +760,18 @@ export default function SellerDashboard() {
 
             toast({
                 title: "Bid Submitted Successfully! 🎉",
-                description: `Your bid of $${bidAmount.toFixed(2)} has been submitted for this order.`,
+                description: `Your bid of ₹${bidAmount.toFixed(2)} has been submitted for this order.`,
             });
+
+            // Notify the buyer about the new bid
+            if (selectedOrder.buyerId) {
+                sendNotificationToUser(
+                    selectedOrder.buyerId,
+                    '💰 New Bid Received!',
+                    `A seller has submitted a bid of ₹${bidAmount.toFixed(2)} for your order: ${selectedOrder.item?.name || 'your request'}`,
+                    { type: 'new_bid', orderId: selectedOrder.id }
+                ).catch(console.error);
+            }
 
             setIsBidDialogOpen(false);
             setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
@@ -810,7 +830,7 @@ export default function SellerDashboard() {
 
             toast({
                 title: "Bid Updated Successfully! 🎉",
-                description: `Your bid has been updated to $${bidAmount.toFixed(2)}.`,
+                description: `Your bid has been updated to ₹${bidAmount.toFixed(2)}.`,
             });
 
             setIsBidDialogOpen(false);
@@ -945,11 +965,11 @@ export default function SellerDashboard() {
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Potential Revenue</CardTitle>
                                 <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <DollarSign className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                    <IndianRupee className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">${Number(stats.potentialRevenue).toFixed(2)}</div>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{Number(stats.potentialRevenue).toFixed(2)}</div>
                                 <p className="text-xs text-gray-500 mt-1">From accepted bids</p>
                             </CardContent>
                         </Card>
@@ -1047,118 +1067,8 @@ export default function SellerDashboard() {
                         </div>
 
                         <div className="grid gap-6">
-                            {/* Live Bids Section */}
-                            {liveOrders.length > 0 && (
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border-2 border-green-200 dark:border-green-800">
-                                        <div className="relative flex items-center">
-                                            <div className="absolute w-3 h-3 bg-green-500 rounded-full animate-ping"></div>
-                                            <div className="relative w-3 h-3 bg-green-500 rounded-full"></div>
-                                        </div>
-                                        <h3 className="text-lg font-bold text-green-700 dark:text-green-400">LIVE BIDS</h3>
-                                        <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{liveOrders.length} active</Badge>
-                                    </div>
-
-                                    {(showAllOrders ? liveOrders : liveOrders.slice(0, 3)).map((order) => (
-                                        <Card key={order.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 border-2 border-green-200 dark:border-green-800 group">
-                                            <CardHeader>
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-105 transition-transform relative">
-                                                            <ShoppingCart className="h-6 w-6 text-green-600" />
-                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                                                        </div>
-                                                        <div>
-                                                            <CardTitle className="flex items-center gap-2">
-                                                                {order.item?.name || 'Unknown Item'}
-                                                                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{order.item?.category}</Badge>
-                                                                <Badge className="bg-green-500 text-white">LIVE</Badge>
-                                                            </CardTitle>
-                                                            <CardDescription>
-                                                                Enquiry Number: {order.id}
-                                                            </CardDescription>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-col gap-2 w-full">
-                                                        <div className="flex items-center gap-2">
-                                                            {order.item?.specifications && (
-                                                                <ClockTimer
-                                                                    endTime={calculateBidEndTime(order)}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <div className="space-y-4">
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
-                                                            <p className="font-medium">{order.quantity} units</p>
-                                                        </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Budget</Label>
-                                                            <p className="font-medium">${Number(order.totalPrice).toFixed(2)}</p>
-                                                        </div>
-                                                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                                                            <Label className="text-xs text-green-600 dark:text-green-400 uppercase tracking-wider">Your Bid</Label>
-                                                            <p className="font-bold text-green-700 dark:text-green-400">
-                                                                ${bids.find(b => b.orderId === order.id)?.bidAmount.toFixed(2) || 'N/A'}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Inline bid form for live orders */}
-                                                    <div className="flex flex-wrap items-center gap-3 p-4 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                                                        <Input
-                                                            type="number"
-                                                            placeholder="Update Bid Amount"
-                                                            className="h-9 w-48"
-                                                            value={inlineBidForms[order.id]?.bidAmount || ''}
-                                                            onChange={(e) => setInlineBidForms(prev => ({
-                                                                ...prev,
-                                                                [order.id]: {
-                                                                    ...prev[order.id],
-                                                                    bidAmount: e.target.value,
-                                                                    estimatedDelivery: prev[order.id]?.estimatedDelivery || '',
-                                                                    message: prev[order.id]?.message || ''
-                                                                }
-                                                            }))}
-                                                        />
-                                                        <Input
-                                                            type="date"
-                                                            placeholder="Delivery Date"
-                                                            className="h-9 w-44"
-                                                            value={inlineBidForms[order.id]?.estimatedDelivery || ''}
-                                                            onChange={(e) => setInlineBidForms(prev => ({
-                                                                ...prev,
-                                                                [order.id]: {
-                                                                    ...prev[order.id],
-                                                                    bidAmount: prev[order.id]?.bidAmount || '',
-                                                                    estimatedDelivery: e.target.value,
-                                                                    message: prev[order.id]?.message || ''
-                                                                }
-                                                            }))}
-                                                        />
-                                                        <Button
-                                                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/20"
-                                                            onClick={() => handleInlineBidSubmit(order)}
-                                                            disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
-                                                        >
-                                                            <Send className="mr-2 h-4 w-4" />
-                                                            {submittingBid ? "Updating..." : "Update Bid"}
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                </div>
-                            )}
-
                             {/* New Requests Section */}
-                            {newOrders.length === 0 && liveOrders.length === 0 ? (
+                            {newOrders.length === 0 ? (
                                 orders.length === 0 ? (
                                     <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
@@ -1208,7 +1118,7 @@ export default function SellerDashboard() {
                                                             <Input
                                                                 type="number"
                                                                 step="0.01"
-                                                                placeholder="Bid Amount ($)"
+                                                                placeholder="Bid Amount (₹)"
                                                                 className="h-11 w-48 text-base font-semibold"
                                                                 value={inlineBidForms[order.id]?.bidAmount || ''}
                                                                 onChange={(e) => setInlineBidForms(prev => ({
@@ -1486,7 +1396,7 @@ export default function SellerDashboard() {
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Order Budget</Label>
-                                                            <p className="text-lg font-medium text-gray-600">${Number(order?.totalPrice || 0).toFixed(2)}</p>
+                                                            <p className="text-lg font-medium text-gray-600">₹{Number(order?.totalPrice || 0).toFixed(2)}</p>
                                                         </div>
                                                     </div>
 
@@ -1494,7 +1404,7 @@ export default function SellerDashboard() {
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                         <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
                                                             <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Your Bid Amount</Label>
-                                                            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${Number(bid.bidAmount).toFixed(2)}</p>
+                                                            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">₹{Number(bid.bidAmount).toFixed(2)}</p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
@@ -1660,7 +1570,7 @@ export default function SellerDashboard() {
                                             <p className="text-xs text-muted-foreground">Total Bids</p>
                                         </div>
                                         <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                            <p className="text-2xl font-bold text-blue-600">${Number(stats.totalBidValue || 0).toFixed(0)}</p>
+                                            <p className="text-2xl font-bold text-blue-600">₹{Number(stats.totalBidValue || 0).toFixed(0)}</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">Total Value</p>
                                         </div>
                                     </div>
@@ -1671,7 +1581,7 @@ export default function SellerDashboard() {
                             <Card className="border border-emerald-200 dark:border-emerald-800 shadow-sm bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg text-white">
-                                        <DollarSign className="h-5 w-5" />
+                                        <IndianRupee className="h-5 w-5" />
                                         Revenue Summary
                                     </CardTitle>
                                     <CardDescription className="text-emerald-100">Your earnings overview</CardDescription>
@@ -1680,11 +1590,11 @@ export default function SellerDashboard() {
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
                                             <span className="text-emerald-100">Total Potential</span>
-                                            <span className="text-xl font-bold">${Number(stats.totalBidValue).toFixed(2)}</span>
+                                            <span className="text-xl font-bold">₹{Number(stats.totalBidValue).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
                                             <span className="text-emerald-100">Confirmed Revenue</span>
-                                            <span className="text-xl font-bold">${Number(stats.potentialRevenue).toFixed(2)}</span>
+                                            <span className="text-xl font-bold">₹{Number(stats.potentialRevenue).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
                                             <span className="text-emerald-100">Avg. Bid Value</span>
@@ -1722,7 +1632,7 @@ export default function SellerDashboard() {
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                                             <XAxis dataKey="month" tick={{ fontSize: 12 }} className="text-muted-foreground" />
-                                            <YAxis tick={{ fontSize: 12 }} className="text-muted-foreground" tickFormatter={(value) => `$${value}`} />
+                                            <YAxis tick={{ fontSize: 12 }} className="text-muted-foreground" tickFormatter={(value) => `₹${value}`} />
                                             <ChartTooltip content={<ChartTooltipContent />} />
                                             <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" name="Accepted Revenue" />
                                             <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" name="Total Bid Value" />
@@ -1790,9 +1700,9 @@ export default function SellerDashboard() {
                             </DialogHeader>
                             <div className="space-y-6 py-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="bidAmount" className="text-sm font-medium">Bid Amount ($)</Label>
+                                    <Label htmlFor="bidAmount" className="text-sm font-medium">Bid Amount (₹)</Label>
                                     <div className="relative">
-                                        <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                        <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
                                             id="bidAmount"
                                             type="number"
@@ -1804,7 +1714,7 @@ export default function SellerDashboard() {
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                        Order budget: <span className="font-semibold">${Number(selectedOrder?.totalPrice || 0).toFixed(2)}</span>
+                                        Order budget: <span className="font-semibold">₹{Number(selectedOrder?.totalPrice || 0).toFixed(2)}</span>
                                     </p>
                                 </div>
                                 <div className="space-y-2">
