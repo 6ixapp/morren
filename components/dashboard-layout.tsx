@@ -20,7 +20,8 @@ import {
     ChevronDown,
     FileText,
     BarChart3,
-    Truck
+    Truck,
+    Sprout
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -172,6 +173,10 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                         <DropdownMenuItem onClick={() => router.push('/dashboard/market-prices')}>
                                             <BarChart3 className="mr-2 h-4 w-4" />
                                             <span>Market Prices</span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => router.push('/dashboard/cardamom-prices')}>
+                                            <Sprout className="mr-2 h-4 w-4" />
+                                            <span>Cardamom Prices</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => router.push(`/dashboard/${role}/settings`)}>
                                             <Settings className="mr-2 h-4 w-4" />

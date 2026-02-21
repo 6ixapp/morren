@@ -161,6 +161,37 @@ export interface MarketPrice {
   date: Date;
 }
 
+// Cardamom price types (data.gov.in integration)
+export interface CardamomPrice {
+  id: string;
+  state?: string;
+  district?: string;
+  market: string;
+  variety: string;
+  minPrice?: number;
+  maxPrice?: number;
+  modalPrice: number;
+  arrivalDate: Date;
+  source: string;
+  fetchedAt: Date;
+  createdAt: Date;
+}
+
+export interface CardamomPriceStats {
+  totalMarkets: number;
+  totalVarieties: number;
+  avgPrice: number;
+  minPrice: number;
+  maxPrice: number;
+  lastUpdated: Date;
+}
+
+export interface CardamomMarket {
+  market: string;
+  state?: string;
+  district?: string;
+}
+
 export interface BuyerProfile {
   companyName: string;
   buyerName: string;

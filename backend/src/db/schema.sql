@@ -150,6 +150,23 @@ CREATE TABLE IF NOT EXISTS market_prices (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Cardamom prices table (data.gov.in integration)
+CREATE TABLE IF NOT EXISTS cardamom_prices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  state VARCHAR(100),
+  district VARCHAR(100),
+  market VARCHAR(255) NOT NULL,
+  variety VARCHAR(50) NOT NULL,
+  min_price DECIMAL(10, 2),
+  max_price DECIMAL(10, 2),
+  modal_price DECIMAL(10, 2) NOT NULL,
+  arrival_date DATE NOT NULL,
+  source VARCHAR(50) DEFAULT 'data.gov.in',
+  fetched_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT unique_cardamom_entry UNIQUE (market, variety, arrival_date)
+);
+
 -- Buyer profiles table
 CREATE TABLE IF NOT EXISTS buyer_profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -219,6 +236,12 @@ CREATE INDEX IF NOT EXISTS idx_quotes_supplier_id ON quotes(supplier_id);
 
 CREATE INDEX IF NOT EXISTS idx_market_prices_product ON market_prices(product_name);
 CREATE INDEX IF NOT EXISTS idx_market_prices_date ON market_prices(date);
+
+CREATE INDEX IF NOT EXISTS idx_cardamom_prices_variety ON cardamom_prices(variety);
+CREATE INDEX IF NOT EXISTS idx_cardamom_prices_market ON cardamom_prices(market);
+CREATE INDEX IF NOT EXISTS idx_cardamom_prices_arrival_date ON cardamom_prices(arrival_date DESC);
+CREATE INDEX IF NOT EXISTS idx_cardamom_prices_created_at ON cardamom_prices(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cardamom_prices_variety_date ON cardamom_prices(variety, arrival_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_notification_tokens_userid ON notification_tokens(userid);
 CREATE INDEX IF NOT EXISTS idx_notification_logs_order_id ON notification_logs(order_id);

@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 
 import { errorHandler } from './utils/errorHandler';
 import { runMigrations } from './db/migrate';
+import { initScheduledJobs } from './services/schedulerService';
 
 // Import routes
 import authRoutes from './routes/authRoutes';
@@ -20,6 +21,7 @@ import marketPriceRoutes from './routes/marketPriceRoutes';
 import buyerProfileRoutes from './routes/buyerProfileRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import sellerPublicRoutes from './routes/sellerPublicRoutes';
+import cardamomPriceRoutes from './routes/cardamomPriceRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -76,6 +78,7 @@ app.use('/api/market-prices', marketPriceRoutes);
 app.use('/api/buyer-profiles', buyerProfileRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/sellers', sellerPublicRoutes);
+app.use('/api/cardamom-prices', cardamomPriceRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -97,7 +100,11 @@ function startServer() {
     console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
 
     runMigrations()
-      .then(() => console.log('✅ Database migrations complete'))
+      .then(() => {
+        console.log('✅ Database migrations complete');
+        // Initialize scheduled jobs after migrations complete
+        initScheduledJobs();
+      })
       .catch((error) => {
         console.error('❌ Database migrations failed:', error);
         if (process.env.NODE_ENV === 'production') {

@@ -16,6 +16,9 @@ import {
   BuyerProfile,
   AuthResponse,
   SupplierInvite,
+  CardamomPrice,
+  CardamomPriceStats,
+  CardamomMarket,
 } from './types';
 
 // Re-export types for convenience
@@ -34,6 +37,9 @@ export type {
   BuyerProfile,
   AuthResponse,
   SupplierInvite,
+  CardamomPrice,
+  CardamomPriceStats,
+  CardamomMarket,
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -455,6 +461,48 @@ export async function addMarketPrice(price: Partial<MarketPrice>): Promise<Marke
   return await apiCall<MarketPrice>('/api/market-prices', {
     method: 'POST',
     body: JSON.stringify(price),
+  });
+}
+
+// Cardamom Price functions (data.gov.in integration)
+export async function getCardamomPrices(
+  filters?: {
+    variety?: string;
+    market?: string;
+    startDate?: string;
+    endDate?: string;
+  }
+): Promise<CardamomPrice[]> {
+  const params = new URLSearchParams();
+  if (filters?.variety) params.append('variety', filters.variety);
+  if (filters?.market) params.append('market', filters.market);
+  if (filters?.startDate) params.append('startDate', filters.startDate);
+  if (filters?.endDate) params.append('endDate', filters.endDate);
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+  return await apiCall<CardamomPrice[]>(`/api/cardamom-prices${query}`);
+}
+
+export async function getCardamomStats(): Promise<CardamomPriceStats> {
+  return await apiCall<CardamomPriceStats>('/api/cardamom-prices/stats');
+}
+
+export async function getCardamomVarieties(): Promise<string[]> {
+  return await apiCall<string[]>('/api/cardamom-prices/varieties');
+}
+
+export async function getCardamomMarkets(): Promise<CardamomMarket[]> {
+  return await apiCall<CardamomMarket[]>('/api/cardamom-prices/markets');
+}
+
+export async function refreshCardamomPrices(): Promise<{
+  message: string;
+  inserted: number;
+  deleted: number;
+  totalRecords: number;
+}> {
+  return await apiCall('/api/cardamom-prices/refresh', {
+    method: 'POST',
   });
 }
 
