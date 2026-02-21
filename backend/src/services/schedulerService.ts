@@ -24,7 +24,8 @@ async function seedCardamomPricesIfEmpty() {
     const records = await fetchCardamomPricesWithRetry(3);
 
     if (records.length === 0) {
-      console.log('⚠️  No cardamom records returned from data.gov.in during initial seed.');
+      console.log('⚠️  No cardamom records returned from data.gov.in during initial seed — inserting static fallback data.');
+      await insertFallbackCardamomData();
       return;
     }
 
@@ -63,7 +64,52 @@ async function seedCardamomPricesIfEmpty() {
     console.log(`✅ Initial seed complete: ${insertedCount}/${records.length} cardamom price records inserted.`);
   } catch (error) {
     console.error('❌ [SEED] Failed to seed cardamom prices:', error instanceof Error ? error.message : error);
+    console.log('⚠️  Inserting static fallback cardamom data...');
+    await insertFallbackCardamomData();
   }
+}
+
+/**
+ * Insert static fallback cardamom price data when the data.gov.in API is unavailable.
+ */
+async function insertFallbackCardamomData() {
+  const today = new Date();
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const d0 = fmt(today);
+  const d1 = fmt(new Date(today.getTime() - 86400000));
+  const d2 = fmt(new Date(today.getTime() - 2 * 86400000));
+
+  const fallback = [
+    // market, state, district, variety, min, max, modal, date
+    ['Bodinayakanur', 'Tamil Nadu', 'Theni',       'Large',      1200, 1600, 1400, d0],
+    ['Bodinayakanur', 'Tamil Nadu', 'Theni',       'Medium',     900,  1300, 1100, d0],
+    ['Kumily',        'Kerala',     'Idukki',      'Large',      1100, 1550, 1350, d0],
+    ['Kumily',        'Kerala',     'Idukki',      'Medium',     850,  1250, 1050, d0],
+    ['Vandanmedu',    'Kerala',     'Idukki',      'Large',      1150, 1580, 1380, d0],
+    ['Bodinayakanur', 'Tamil Nadu', 'Theni',       'Large',      1180, 1580, 1380, d1],
+    ['Bodinayakanur', 'Tamil Nadu', 'Theni',       'Medium',     880,  1280, 1080, d1],
+    ['Kumily',        'Kerala',     'Idukki',      'Large',      1090, 1530, 1320, d1],
+    ['Bodinayakanur', 'Tamil Nadu', 'Theni',       'Large',      1160, 1560, 1360, d2],
+    ['Kumily',        'Kerala',     'Idukki',      'Medium',     820,  1220, 1020, d2],
+  ];
+
+  let insertedCount = 0;
+  for (const [market, state, district, variety, minP, maxP, modalP, date] of fallback) {
+    try {
+      const result = await query(
+        `INSERT INTO cardamom_prices
+         (state, district, market, variety, min_price, max_price, modal_price, arrival_date, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (market, variety, arrival_date) DO NOTHING
+         RETURNING id`,
+        [state, district, market, variety, minP, maxP, modalP, date, 'static-fallback']
+      );
+      if (result.rowCount && result.rowCount > 0) insertedCount++;
+    } catch (err) {
+      console.error('❌ [FALLBACK] Error inserting record:', err);
+    }
+  }
+  console.log(`✅ [FALLBACK] Inserted ${insertedCount} static cardamom price records.`);
 }
 
 /**
