@@ -51,9 +51,15 @@ export async function fetchCardamomPrices(): Promise<DataGovInRecord[]> {
         record.commodity.toLowerCase().includes('cardamom')
     );
 
-    console.log(`✅ Fetched ${cardamomRecords.length} cardamom price records`);
+    // Normalize arrival_date from DD/MM/YYYY (data.gov.in format) to YYYY-MM-DD (PostgreSQL format)
+    const normalizedRecords = cardamomRecords.map((record) => ({
+      ...record,
+      arrival_date: normalizeDate(record.arrival_date),
+    }));
 
-    return cardamomRecords;
+    console.log(`✅ Fetched ${normalizedRecords.length} cardamom price records`);
+
+    return normalizedRecords;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       if (error.response) {
@@ -75,6 +81,22 @@ export async function fetchCardamomPrices(): Promise<DataGovInRecord[]> {
 
     throw error;
   }
+}
+
+/**
+ * Converts DD/MM/YYYY (data.gov.in format) to YYYY-MM-DD (PostgreSQL format).
+ * Returns the string unchanged if it's already in YYYY-MM-DD format.
+ */
+function normalizeDate(dateStr: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr; // already ISO format
+  }
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const [dd, mm, yyyy] = parts;
+    return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  }
+  return dateStr;
 }
 
 /**

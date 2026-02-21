@@ -8,10 +8,72 @@ import { query } from '../db';
 import { fetchCardamomPricesWithRetry } from './dataGovInService';
 
 /**
+ * Seed cardamom prices on startup if the table is empty.
+ */
+async function seedCardamomPricesIfEmpty() {
+  try {
+    const countResult = await query('SELECT COUNT(*) FROM cardamom_prices');
+    const count = parseInt(countResult.rows[0].count, 10);
+
+    if (count > 0) {
+      console.log(`ℹ️  Cardamom prices already seeded (${count} records), skipping initial fetch.`);
+      return;
+    }
+
+    console.log('📦 Cardamom prices table is empty — fetching initial data from data.gov.in...');
+    const records = await fetchCardamomPricesWithRetry(3);
+
+    if (records.length === 0) {
+      console.log('⚠️  No cardamom records returned from data.gov.in during initial seed.');
+      return;
+    }
+
+    let insertedCount = 0;
+    for (const record of records) {
+      try {
+        const minPrice = record.min_price ? parseFloat(record.min_price) : null;
+        const maxPrice = record.max_price ? parseFloat(record.max_price) : null;
+        const modalPrice = parseFloat(record.modal_price);
+        if (isNaN(modalPrice)) continue;
+
+        const result = await query(
+          `INSERT INTO cardamom_prices
+           (state, district, market, variety, min_price, max_price, modal_price, arrival_date, source)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (market, variety, arrival_date) DO NOTHING
+           RETURNING id`,
+          [
+            record.state || null,
+            record.district || null,
+            record.market,
+            record.variety || 'Unknown',
+            minPrice,
+            maxPrice,
+            modalPrice,
+            record.arrival_date,
+            'data.gov.in',
+          ]
+        );
+        if (result.rowCount && result.rowCount > 0) insertedCount++;
+      } catch (err) {
+        console.error('❌ [SEED] Error inserting record:', err);
+      }
+    }
+
+    console.log(`✅ Initial seed complete: ${insertedCount}/${records.length} cardamom price records inserted.`);
+  } catch (error) {
+    console.error('❌ [SEED] Failed to seed cardamom prices:', error instanceof Error ? error.message : error);
+  }
+}
+
+/**
  * Initialize all scheduled jobs
  */
 export function initScheduledJobs() {
   console.log('⏰ Initializing scheduled jobs...');
+
+  // Seed initial data if DB is empty
+  seedCardamomPricesIfEmpty();
 
   // Daily cardamom price refresh - 6:00 AM IST (00:30 UTC)
   // Cron expression: minute hour day month weekday
