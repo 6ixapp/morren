@@ -57,11 +57,13 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
             { href: "/dashboard/buyer", label: "Browse Items", icon: ShoppingBag },
             { href: "/dashboard/buyer?tab=orders", label: "My Bid Requests", icon: Package },
             { href: "/dashboard/buyer?tab=bids", label: "Seller Bids", icon: TrendingUp },
+            { href: "/dashboard/cardamom-prices", label: "Cardamom Prices", icon: Sprout },
         ],
         seller: [
             { href: "/dashboard/seller", label: "Dashboard", icon: LayoutDashboard },
             { href: "/dashboard/seller?tab=orders", label: "Buyer Orders", icon: ShoppingCart },
             { href: "/dashboard/seller?tab=mybids", label: "My Bids", icon: TrendingUp },
+            { href: "/dashboard/cardamom-prices", label: "Cardamom Prices", icon: Sprout },
         ],
         shipping_provider: [
             { href: "/dashboard/shipping-provider", label: "Dashboard", icon: LayoutDashboard },
