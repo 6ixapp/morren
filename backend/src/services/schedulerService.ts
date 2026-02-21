@@ -75,10 +75,10 @@ export function initScheduledJobs() {
   // Seed initial data if DB is empty
   seedCardamomPricesIfEmpty();
 
-  // Daily cardamom price refresh - 6:00 AM IST (00:30 UTC)
+  // Daily cardamom price refresh - 8:00 PM IST (14:30 UTC)
   // Cron expression: minute hour day month weekday
   cron.schedule(
-    '0 6 * * *',
+    '0 20 * * *',
     async () => {
       console.log('🕒 [CRON] Starting daily cardamom price refresh...');
       console.log(`📅 Timestamp: ${new Date().toISOString()}`);
@@ -171,7 +171,7 @@ export function initScheduledJobs() {
   );
 
   console.log(
-    '✅ Scheduled jobs initialized: Daily cardamom price refresh at 6:00 AM IST'
+    '✅ Scheduled jobs initialized: Daily cardamom price refresh at 8:00 PM IST'
   );
 }
 
