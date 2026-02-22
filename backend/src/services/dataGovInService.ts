@@ -9,6 +9,12 @@ import { DataGovInRecord } from '../types';
 const INDIANSPICES_URL =
   'https://www.indianspices.com/marketing/price/domestic/daily-price.html';
 
+const INDIANSPICES_SMALL_ARCHIVE_URL =
+  'https://www.indianspices.com/marketing/price/domestic/daily-price-small.html';
+
+const INDIANSPICES_LARGE_ARCHIVE_URL =
+  'https://www.indianspices.com/marketing/price/domestic/daily-price-large.html';
+
 const MONTH_MAP: Record<string, string> = {
   Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
   Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12',
@@ -30,6 +36,84 @@ function extractField(text: string, label: string): string {
   const re = new RegExp(label + '[:\\s]+([^,\\n]+)', 'i');
   const m = text.match(re);
   return m ? m[1].trim().replace(/,$/, '') : '';
+}
+
+/**
+ * Fetches small cardamom archive prices from indianspices.com/daily-price-small.html
+ * Parses the embedded JSON array used by the Export Excel button.
+ */
+async function fetchSmallCardamomArchive(): Promise<DataGovInRecord[]> {
+  console.log('🔍 Fetching small cardamom archive from indianspices.com...');
+  const response = await axios.get<string>(INDIANSPICES_SMALL_ARCHIVE_URL, {
+    timeout: 30000,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CardamomPriceFetcher/1.0)' },
+    responseType: 'text',
+  });
+  const html: string = response.data;
+
+  // Extract the JSON array embedded for the Export Excel button
+  const jsonMatch = html.match(/var\s+auction_array1\s*=\s*(\[[\s\S]*?\]);/);
+  if (!jsonMatch) {
+    console.warn('⚠️ Could not find small cardamom JSON array on archive page');
+    return [];
+  }
+
+  let rows: any[];
+  try {
+    rows = JSON.parse(jsonMatch[1]);
+  } catch {
+    console.warn('⚠️ Failed to parse small cardamom JSON array');
+    return [];
+  }
+
+  return rows.map((row) => ({
+    state: undefined,
+    district: undefined,
+    market: row.auctioneer,
+    commodity: 'Small Cardamom',
+    variety: 'Small',
+    arrival_date: row.auction_date, // already "YYYY-MM-DD"
+    min_price: row.minprice || '',
+    max_price: row.maxprice || '',
+    modal_price: row.avgprice,
+  }));
+}
+
+/**
+ * Fetches large cardamom archive prices from indianspices.com/daily-price-large.html
+ * Parses the HTML table rows.
+ */
+async function fetchLargeCardamomArchive(): Promise<DataGovInRecord[]> {
+  console.log('🔍 Fetching large cardamom archive from indianspices.com...');
+  const response = await axios.get<string>(INDIANSPICES_LARGE_ARCHIVE_URL, {
+    timeout: 30000,
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CardamomPriceFetcher/1.0)' },
+    responseType: 'text',
+  });
+  const html: string = response.data;
+
+  const records: DataGovInRecord[] = [];
+  // Match each data row: <td>Sno</td><td>Date</td><td>Market</td><td>Type</td><td>Price</td>
+  const rowRegex = /<tr>\s*<td[^>]*>\d+<\/td>\s*<td[^>]*>([\d\-A-Za-z]+)<\/td>\s*<td[^>]*>(.*?)<\/td>\s*<td[^>]*>(.*?)<\/td>\s*<td[^>]*>([\d.]+)<\/td>\s*<\/tr>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = rowRegex.exec(html)) !== null) {
+    const [, dateRaw, market, type, price] = m;
+    const arrival_date = parseDateStr(dateRaw.trim());
+    records.push({
+      state: undefined,
+      district: undefined,
+      market: market.trim(),
+      commodity: 'Large Cardamom',
+      variety: type.trim() || 'Unknown',
+      arrival_date,
+      min_price: '',
+      max_price: price.trim(),
+      modal_price: price.trim(),
+    });
+  }
+
+  console.log(`✅ Scraped ${records.length} large cardamom records from archive page`);
+  return records;
 }
 
 /**
@@ -112,7 +196,27 @@ export async function fetchCardamomPrices(): Promise<DataGovInRecord[]> {
     }
   }
 
-  console.log(`✅ Scraped ${records.length} cardamom price records from indianspices.com`);
+  console.log(`✅ Scraped ${records.length} cardamom price records from marquee`);
+
+  // Also fetch from archive pages for multi-day history
+  const [smallArchive, largeArchive] = await Promise.allSettled([
+    fetchSmallCardamomArchive(),
+    fetchLargeCardamomArchive(),
+  ]);
+
+  if (smallArchive.status === 'fulfilled') {
+    records.push(...smallArchive.value);
+  } else {
+    console.warn('⚠️ Small cardamom archive fetch failed:', smallArchive.reason);
+  }
+
+  if (largeArchive.status === 'fulfilled') {
+    records.push(...largeArchive.value);
+  } else {
+    console.warn('⚠️ Large cardamom archive fetch failed:', largeArchive.reason);
+  }
+
+  console.log(`✅ Total ${records.length} cardamom price records (marquee + archives)`);
   return records;
 }
 
