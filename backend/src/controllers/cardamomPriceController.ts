@@ -1,6 +1,6 @@
 /**
  * Cardamom Price Controller
- * Handles API endpoints for cardamom market price data from data.gov.in
+ * Handles API endpoints for cardamom market price data from indianspices.com
  */
 
 import { Request, Response } from 'express';
@@ -73,7 +73,17 @@ export const getCardamomStats = asyncHandler(
     `;
 
     const result = await query(statsQuery);
-    const stats = keysToCamel(result.rows[0]);
+    const rawStats = keysToCamel(result.rows[0]);
+
+    // Convert string numbers to actual numbers (PostgreSQL returns aggregates as strings)
+    const stats = {
+      totalMarkets: parseInt(rawStats.totalMarkets) || 0,
+      totalVarieties: parseInt(rawStats.totalVarieties) || 0,
+      avgPrice: parseFloat(rawStats.avgPrice) || 0,
+      minPrice: parseFloat(rawStats.minPrice) || 0,
+      maxPrice: parseFloat(rawStats.maxPrice) || 0,
+      lastUpdated: rawStats.lastUpdated,
+    };
 
     res.json(stats);
   }
@@ -111,7 +121,7 @@ export const getCardamomMarkets = asyncHandler(
 
 /**
  * POST /api/cardamom-prices/refresh
- * Manually trigger cardamom price refresh from data.gov.in
+ * Manually trigger cardamom price refresh from indianspices.com
  * Requires authentication (admin/buyer only)
  */
 export const refreshCardamomPrices = asyncHandler(
@@ -119,12 +129,12 @@ export const refreshCardamomPrices = asyncHandler(
     try {
       console.log('🔄 Manual refresh triggered for cardamom prices');
 
-      // Fetch from data.gov.in with retry logic
+      // Fetch from indianspices.com with retry logic
       const records = await fetchCardamomPricesWithRetry(3);
 
       if (records.length === 0) {
         return res.json({
-          message: 'No new cardamom records found from data.gov.in',
+          message: 'No new cardamom records found from indianspices.com',
           inserted: 0,
           deleted: 0,
           totalRecords: 0,
@@ -168,7 +178,7 @@ export const refreshCardamomPrices = asyncHandler(
               maxPrice,
               modalPrice,
               record.arrival_date,
-              'data.gov.in',
+              'indianspices.com',
             ]
           );
           insertedCount++;

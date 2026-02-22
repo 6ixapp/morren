@@ -59,11 +59,11 @@ export default function CardamomPricesPage() {
       return
     }
     if (user) {
-      fetchData()
+      fetchData(true)
     }
   }, [user, authLoading, router])
 
-  const fetchData = async () => {
+  const fetchData = async (autoSeedIfEmpty = false) => {
     try {
       setLoading(true)
       const [pricesData, statsData, varietiesData, marketsData] = await Promise.all([
@@ -76,6 +76,28 @@ export default function CardamomPricesPage() {
       setStats(statsData)
       setVarieties(varietiesData)
       setMarkets(marketsData)
+
+      // On first load, if DB is empty auto-seed from indianspices.com
+      if (autoSeedIfEmpty && pricesData.length === 0) {
+        setRefreshing(true)
+        try {
+          await refreshCardamomPrices()
+          const [newPrices, newStats, newVarieties, newMarkets] = await Promise.all([
+            getCardamomPrices(),
+            getCardamomStats(),
+            getCardamomVarieties(),
+            getCardamomMarkets(),
+          ])
+          setPrices(newPrices)
+          setStats(newStats)
+          setVarieties(newVarieties)
+          setMarkets(newMarkets)
+        } catch {
+          // silently ignore — user can click Refresh manually
+        } finally {
+          setRefreshing(false)
+        }
+      }
     } catch (error) {
       console.error('Error fetching cardamom prices:', error)
       toast({
@@ -125,6 +147,7 @@ export default function CardamomPricesPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
             <p className="mt-4 text-muted-foreground">Loading cardamom prices...</p>
+            {refreshing && <p className="mt-1 text-xs text-muted-foreground">Fetching live data from indianspices.com…</p>}
           </div>
         </div>
       </div>
@@ -139,7 +162,7 @@ export default function CardamomPricesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Cardamom Market Prices</h1>
-          <p className="text-muted-foreground mt-1">Live prices from data.gov.in (Last 7 days)</p>
+          <p className="text-muted-foreground mt-1">Live prices from indianspices.com (Last 7 days)</p>
         </div>
         <Button onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
@@ -284,13 +307,13 @@ export default function CardamomPricesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Price Details</CardTitle>
-          <CardDescription>Current cardamom prices across markets</CardDescription>
+          <CardDescription>Current cardamom prices from indianspices.com — Small Cardamom shows auction avg price; Large Cardamom shows market rate</CardDescription>
         </CardHeader>
         <CardContent>
           {filteredPrices.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <p>No cardamom prices available.</p>
-              <p className="text-sm mt-2">Click "Refresh Data" to fetch latest prices from data.gov.in</p>
+              <p className="text-sm mt-2">Click "Refresh Data" to fetch latest prices from indianspices.com</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -301,7 +324,7 @@ export default function CardamomPricesPage() {
                     <TableHead>Market</TableHead>
                     <TableHead>Variety</TableHead>
                     <TableHead>Min Price</TableHead>
-                    <TableHead>Modal Price</TableHead>
+                    <TableHead>Avg/Modal Price</TableHead>
                     <TableHead>Max Price</TableHead>
                   </TableRow>
                 </TableHeader>

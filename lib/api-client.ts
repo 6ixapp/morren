@@ -464,7 +464,7 @@ export async function addMarketPrice(price: Partial<MarketPrice>): Promise<Marke
   });
 }
 
-// Cardamom Price functions (data.gov.in integration)
+// Cardamom Price functions (indianspices.com integration)
 export async function getCardamomPrices(
   filters?: {
     variety?: string;

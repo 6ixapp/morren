@@ -20,11 +20,11 @@ async function seedCardamomPricesIfEmpty() {
       return;
     }
 
-    console.log('📦 Cardamom prices table is empty — fetching initial data from data.gov.in...');
+    console.log('📦 Cardamom prices table is empty — fetching initial data from indianspices.com...');
     const records = await fetchCardamomPricesWithRetry(3);
 
     if (records.length === 0) {
-      console.log('⚠️  No cardamom records returned from data.gov.in during initial seed — inserting static fallback data.');
+      console.log('⚠️  No cardamom records returned from indianspices.com during initial seed — inserting static fallback data.');
       await insertFallbackCardamomData();
       return;
     }
@@ -52,7 +52,7 @@ async function seedCardamomPricesIfEmpty() {
             maxPrice,
             modalPrice,
             record.arrival_date,
-            'data.gov.in',
+            'indianspices.com',
           ]
         );
         if (result.rowCount && result.rowCount > 0) insertedCount++;
@@ -70,7 +70,7 @@ async function seedCardamomPricesIfEmpty() {
 }
 
 /**
- * Insert static fallback cardamom price data when the data.gov.in API is unavailable.
+ * Insert static fallback cardamom price data when indianspices.com is unavailable.
  */
 async function insertFallbackCardamomData() {
   const today = new Date();
@@ -130,11 +130,11 @@ export function initScheduledJobs() {
       console.log(`📅 Timestamp: ${new Date().toISOString()}`);
 
       try {
-        // Fetch from data.gov.in with retry logic
+        // Fetch from indianspices.com with retry logic
         const records = await fetchCardamomPricesWithRetry(3);
 
         if (records.length === 0) {
-          console.log('⚠️  [CRON] No cardamom records found from data.gov.in');
+          console.log('⚠️  [CRON] No cardamom records found from indianspices.com');
           return;
         }
 
@@ -173,7 +173,7 @@ export function initScheduledJobs() {
                 maxPrice,
                 modalPrice,
                 record.arrival_date,
-                'data.gov.in',
+                'indianspices.com',
               ]
             );
 
@@ -256,7 +256,7 @@ export async function runCardamomRefreshNow() {
             maxPrice,
             modalPrice,
             record.arrival_date,
-            'data.gov.in',
+            'indianspices.com',
           ]
         );
         insertedCount++;

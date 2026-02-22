@@ -1,108 +1,123 @@
 /**
- * Data.gov.in API Service
- * Fetches cardamom market prices from India's Open Government Data platform
+ * Indian Spices Board Scraper Service
+ * Fetches cardamom market prices by scraping indianspices.com daily price page
  */
 
 import axios from 'axios';
-import { DataGovInRecord, DataGovInResponse } from '../types';
+import { DataGovInRecord } from '../types';
 
-const DATA_GOV_IN_BASE_URL = 'https://api.data.gov.in/resource';
+const INDIANSPICES_URL =
+  'https://www.indianspices.com/marketing/price/domestic/daily-price.html';
 
-/**
- * Fetches cardamom prices from data.gov.in API
- * @returns Array of cardamom price records
- * @throws Error if API key/resource ID not configured or API call fails
- */
-export async function fetchCardamomPrices(): Promise<DataGovInRecord[]> {
-  const apiKey = process.env.DATA_GOV_IN_API_KEY;
-  const resourceId = process.env.DATA_GOV_IN_RESOURCE_ID;
+const MONTH_MAP: Record<string, string> = {
+  Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+  Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12',
+};
 
-  if (!apiKey || !resourceId) {
-    throw new Error(
-      'DATA_GOV_IN_API_KEY and DATA_GOV_IN_RESOURCE_ID must be set in environment variables'
-    );
+/** Converts "21-Feb-2026" to "2026-02-21" */
+function parseDateStr(dateStr: string): string {
+  const m = dateStr.trim().match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+  if (m) {
+    const [, dd, mon, yyyy] = m;
+    const mm = MONTH_MAP[mon] || '01';
+    return `${yyyy}-${mm}-${dd.padStart(2, '0')}`;
   }
+  return dateStr.trim();
+}
 
-  try {
-    console.log('🔍 Fetching cardamom prices from data.gov.in...');
-
-    const response = await axios.get<DataGovInResponse>(
-      `${DATA_GOV_IN_BASE_URL}/${resourceId}`,
-      {
-        params: {
-          'api-key': apiKey,
-          format: 'json',
-          // Filter for cardamom commodity
-          // Note: Exact filter syntax may vary based on data.gov.in API implementation
-          // If filtering doesn't work, we'll filter in code after fetching
-          limit: 1000, // Fetch up to 1000 records
-        },
-        timeout: 30000, // 30 second timeout
-      }
-    );
-
-    // Extract records from response
-    const records = response.data.records || [];
-
-    // Filter for cardamom if API-level filtering didn't work
-    const cardamomRecords = records.filter(
-      (record) =>
-        record.commodity &&
-        record.commodity.toLowerCase().includes('cardamom')
-    );
-
-    // Normalize arrival_date from DD/MM/YYYY (data.gov.in format) to YYYY-MM-DD (PostgreSQL format)
-    const normalizedRecords = cardamomRecords.map((record) => ({
-      ...record,
-      arrival_date: normalizeDate(record.arrival_date),
-    }));
-
-    console.log(`✅ Fetched ${normalizedRecords.length} cardamom price records`);
-
-    return normalizedRecords;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        // API responded with error status
-        console.error(
-          `❌ Data.gov.in API error: ${error.response.status} - ${error.response.statusText}`
-        );
-        console.error('Response data:', error.response.data);
-      } else if (error.request) {
-        // Request made but no response received
-        console.error('❌ No response from data.gov.in API');
-      } else {
-        // Error in request setup
-        console.error('❌ Error setting up data.gov.in request:', error.message);
-      }
-    } else {
-      console.error('❌ Unexpected error fetching cardamom prices:', error);
-    }
-
-    throw error;
-  }
+/** Extract a field value from a text block like "Field:\nvalue," */
+function extractField(text: string, label: string): string {
+  const re = new RegExp(label + '[:\\s]+([^,\\n]+)', 'i');
+  const m = text.match(re);
+  return m ? m[1].trim().replace(/,$/, '') : '';
 }
 
 /**
- * Converts DD/MM/YYYY (data.gov.in format) to YYYY-MM-DD (PostgreSQL format).
- * Returns the string unchanged if it's already in YYYY-MM-DD format.
+ * Fetches and parses cardamom prices from indianspices.com
  */
-function normalizeDate(dateStr: string): string {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return dateStr; // already ISO format
+export async function fetchCardamomPrices(): Promise<DataGovInRecord[]> {
+  console.log('🔍 Fetching cardamom prices from indianspices.com...');
+
+  const response = await axios.get<string>(INDIANSPICES_URL, {
+    timeout: 30000,
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (compatible; CardamomPriceFetcher/1.0)',
+    },
+    responseType: 'text',
+  });
+
+  const html: string = response.data;
+
+  // Extract marquee content
+  const marqueeMatch = html.match(/<marquee[^>]*>([\s\S]*?)<\/marquee>/i);
+  if (!marqueeMatch) {
+    throw new Error('Could not find marquee price data on indianspices.com');
   }
-  const parts = dateStr.split('/');
-  if (parts.length === 3) {
-    const [dd, mm, yyyy] = parts;
-    return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  const marqueeHtml = marqueeMatch[1];
+
+  // Strip HTML tags to get plain text
+  const plainText = marqueeHtml.replace(/<[^>]+>/g, ' ');
+
+  // Split into blocks by "Spice:" keyword
+  const blocks = plainText.split(/(?=Spice\s*:)/i).filter((b) => b.trim());
+
+  const records: DataGovInRecord[] = [];
+
+  for (const block of blocks) {
+    const spiceMatch = block.match(/Spice\s*:\s*([^\n,]+)/i);
+    if (!spiceMatch) continue;
+    const spice = spiceMatch[1].trim();
+
+    if (/small cardamom/i.test(spice)) {
+      // Auction record: Date of Auction, Auctioneer, Max Price, Avg. Price
+      const dateRaw = extractField(block, 'Date of Auction');
+      const auctioneer = extractField(block, 'Auctioneer');
+      const maxPrice = extractField(block, 'Max Price \\(Rs\\.?\\/Kg\\)');
+      const avgPrice = extractField(block, 'Avg\\.? Price \\(Rs\\.?\\/Kg\\)');
+
+      if (!dateRaw || !auctioneer || !avgPrice) continue;
+
+      records.push({
+        state: undefined,
+        district: undefined,
+        market: auctioneer,
+        commodity: 'Small Cardamom',
+        variety: 'Small',
+        arrival_date: parseDateStr(dateRaw),
+        min_price: '',
+        max_price: maxPrice,
+        modal_price: avgPrice,
+      });
+    } else if (/large cardamom/i.test(spice)) {
+      // Market record: Date, Market, Type, Price
+      const dateRaw = extractField(block, 'Date');
+      const market = extractField(block, 'Market');
+      const type = extractField(block, 'Type');
+      const price = extractField(block, 'Price \\(Rs\\.?\\/Kg\\)');
+
+      if (!dateRaw || !market || !price) continue;
+
+      records.push({
+        state: undefined,
+        district: undefined,
+        market,
+        commodity: 'Large Cardamom',
+        variety: type || 'Unknown',
+        arrival_date: parseDateStr(dateRaw),
+        min_price: '',
+        max_price: price,
+        modal_price: price,
+      });
+    }
   }
-  return dateStr;
+
+  console.log(`✅ Scraped ${records.length} cardamom price records from indianspices.com`);
+  return records;
 }
 
 /**
  * Fetches cardamom prices with retry logic
- * @param maxRetries Maximum number of retry attempts
- * @returns Array of cardamom price records
  */
 export async function fetchCardamomPricesWithRetry(
   maxRetries: number = 3
@@ -114,10 +129,9 @@ export async function fetchCardamomPricesWithRetry(
       return await fetchCardamomPrices();
     } catch (error) {
       lastError = error as Error;
-      console.log(`⚠️ Attempt ${attempt}/${maxRetries} failed`);
+      console.log(`⚠️ Attempt ${attempt}/${maxRetries} failed: ${lastError.message}`);
 
       if (attempt < maxRetries) {
-        // Exponential backoff: wait 2^attempt seconds
         const waitTime = Math.pow(2, attempt) * 1000;
         console.log(`⏳ Retrying in ${waitTime / 1000} seconds...`);
         await new Promise((resolve) => setTimeout(resolve, waitTime));
