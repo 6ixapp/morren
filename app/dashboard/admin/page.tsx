@@ -16,6 +16,7 @@ import { Item, Order, Bid, User } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getItems, getOrders, getBids, getUsers, createItem, updateItem, deleteItem, deleteOrder, getAdminStats, createSellerAccount } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
@@ -23,6 +24,7 @@ import { useRouter } from 'next/navigation';
 
 export default function AdminDashboard() {
     const { user, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const { toast } = useToast();
     const [items, setItems] = useState<Item[]>([]);
@@ -323,7 +325,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                                Admin Overview
+                                {t("admin.pageTitle")}
                             </h1>
                             <p className="text-muted-foreground mt-1">Complete control over marketplace operations</p>
                         </div>
@@ -334,14 +336,14 @@ export default function AdminDashboard() {
                                 onClick={() => setIsAddSellerDialogOpen(true)}
                             >
                                 <UserPlus className="mr-2 h-4 w-4 text-rose-600" />
-                                Add Seller
+                                {t("admin.addSeller")}
                             </Button>
                             <Button
                                 className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20 transition-all hover:scale-105"
                                 onClick={() => setIsAddItemDialogOpen(true)}
                             >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Add New Item
+                                {t("admin.addItem")}
                             </Button>
                         </div>
                     </div>
@@ -350,7 +352,7 @@ export default function AdminDashboard() {
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">Total Items</CardTitle>
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalItems")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Package className="h-4 w-4 text-rose-600 dark:text-rose-400" />
                                 </div>
@@ -363,7 +365,7 @@ export default function AdminDashboard() {
 
                         <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalOrders")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <ShoppingCart className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                                 </div>
@@ -376,7 +378,7 @@ export default function AdminDashboard() {
 
                         <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalRevenue")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                                 </div>
@@ -389,7 +391,7 @@ export default function AdminDashboard() {
 
                         <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalUsers")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Users className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                                 </div>
@@ -404,10 +406,10 @@ export default function AdminDashboard() {
                     {/* Main Content */}
                     <Tabs defaultValue="items" className="space-y-6">
                         <TabsList className="bg-white dark:bg-gray-900 p-1 border border-gray-200 dark:border-gray-800 rounded-xl">
-                            <TabsTrigger value="items" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">Items</TabsTrigger>
-                            <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">Orders</TabsTrigger>
-                            <TabsTrigger value="bids" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">Bids</TabsTrigger>
-                            <TabsTrigger value="users" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">Users</TabsTrigger>
+                            <TabsTrigger value="items" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("admin.manageItems")}</TabsTrigger>
+                            <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("admin.manageOrders")}</TabsTrigger>
+                            <TabsTrigger value="bids" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("buyer.totalBids")}</TabsTrigger>
+                            <TabsTrigger value="users" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("admin.manageUsers")}</TabsTrigger>
                         </TabsList>
 
                         {/* Items Tab */}
@@ -436,15 +438,15 @@ export default function AdminDashboard() {
                                                         </AlertDialogTrigger>
                                                         <AlertDialogContent>
                                                             <AlertDialogHeader>
-                                                                <AlertDialogTitle>Delete Item</AlertDialogTitle>
+                                                                <AlertDialogTitle>{t("admin.deleteItem")}</AlertDialogTitle>
                                                                 <AlertDialogDescription>
                                                                     Are you sure you want to delete "{item.name}"? This action cannot be undone.
                                                                 </AlertDialogDescription>
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
-                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                                                                 <AlertDialogAction onClick={() => handleDeleteItem(item.id)} className="bg-red-600 hover:bg-red-700">
-                                                                    Delete
+                                                                    {t("common.delete")}
                                                                 </AlertDialogAction>
                                                             </AlertDialogFooter>
                                                         </AlertDialogContent>
@@ -455,7 +457,7 @@ export default function AdminDashboard() {
                                         <CardContent>
                                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                                 <div className="p-3 bg-rose-50 dark:bg-rose-900/10 rounded-lg border border-rose-100 dark:border-rose-900/20">
-                                                    <Label className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider">Price</Label>
+                                                    <Label className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider">{t("common.price")}</Label>
                                                     <p className="text-lg font-bold text-rose-600 dark:text-rose-400">${item.price}</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
@@ -463,7 +465,7 @@ export default function AdminDashboard() {
                                                     <p className="font-medium">{item.size}</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Category</Label>
+                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.category")}</Label>
                                                     <p className="font-medium">{item.category}</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
@@ -518,7 +520,7 @@ export default function AdminDashboard() {
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle>Delete Order</AlertDialogTitle>
+                                                            <AlertDialogTitle>{t("common.delete")} Order</AlertDialogTitle>
                                                             <AlertDialogDescription>
                                                                 Are you sure you want to delete order #{order.id}? This action cannot be undone.
                                                             </AlertDialogDescription>
@@ -663,7 +665,7 @@ export default function AdminDashboard() {
                     <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
-                                <DialogTitle>Add New Item</DialogTitle>
+                                <DialogTitle>{t("admin.addItem")}</DialogTitle>
                                 <DialogDescription>Create a new item in the marketplace</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -887,7 +889,7 @@ export default function AdminDashboard() {
                     <Dialog open={isEditItemDialogOpen} onOpenChange={setIsEditItemDialogOpen}>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
-                                <DialogTitle>Edit Item</DialogTitle>
+                                <DialogTitle>{t("admin.editItem")}</DialogTitle>
                                 <DialogDescription>Update item details</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">

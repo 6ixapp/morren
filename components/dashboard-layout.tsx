@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -46,6 +48,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
     const pathname = usePathname();
     const router = useRouter();
     const { user, signOut } = useAuth();
+    const { t } = useLanguage();
 
     const handleLogout = async () => {
         await signOut();
@@ -54,27 +57,27 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
 
     const navItems = {
         buyer: [
-            { href: "/dashboard/buyer", label: "Browse Items", icon: ShoppingBag },
-            { href: "/dashboard/buyer?tab=orders", label: "My Bid Requests", icon: Package },
-            { href: "/dashboard/buyer?tab=bids", label: "Seller Bids", icon: TrendingUp },
-            { href: "/dashboard/cardamom-prices", label: "Cardamom Prices", icon: Sprout },
+            { href: "/dashboard/buyer", label: t("layout.browseItems"), icon: ShoppingBag },
+            { href: "/dashboard/buyer?tab=orders", label: t("layout.myBidRequests"), icon: Package },
+            { href: "/dashboard/buyer?tab=bids", label: t("layout.sellerBids"), icon: TrendingUp },
+            { href: "/dashboard/cardamom-prices", label: t("layout.cardamomPrices"), icon: Sprout },
         ],
         seller: [
-            { href: "/dashboard/seller", label: "Dashboard", icon: LayoutDashboard },
-            { href: "/dashboard/seller?tab=orders", label: "Buyer Orders", icon: ShoppingCart },
-            { href: "/dashboard/seller?tab=mybids", label: "My Bids", icon: TrendingUp },
-            { href: "/dashboard/cardamom-prices", label: "Cardamom Prices", icon: Sprout },
+            { href: "/dashboard/seller", label: t("layout.dashboard"), icon: LayoutDashboard },
+            { href: "/dashboard/seller?tab=orders", label: t("layout.buyerOrders"), icon: ShoppingCart },
+            { href: "/dashboard/seller?tab=mybids", label: t("layout.myBids"), icon: TrendingUp },
+            { href: "/dashboard/cardamom-prices", label: t("layout.cardamomPrices"), icon: Sprout },
         ],
         shipping_provider: [
-            { href: "/dashboard/shipping-provider", label: "Dashboard", icon: LayoutDashboard },
-            { href: "/dashboard/shipping-provider?tab=orders", label: "Available Orders", icon: ShoppingCart },
-            { href: "/dashboard/shipping-provider?tab=mybids", label: "My Shipping Bids", icon: TrendingUp },
+            { href: "/dashboard/shipping-provider", label: t("layout.dashboard"), icon: LayoutDashboard },
+            { href: "/dashboard/shipping-provider?tab=orders", label: t("layout.availableOrders"), icon: ShoppingCart },
+            { href: "/dashboard/shipping-provider?tab=mybids", label: t("layout.myShippingBids"), icon: TrendingUp },
         ],
         admin: [
-            { href: "/dashboard/admin", label: "Overview", icon: Shield },
-            { href: "/dashboard/admin?tab=items", label: "Manage Items", icon: Package },
-            { href: "/dashboard/admin?tab=orders", label: "Manage Orders", icon: ShoppingCart },
-            { href: "/dashboard/admin?tab=users", label: "Users", icon: Users },
+            { href: "/dashboard/admin", label: t("layout.overview"), icon: Shield },
+            { href: "/dashboard/admin?tab=items", label: t("layout.manageItems"), icon: Package },
+            { href: "/dashboard/admin?tab=orders", label: t("layout.manageOrders"), icon: ShoppingCart },
+            { href: "/dashboard/admin?tab=users", label: t("layout.users"), icon: Users },
         ],
     };
 
@@ -115,10 +118,10 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                     className="h-14 w-14 rounded-lg mr-3 object-contain"
                                 />
                                 <span className="font-bold text-xl tracking-tight hidden md:block">
-                                    {role === 'buyer' && 'Buyer Dashboard'}
-                                    {role === 'seller' && 'Seller Dashboard'}
-                                    {role === 'shipping_provider' && 'Shipping Provider Dashboard'}
-                                    {role === 'admin' && 'Admin Dashboard'}
+                                    {role === 'buyer' && t("layout.buyerDashboard")}
+                                    {role === 'seller' && t("layout.sellerDashboard")}
+                                    {role === 'shipping_provider' && t("layout.shippingDashboard")}
+                                    {role === 'admin' && t("layout.adminDashboard")}
                                 </span>
                             </div>
 
@@ -144,10 +147,13 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                             </div>
                         </div>
 
-                        {/* Right Side: Theme Toggle, User Profile & Mobile Menu Button */}
+                        {/* Right Side: Theme Toggle, Language Switcher, User Profile & Mobile Menu Button */}
                         <div className="flex items-center gap-2">
                             {/* Theme Toggle */}
                             <ThemeToggle />
+
+                            {/* Language Switcher */}
+                            <LanguageSwitcher />
                             
                             {/* User Dropdown */}
                             <div className="hidden md:flex items-center ml-2">
@@ -166,28 +172,28 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-56">
-                                        <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                                        <DropdownMenuLabel>{t("common.myAccount")}</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onClick={() => router.push('/dashboard/rfq')}>
                                             <FileText className="mr-2 h-4 w-4" />
-                                            <span>RFQs</span>
+                                            <span>{t("layout.rfqs")}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => router.push('/dashboard/market-prices')}>
                                             <BarChart3 className="mr-2 h-4 w-4" />
-                                            <span>Market Prices</span>
+                                            <span>{t("layout.marketPrices")}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => router.push('/dashboard/cardamom-prices')}>
                                             <Sprout className="mr-2 h-4 w-4" />
-                                            <span>Cardamom Prices</span>
+                                            <span>{t("layout.cardamomPrices")}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => router.push(`/dashboard/${role}/settings`)}>
                                             <Settings className="mr-2 h-4 w-4" />
-                                            <span>Settings</span>
+                                            <span>{t("common.settings")}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={handleLogout}>
                                             <LogOut className="mr-2 h-4 w-4" />
-                                            <span>Sign out</span>
+                                            <span>{t("common.signOut")}</span>
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
@@ -254,7 +260,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                     onClick={handleLogout}
                                 >
                                     <LogOut className="mr-2 h-5 w-5" />
-                                    Sign out
+                                    {t("common.signOut")}
                                 </Button>
                             </div>
                         </div>

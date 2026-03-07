@@ -12,6 +12,7 @@ import {
   type CardamomMarket,
 } from "@/lib/api-client"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,6 +39,7 @@ export default function CardamomPricesPage() {
   const { toast } = useToast()
   const { resolvedTheme } = useTheme()
   const { user, loading: authLoading } = useAuth()
+  const { t } = useLanguage()
   const router = useRouter()
 
   const [prices, setPrices] = useState<CardamomPrice[]>([])
@@ -161,12 +163,12 @@ export default function CardamomPricesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Cardamom Market Prices</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t("cardamom.pageTitle")}</h1>
           <p className="text-muted-foreground mt-1">Live prices from indianspices.com (Last 7 days)</p>
         </div>
         <Button onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh Data
+          {t("cardamom.refreshData")}
         </Button>
       </div>
 
@@ -180,7 +182,7 @@ export default function CardamomPricesPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold">{stats?.totalMarkets || 0}</div>
-                <div className="text-sm text-muted-foreground">Markets</div>
+                <div className="text-sm text-muted-foreground">{t("cardamom.market")}</div>
               </div>
             </div>
           </CardContent>
@@ -194,7 +196,7 @@ export default function CardamomPricesPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold">{stats?.totalVarieties || 0}</div>
-                <div className="text-sm text-muted-foreground">Varieties</div>
+                <div className="text-sm text-muted-foreground">{t("cardamom.variety")}</div>
               </div>
             </div>
           </CardContent>
@@ -312,7 +314,7 @@ export default function CardamomPricesPage() {
         <CardContent>
           {filteredPrices.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <p>No cardamom prices available.</p>
+              <p>{t("cardamom.noData")}</p>
               <p className="text-sm mt-2">Click "Refresh Data" to fetch latest prices from indianspices.com</p>
             </div>
           ) : (
@@ -320,12 +322,12 @@ export default function CardamomPricesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Market</TableHead>
-                    <TableHead>Variety</TableHead>
-                    <TableHead>Min Price</TableHead>
-                    <TableHead>Avg/Modal Price</TableHead>
-                    <TableHead>Max Price</TableHead>
+                    <TableHead>{t("common.date")}</TableHead>
+                    <TableHead>{t("cardamom.market")}</TableHead>
+                    <TableHead>{t("cardamom.variety")}</TableHead>
+                    <TableHead>{t("cardamom.minPrice")}</TableHead>
+                    <TableHead>{t("cardamom.modalPrice")}</TableHead>
+                    <TableHead>{t("cardamom.maxPrice")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

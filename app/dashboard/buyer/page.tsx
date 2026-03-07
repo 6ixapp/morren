@@ -17,6 +17,7 @@ import { CardContainer, CardBody, CardItem } from '@/components/ui/aceternity/3d
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrder, updateShippingBid } from '@/lib/api-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -550,6 +551,7 @@ const INCOTERMS = [
 
 function BuyerDashboardContent() {
     const { user, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentTab = searchParams.get('tab') || 'items'; // Default to items (Browse Items)
@@ -1969,9 +1971,9 @@ function BuyerDashboardContent() {
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                                Welcome back, {user.name}
+                                {t("common.welcome")}, {user.name}
                             </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">Here's what's happening with your orders today.</p>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">{t("buyer.pageTitle")}</p>
                         </div>
                     </div>
 
@@ -1979,7 +1981,7 @@ function BuyerDashboardContent() {
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Orders</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.totalOrders")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                                     <ShoppingCart className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                                 </div>
@@ -1992,7 +1994,7 @@ function BuyerDashboardContent() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Confirmed Orders</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.acceptedBids")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                                     <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
                                 </div>
@@ -2005,7 +2007,7 @@ function BuyerDashboardContent() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Delivery Pending</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.activeOrders")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
                                     <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                 </div>
@@ -2018,7 +2020,7 @@ function BuyerDashboardContent() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Live Bids</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.pendingBids")}</CardTitle>
                                 <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
                                     <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                                 </div>
@@ -2033,7 +2035,7 @@ function BuyerDashboardContent() {
                     {/* Place Bid helper text (replaces previous button) */}
                     <div className="flex justify-start mb-6">
                         <h2 className="text-4xl font-bold text-purple-700 dark:text-purple-300 tracking-tight">
-                            Place Bid Request
+                            {t("buyer.createOrder")}
                         </h2>
                     </div>
 
@@ -2049,7 +2051,7 @@ function BuyerDashboardContent() {
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                                                 {/* Product Name */}
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="quick-product-name" className="text-sm font-medium">Product Name</Label>
+                                                    <Label htmlFor="quick-product-name" className="text-sm font-medium">{t("buyer.selectProduct")}</Label>
                                                     <div className="flex gap-2">
                                                         <Input
                                                             id="quick-product-name"
@@ -2072,7 +2074,7 @@ function BuyerDashboardContent() {
 
                                                 {/* Quantity */}
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="quick-quantity" className="text-sm font-medium">Quantity</Label>
+                                                    <Label htmlFor="quick-quantity" className="text-sm font-medium">{t("buyer.quantity")}</Label>
                                                     <Input
                                                         id="quick-quantity"
                                                         type="number"
@@ -2179,7 +2181,7 @@ function BuyerDashboardContent() {
                                                 {/* Sort Controls */}
                                                 <div className="flex flex-wrap gap-2 items-center text-xs">
                                                     <Filter className="h-3 w-3 text-muted-foreground" />
-                                                    <span className="text-muted-foreground">Sort by:</span>
+                                                    <span className="text-muted-foreground">{t("buyer.sortBy")}:</span>
                                                     <Select value={myBidsSortBy} onValueChange={(value: any) => setMyBidsSortBy(value)}>
                                                         <SelectTrigger className="w-[110px] h-6 text-xs">
                                                             <SelectValue />
@@ -2206,7 +2208,7 @@ function BuyerDashboardContent() {
                                             <div className="space-y-1">
                                                 {filteredAndSortedMyBids.length === 0 ? (
                                                     <div className="text-center py-4 text-muted-foreground text-sm">
-                                                        {myBidOrders.length === 0 ? 'No bids found' : 'No bids match your search'}
+                                                        {myBidOrders.length === 0 ? t("buyer.noBids") : t("buyer.noBids")}
                                                     </div>
                                                 ) : (
                                                     (myBidsShowAll ? filteredAndSortedMyBids : filteredAndSortedMyBids.slice(0, 10)).map((order, index) => {
@@ -2389,7 +2391,7 @@ function BuyerDashboardContent() {
                                                                 {/* No Bids Message */}
                                                                 {totalBids === 0 && (
                                                                     <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
-                                                                        <p className="text-xs text-muted-foreground">No bids received yet</p>
+                                                                <p className="text-xs text-muted-foreground">{t("buyer.noOrders")}</p>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -2523,15 +2525,15 @@ function BuyerDashboardContent() {
                                             <CardContent className="space-y-3">
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
                                                         <p className="font-semibold">{order.quantity} units</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Total Price</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.price")}</Label>
                                                         <p className="font-semibold text-purple-600">${(order.totalPrice || 0).toFixed(2)}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Status</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.status")}</Label>
                                                         <div className="flex items-center gap-2">
                                                             <p className="font-semibold capitalize">{order.status}</p>
                                                             {order.status === 'pending' && (
@@ -2589,15 +2591,15 @@ function BuyerDashboardContent() {
                                             <CardContent className="space-y-3">
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                        <Label className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bid Amount</Label>
+                                                        <Label className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t("buyer.bidAmount")}</Label>
                                                         <p className="text-xl font-bold text-purple-600">${Number(bid.bidAmount).toFixed(2)}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("buyer.estimatedDelivery")}</Label>
                                                         <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Status</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.status")}</Label>
                                                         <p className="font-medium capitalize">{bid.status}</p>
                                                     </div>
                                                 </div>
@@ -2609,7 +2611,7 @@ function BuyerDashboardContent() {
                                                         onClick={() => handleAcceptBid(bid.id)}
                                                     >
                                                         <Check className="mr-2 h-4 w-4" />
-                                                        Accept
+                                                        {t("buyer.acceptBid")}
                                                     </Button>
                                                     <Button
                                                         variant="destructive"
@@ -2654,7 +2656,7 @@ function BuyerDashboardContent() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse" />
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Live Bids</h2>
+                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("buyer.sellerBids")}</h2>
                                     <Badge variant="secondary" className="ml-2">{filteredAndSortedLiveBids.length} active</Badge>
                                 </div>
                                 <Button
@@ -2698,7 +2700,7 @@ function BuyerDashboardContent() {
                                 <div className="flex flex-wrap gap-4 items-center">
                                     <div className="flex items-center gap-2">
                                         <Filter className="h-4 w-4 text-muted-foreground" />
-                                        <span className="text-sm text-muted-foreground">Sort by:</span>
+                                        <span className="text-sm text-muted-foreground">{t("buyer.sortBy")}:</span>
                                         <Select value={liveBidsSortBy} onValueChange={(value: any) => setLiveBidsSortBy(value)}>
                                             <SelectTrigger className="w-[140px] h-8">
                                                 <SelectValue />
@@ -2817,12 +2819,12 @@ function BuyerDashboardContent() {
                                                             </>
                                                         )}
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
                                                             <p className="font-medium">{order?.quantity || 'N/A'} units</p>
                                                         </div>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("buyer.estimatedDelivery")}</Label>
                                                         <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                     </div>
 
@@ -3129,12 +3131,12 @@ function BuyerDashboardContent() {
                     <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
                         <DialogContent>
                             <DialogHeader>
-                                <DialogTitle>Place Order</DialogTitle>
+                                <DialogTitle>{t("buyer.placeOrder")}</DialogTitle>
                                 <DialogDescription>Order details for {selectedItem?.name}</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
                                 <div>
-                                    <Label>Quantity</Label>
+                                    <Label>{t("common.quantity")}</Label>
                                     <Input
                                         type="number"
                                         min="1"
@@ -3143,7 +3145,7 @@ function BuyerDashboardContent() {
                                     />
                                 </div>
                                 <div>
-                                    <Label>Shipping Address</Label>
+                                    <Label>{t("buyer.deliveryAddress")}</Label>
                                     <Textarea
                                         value={orderForm.shippingAddress}
                                         onChange={(e) => setOrderForm({ ...orderForm, shippingAddress: e.target.value })}
@@ -3151,7 +3153,7 @@ function BuyerDashboardContent() {
                                     />
                                 </div>
                                 <div>
-                                    <Label>Notes (Optional)</Label>
+                                    <Label>{t("common.notes")}</Label>
                                     <Textarea
                                         value={orderForm.notes}
                                         onChange={(e) => setOrderForm({ ...orderForm, notes: e.target.value })}

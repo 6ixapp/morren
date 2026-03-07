@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Eye, FileText, Clock, CheckCircle2, Award } from "lucide-react"
 import { format } from "date-fns"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLanguage } from "@/contexts/LanguageContext"
 import { useRouter } from "next/navigation"
 
 const statusConfig: Record<
@@ -26,6 +27,7 @@ const statusConfig: Record<
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth()
+  const { t } = useLanguage()
   const router = useRouter()
   const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,13 +82,13 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">RFQ Management</h1>
-          <p className="text-muted-foreground mt-1">Manage your Request for Quotes</p>
+          <h1 className="text-2xl font-bold text-foreground">{t("rfq.pageTitle")}</h1>
+          <p className="text-muted-foreground mt-1">{t("rfq.manageQuotes")}</p>
         </div>
         <Link href="/dashboard/rfq/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Create New RFQ
+            {t("rfq.createRFQ")}
           </Button>
         </Link>
       </div>
@@ -101,7 +103,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">{stats.total}</div>
-                <div className="text-sm text-muted-foreground">Total RFQs</div>
+                <div className="text-sm text-muted-foreground">{t("rfq.totalRFQs")}</div>
               </div>
             </div>
           </CardContent>
@@ -114,7 +116,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">{stats.open}</div>
-                <div className="text-sm text-muted-foreground">Open RFQs</div>
+                <div className="text-sm text-muted-foreground">{t("rfq.openRFQs")}</div>
               </div>
             </div>
           </CardContent>
@@ -127,7 +129,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">{stats.awarded}</div>
-                <div className="text-sm text-muted-foreground">Awarded</div>
+                <div className="text-sm text-muted-foreground">{t("rfq.awarded")}</div>
               </div>
             </div>
           </CardContent>
@@ -140,7 +142,7 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">{stats.totalQuotes}</div>
-                <div className="text-sm text-muted-foreground">Total Quotes</div>
+                <div className="text-sm text-muted-foreground">{t("rfq.totalQuotes")}</div>
               </div>
             </div>
           </CardContent>
@@ -173,12 +175,12 @@ export default function DashboardPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead>Quantity</TableHead>
+                    <TableHead>{t("common.quantity")}</TableHead>
                     <TableHead>Required By</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("common.status")}</TableHead>
                     <TableHead>Quotes</TableHead>
-                    <TableHead>Lowest Bid</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("buyer.lowestBid")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

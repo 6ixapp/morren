@@ -17,6 +17,7 @@ import { ClockTimer } from '@/components/ui/clock-timer';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
 import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder, sendNotificationToUser } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
@@ -25,6 +26,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieCh
 
 export default function SellerDashboard() {
     const { user, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const { toast } = useToast();
     const [orders, setOrders] = useState<Order[]>([]);
@@ -892,9 +894,9 @@ export default function SellerDashboard() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                                Welcome back, {user.name}
+                                {t("common.welcome")}, {user.name}
                             </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">View available orders and place competitive bids</p>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">{t("seller.pageTitle")}</p>
                         </div>
                         <Button
                             variant="outline"
@@ -910,7 +912,7 @@ export default function SellerDashboard() {
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">New Requests</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.totalOrders")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                 </div>
@@ -923,7 +925,7 @@ export default function SellerDashboard() {
 
                         <Card className="border border-green-200 dark:border-green-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Live Bids</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.pendingBids")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-110 transition-transform relative">
                                     <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
                                     <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse top-0 right-0"></div>
@@ -937,7 +939,7 @@ export default function SellerDashboard() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Bids</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.pendingBids")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <TrendingUp className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                                 </div>
@@ -950,7 +952,7 @@ export default function SellerDashboard() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Accepted Bids</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.acceptedBids")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Users className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                                 </div>
@@ -963,7 +965,7 @@ export default function SellerDashboard() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Potential Revenue</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.potentialRevenue")}</CardTitle>
                                 <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <IndianRupee className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                                 </div>
@@ -981,7 +983,7 @@ export default function SellerDashboard() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Package className="h-5 w-5 text-emerald-600" />
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Orders Dashboard</h2>
+                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.buyerOrders")}</h2>
                                     <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} new</Badge>
                                     <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{liveOrders.length} live</Badge>
                                 </div>
@@ -1072,7 +1074,7 @@ export default function SellerDashboard() {
                                 orders.length === 0 ? (
                                     <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                        <p className="text-muted-foreground">No orders available at the moment.</p>
+                                                <p className="text-muted-foreground">{t("seller.noOrders")}</p>
                                     </Card>
                                 ) : (
                                     <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
@@ -1118,7 +1120,7 @@ export default function SellerDashboard() {
                                                             <Input
                                                                 type="number"
                                                                 step="0.01"
-                                                                placeholder="Bid Amount (₹)"
+                                                                placeholder={t("seller.bidAmount")}
                                                                 className="h-11 w-48 text-base font-semibold"
                                                                 value={inlineBidForms[order.id]?.bidAmount || ''}
                                                                 onChange={(e) => setInlineBidForms(prev => ({
@@ -1151,7 +1153,7 @@ export default function SellerDashboard() {
                                                                 disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
                                                             >
                                                                 <Send className="mr-2 h-4 w-4" />
-                                                                {submittingBid ? "Placing..." : "Place Bid"}
+                                                                {submittingBid ? t("common.loading") : t("seller.submitBid")}
                                                             </Button>
                                                         </div>
                                                     </div>
@@ -1232,7 +1234,7 @@ export default function SellerDashboard() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <TrendingUp className="h-5 w-5 text-emerald-600" />
-                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">My Bids</h2>
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.myBids")}</h2>
                                 <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} bids</Badge>
                             </div>
                             <Button
@@ -1376,7 +1378,7 @@ export default function SellerDashboard() {
                                                                 }`}
                                                         >
                                                             <TrendingUp className="mr-2 h-4 w-4" />
-                                                            {bid.status === 'pending' ? 'Update Bid' : 'Bid ' + bid.status.charAt(0).toUpperCase() + bid.status.slice(1)}
+                                                {bid.status === 'pending' ? t("seller.updateBid") : 'Bid ' + bid.status.charAt(0).toUpperCase() + bid.status.slice(1)}
                                                         </Button>
                                                     </div>
 
@@ -1403,22 +1405,22 @@ export default function SellerDashboard() {
                                                     {/* Bid Info */}
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                         <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                            <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Your Bid Amount</Label>
+                                                            <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t("seller.bidAmount")}</Label>
                                                             <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">₹{Number(bid.bidAmount).toFixed(2)}</p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.estimatedDelivery")}</Label>
                                                             <p className="font-medium flex items-center gap-1">
                                                                 <Calendar className="h-4 w-4" />
                                                                 {new Date(bid.estimatedDelivery).toLocaleDateString()}
                                                             </p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Bid Status</Label>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.bidStatus")}</Label>
                                                             <p className="font-medium capitalize">{bid.status}</p>
                                                         </div>
                                                         <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
-                                                            <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">Time Remaining</Label>
+                                                            <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">{t("buyer.timeRemaining")}</Label>
                                                             <ClockTimer
                                                                 endTime={order ? calculateBidEndTime(order) : new Date()}
                                                                 size={18}
@@ -1430,7 +1432,7 @@ export default function SellerDashboard() {
                                                     {/* Shipping Address */}
                                                     {order?.shippingAddress && (
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Shipping Address</Label>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("buyer.deliveryAddress")}</Label>
                                                             <p className="font-medium mt-1">{order.shippingAddress}</p>
                                                         </div>
                                                     )}
@@ -1438,7 +1440,7 @@ export default function SellerDashboard() {
                                                     {/* Customer Notes */}
                                                     {order?.notes && (
                                                         <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                            <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Customer Notes</Label>
+                                                            <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t("common.notes")}</Label>
                                                             <p className="font-medium mt-1 italic">"{order.notes}"</p>
                                                         </div>
                                                     )}
@@ -1446,7 +1448,7 @@ export default function SellerDashboard() {
                                                     {/* Your Message */}
                                                     {bid.message && (
                                                         <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                            <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Your Message</Label>
+                                                            <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t("seller.message")}</Label>
                                                             <p className="font-medium mt-1">"{bid.message}"</p>
                                                         </div>
                                                     )}
@@ -1690,7 +1692,7 @@ export default function SellerDashboard() {
                     <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>
                         <DialogContent className="sm:max-w-[500px]">
                             <DialogHeader>
-                                <DialogTitle>{editingBid ? 'Update Your Bid' : 'Place Your Bid'}</DialogTitle>
+                                <DialogTitle>{editingBid ? t("seller.updateBid") : t("seller.submitBid")}</DialogTitle>
                                 <DialogDescription>
                                     {editingBid
                                         ? `Update your bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
@@ -1700,7 +1702,7 @@ export default function SellerDashboard() {
                             </DialogHeader>
                             <div className="space-y-6 py-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="bidAmount" className="text-sm font-medium">Bid Amount (₹)</Label>
+                                    <Label htmlFor="bidAmount" className="text-sm font-medium">{t("seller.bidAmount")}</Label>
                                     <div className="relative">
                                         <IndianRupee className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
@@ -1718,7 +1720,7 @@ export default function SellerDashboard() {
                                     </p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="estimatedDelivery" className="text-sm font-medium">Estimated Delivery Date</Label>
+                                    <Label htmlFor="estimatedDelivery" className="text-sm font-medium">{t("seller.estimatedDelivery")}</Label>
                                     <Input
                                         id="estimatedDelivery"
                                         type="date"
@@ -1728,7 +1730,7 @@ export default function SellerDashboard() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="message" className="text-sm font-medium">Message (Optional)</Label>
+                                    <Label htmlFor="message" className="text-sm font-medium">{t("seller.message")}</Label>
                                     <Textarea
                                         id="message"
                                         placeholder="Add a personalized message to increase your chances..."
@@ -1745,7 +1747,7 @@ export default function SellerDashboard() {
                                     setEditingBid(null);
                                     setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
                                 }}>
-                                    Cancel
+                                    {t("common.cancel")}
                                 </Button>
                                 <Button
                                     className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20"
@@ -1753,7 +1755,7 @@ export default function SellerDashboard() {
                                     disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
                                 >
                                     <Send className="mr-2 h-4 w-4" />
-                                    {submittingBid ? (editingBid ? "Updating..." : "Submitting...") : (editingBid ? "Update Bid" : "Submit Bid")}
+                                    {submittingBid ? t("common.loading") : (editingBid ? t("seller.updateBid") : t("seller.submitBid"))}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>

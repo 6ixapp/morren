@@ -16,6 +16,7 @@ import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { getOrdersForShipping, getShippingBidsByProvider, createShippingBid, updateShippingBid, getShippingBidsByOrder, getBidsByOrder } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import { getDashboardRoute } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +26,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieCh
 
 export default function ShippingProviderDashboard() {
     const { user, loading: authLoading } = useAuth();
+    const { t } = useLanguage();
     const router = useRouter();
     const { toast } = useToast();
     const [orders, setOrders] = useState<Order[]>([]);
@@ -880,9 +882,9 @@ export default function ShippingProviderDashboard() {
                     <div className="flex items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                                Welcome back, {user.name}
+                                {t("common.welcome")}, {user.name}
                             </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">View available orders and place competitive shipping bids</p>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">{t("shipping.pageTitle")}</p>
                         </div>
                         <Button
                             variant="outline"
@@ -898,7 +900,7 @@ export default function ShippingProviderDashboard() {
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Available Orders</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.totalOrders")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                 </div>
@@ -911,7 +913,7 @@ export default function ShippingProviderDashboard() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Bids</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.pendingBids")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <TrendingUp className="h-4 w-4 text-teal-600 dark:text-teal-400" />
                                 </div>
@@ -924,7 +926,7 @@ export default function ShippingProviderDashboard() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Accepted Bids</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.acceptedBids")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <Users className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                                 </div>
@@ -937,7 +939,7 @@ export default function ShippingProviderDashboard() {
 
                         <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Potential Revenue</CardTitle>
+                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.potentialRevenue")}</CardTitle>
                                 <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                 </div>
@@ -955,7 +957,7 @@ export default function ShippingProviderDashboard() {
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Truck className="h-5 w-5 text-blue-600" />
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Available Orders</h2>
+                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("shipping.availableOrders")}</h2>
                                     <Badge variant="secondary" className="ml-2">{filteredAndSortedOrders.length} orders</Badge>
                                 </div>
                                 <Button
@@ -1207,7 +1209,7 @@ export default function ShippingProviderDashboard() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <TrendingUp className="h-5 w-5 text-blue-600" />
-                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">My Shipping Bids</h2>
+                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("shipping.myBids")}</h2>
                                 <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} bids</Badge>
                             </div>
                             <Button
@@ -1591,7 +1593,7 @@ export default function ShippingProviderDashboard() {
                 <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>
                     <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
-                            <DialogTitle>{editingBid ? 'Update Your Shipping Bid' : 'Place Your Shipping Bid'}</DialogTitle>
+                            <DialogTitle>{editingBid ? t("shipping.updateBid") : t("shipping.submitBid")}</DialogTitle>
                             <DialogDescription>
                                 {editingBid
                                     ? `Update your shipping bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
@@ -1601,7 +1603,7 @@ export default function ShippingProviderDashboard() {
                         </DialogHeader>
                         <div className="space-y-6 py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="bidAmount" className="text-sm font-medium">Shipping Cost ($)</Label>
+                                <Label htmlFor="bidAmount" className="text-sm font-medium">{t("shipping.bidAmount")}</Label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                     <Input
@@ -1616,7 +1618,7 @@ export default function ShippingProviderDashboard() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="estimatedDelivery" className="text-sm font-medium">Estimated Delivery Date</Label>
+                                <Label htmlFor="estimatedDelivery" className="text-sm font-medium">{t("shipping.estimatedDelivery")}</Label>
                                 <Input
                                     id="estimatedDelivery"
                                     type="date"
@@ -1626,7 +1628,7 @@ export default function ShippingProviderDashboard() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="message" className="text-sm font-medium">Message (Optional)</Label>
+                                <Label htmlFor="message" className="text-sm font-medium">{t("common.message")}</Label>
                                 <Textarea
                                     id="message"
                                     placeholder="Add a personalized message..."
@@ -1643,7 +1645,7 @@ export default function ShippingProviderDashboard() {
                                 setEditingBid(null);
                                 setBidForm({ bidAmount: '', estimatedDelivery: '', message: '' });
                             }}>
-                                Cancel
+                                {t("common.cancel")}
                             </Button>
                             <Button
                                 className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/20"
@@ -1651,7 +1653,7 @@ export default function ShippingProviderDashboard() {
                                 disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
                             >
                                 <Send className="mr-2 h-4 w-4" />
-                                {submittingBid ? (editingBid ? "Updating..." : "Submitting...") : (editingBid ? "Update Bid" : "Submit Bid")}
+                                {submittingBid ? t("common.loading") : (editingBid ? t("shipping.updateBid") : t("shipping.submitBid"))}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
