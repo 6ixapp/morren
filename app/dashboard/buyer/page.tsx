@@ -18,7 +18,8 @@ import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrder, updateShippingBid } from '@/lib/api-client';
+import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrder, updateShippingBid, getCardamomPrices, getCardamomStats } from '@/lib/api-client';
+import type { CardamomPrice, CardamomPriceStats } from '@/lib/api-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -30,6 +31,80 @@ import { processAutoAccepts } from '@/lib/auto-accept';
 import { getErrorMessage } from '@/lib/utils';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
+import { Language } from '@/contexts/LanguageContext';
+
+type LocalizedTerm = readonly [source: string, target: string];
+
+const PRODUCT_TEXT_LOCALIZATION: Record<Exclude<Language, 'en'>, LocalizedTerm[]> = {
+    hi: [
+        ['Green Cardamom', 'हरी इलायची'],
+        ['Black Cardamom', 'काली इलायची'],
+        ['Cardamom', 'इलायची'],
+        ['Coriander Seeds', 'धनिया बीज'],
+        ['Mustard Seeds', 'सरसों के बीज'],
+        ['Fennel Seeds', 'सौंफ'],
+        ['Fenugreek Seeds', 'मेथी दाना'],
+        ['Carom Seeds', 'अजवाइन'],
+        ['Nigella Seeds', 'कलौंजी'],
+        ['Black Pepper', 'काली मिर्च'],
+        ['Bay Leaf', 'तेज पत्ता'],
+        ['Star Anise', 'चक्र फूल'],
+        ['Turmeric', 'हल्दी'],
+        ['Red Chilli', 'लाल मिर्च'],
+        ['Dry Ginger', 'सूखी अदरक'],
+        ['Powder', 'पाउडर'],
+        ['Whole', 'साबुत'],
+        ['Broken', 'टूटा हुआ'],
+        ['Quality', 'गुणवत्ता'],
+        ['Regular', 'सामान्य'],
+        ['Premium', 'प्रीमियम'],
+        ['Standard', 'मानक'],
+        ['Spices', 'मसाले'],
+        ['Vegetables', 'सब्जियां'],
+        ['Pulses', 'दालें'],
+        ['Dry Fruits & Nuts', 'सूखे मेवे और मेवे'],
+    ],
+    ml: [
+        ['Green Cardamom', 'പച്ച ഏലക്ക'],
+        ['Black Cardamom', 'കറുത്ത ഏലക്ക'],
+        ['Cardamom', 'ഏലക്ക'],
+        ['Coriander Seeds', 'മല്ലിവിത്ത്'],
+        ['Mustard Seeds', 'കടുക് വിത്ത്'],
+        ['Fennel Seeds', 'പെരുഞ്ചീരകം'],
+        ['Fenugreek Seeds', 'ഉലുവ വിത്ത്'],
+        ['Carom Seeds', 'അജ്വൈൻ'],
+        ['Nigella Seeds', 'കരിഞ്ചീരകം'],
+        ['Black Pepper', 'കുരുമുളക്'],
+        ['Bay Leaf', 'തേജപത്രം'],
+        ['Star Anise', 'തക്കോലം'],
+        ['Turmeric', 'മഞ്ഞൾ'],
+        ['Red Chilli', 'ചുവപ്പ് മുളക്'],
+        ['Dry Ginger', 'ഉണങ്ങിയ ഇഞ്ചി'],
+        ['Powder', 'പൊടി'],
+        ['Whole', 'മുഴുവൻ'],
+        ['Broken', 'തകർന്നത്'],
+        ['Quality', 'ഗുണമേന്മ'],
+        ['Regular', 'സാധാരണ'],
+        ['Premium', 'പ്രീമിയം'],
+        ['Standard', 'സ്റ്റാൻഡേർഡ്'],
+        ['Spices', 'മസാലകൾ'],
+        ['Vegetables', 'പച്ചക്കറികൾ'],
+        ['Pulses', 'പയർവർഗങ്ങൾ'],
+        ['Dry Fruits & Nuts', 'ഉണങ്ങിയ പഴങ്ങളും നട്ടുകളും'],
+    ],
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const localizeProductText = (text: string, language: Language): string => {
+    if (!text || language === 'en') return text;
+
+    const terms = PRODUCT_TEXT_LOCALIZATION[language];
+    return terms.reduce((localized, [source, target]) => {
+        const pattern = new RegExp(escapeRegExp(source), 'gi');
+        return localized.replace(pattern, target);
+    }, text);
+};
 
 // Predefined Product Catalog with Varieties
 const PRODUCT_CATALOG = {
@@ -551,7 +626,7 @@ const INCOTERMS = [
 
 function BuyerDashboardContent() {
     const { user, loading: authLoading } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentTab = searchParams.get('tab') || 'items'; // Default to items (Browse Items)
@@ -561,6 +636,8 @@ function BuyerDashboardContent() {
     const [bids, setBids] = useState<Bid[]>([]);
     const [shippingBids, setShippingBids] = useState<ShippingBid[]>([]);
     const [loading, setLoading] = useState(true);
+    const [cardamomPrices, setCardamomPrices] = useState<CardamomPrice[]>([]);
+    const [cardamomStats, setCardamomStats] = useState<CardamomPriceStats | null>(null);
     const [placingOrder, setPlacingOrder] = useState(false);
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
@@ -584,6 +661,16 @@ function BuyerDashboardContent() {
     });
     const [specKey, setSpecKey] = useState('');
     const [specValue, setSpecValue] = useState('');
+
+    const localizedProductName = useCallback((name?: string) => {
+        if (!name) return '';
+        return localizeProductText(name, language);
+    }, [language]);
+
+    const localizedProductMeta = useCallback((value?: string) => {
+        if (!value) return '';
+        return localizeProductText(value, language);
+    }, [language]);
 
     // Catalog search states
     const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
@@ -828,6 +915,7 @@ function BuyerDashboardContent() {
             // Combine all searchable text
             const searchableText = [
                 order.item?.name || '',
+                localizedProductName(order.item?.name),
                 order.id,
                 (order.item?.specifications as any)?.['HSN Code'] || '',
                 order.shippingAddress || '',
@@ -876,7 +964,7 @@ function BuyerDashboardContent() {
         });
 
         return filtered;
-    }, [myBidOrders, myBidsSearchQuery, myBidsSortBy, myBidsSortDirection]);
+    }, [myBidOrders, myBidsSearchQuery, myBidsSortBy, myBidsSortDirection, localizedProductName]);
 
     const getBidTimeLeftLabel = (order: Order | undefined) => {
         if (!order) return 'N/A';
@@ -923,8 +1011,11 @@ function BuyerDashboardContent() {
             // Combine all searchable text
             const searchableText = [
                 product.name,
+                localizedProductName(product.name),
                 product.variety,
+                localizedProductMeta(product.variety),
                 product.category,
+                localizedProductMeta(product.category),
                 product.hsn,
                 (product as any).description || ''
             ].join(' ').toLowerCase();
@@ -935,7 +1026,7 @@ function BuyerDashboardContent() {
             const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
             return matchesSearch && matchesCategory;
         });
-    }, [catalogSearchQuery, selectedCategory]);
+    }, [catalogSearchQuery, selectedCategory, localizedProductName, localizedProductMeta]);
 
     // Filter items for browsing based on search and category
     const filteredItems = useMemo(() => {
@@ -953,8 +1044,10 @@ function BuyerDashboardContent() {
             // Combine all searchable text
             const searchableText = [
                 item.name,
+                localizedProductName(item.name),
                 item.description || '',
                 item.category || '',
+                localizedProductMeta(item.category || ''),
                 JSON.stringify(item.specifications || {})
             ].join(' ').toLowerCase();
 
@@ -965,7 +1058,7 @@ function BuyerDashboardContent() {
                 item.category?.toLowerCase().includes(itemCategoryFilter.toLowerCase());
             return matchesSearch && matchesCategory;
         });
-    }, [items, itemSearchQuery, itemCategoryFilter]);
+    }, [items, itemSearchQuery, itemCategoryFilter, localizedProductName, localizedProductMeta]);
 
     // Get unique categories from items
     const itemCategories = useMemo(() => {
@@ -1032,7 +1125,7 @@ function BuyerDashboardContent() {
     const handleAddToList = async () => {
         if (!user) {
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: "You must be logged in to add items.",
                 variant: "destructive",
             });
@@ -1041,7 +1134,7 @@ function BuyerDashboardContent() {
 
         if (!addToListForm.productName || !addToListForm.quantity) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please fill in at least Product Name and Quantity.",
                 variant: "destructive",
             });
@@ -1051,7 +1144,7 @@ function BuyerDashboardContent() {
         const quantity = parseInt(addToListForm.quantity);
         if (isNaN(quantity) || quantity <= 0) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please enter a valid quantity.",
                 variant: "destructive",
             });
@@ -1113,7 +1206,7 @@ function BuyerDashboardContent() {
         } catch (error: any) {
             console.error('Error adding item:', error);
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: error?.message || "Failed to add item. Please try again.",
                 variant: "destructive",
             });
@@ -1198,7 +1291,7 @@ function BuyerDashboardContent() {
 
                 // If retries fail, show error but continue with empty arrays
                 toast({
-                    title: "Connection Issue",
+                    title: t("common.error"),
                     description: "Having trouble loading some data. Please check your connection.",
                     variant: "destructive",
                 });
@@ -1273,7 +1366,7 @@ function BuyerDashboardContent() {
         } catch (error: any) {
             console.error('Error fetching data:', error);
             toast({
-                title: "Error Loading Data",
+                title: t("common.error"),
                 description: error?.message || "Failed to load dashboard data. Please try refreshing the page.",
                 variant: "destructive",
             });
@@ -1291,6 +1384,13 @@ function BuyerDashboardContent() {
             fetchData(true); // Force refresh on mount to clear any stale cache
         }
     }, [user, fetchData]);
+
+    // Fetch cardamom price data for dashboard
+    useEffect(() => {
+        if (!user) return;
+        getCardamomPrices().then(setCardamomPrices).catch(() => {});
+        getCardamomStats().then(setCardamomStats).catch(() => {});
+    }, [user]);
 
     // Auto-refresh every 30 seconds to see new bids in real-time
     useEffect(() => {
@@ -1322,7 +1422,7 @@ function BuyerDashboardContent() {
     const handlePlaceOrder = async () => {
         if (!selectedItem || !user) {
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: "Please select an item to order.",
                 variant: "destructive",
             });
@@ -1331,7 +1431,7 @@ function BuyerDashboardContent() {
 
         if (!orderForm.quantity || !orderForm.shippingAddress) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please fill in quantity and shipping address.",
                 variant: "destructive",
             });
@@ -1341,7 +1441,7 @@ function BuyerDashboardContent() {
         const quantity = parseInt(orderForm.quantity);
         if (isNaN(quantity) || quantity <= 0) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please enter a valid quantity.",
                 variant: "destructive",
             });
@@ -1350,7 +1450,7 @@ function BuyerDashboardContent() {
 
         if (quantity > selectedItem.quantity) {
             toast({
-                title: "Insufficient Stock",
+                title: t("common.error"),
                 description: `Only ${selectedItem.quantity} units available.`,
                 variant: "destructive",
             });
@@ -1371,7 +1471,7 @@ function BuyerDashboardContent() {
 
             toast({
                 title: "Order Placed Successfully! 🎉",
-                description: `Your order for ${selectedItem.name} has been placed. Sellers can now bid on it.`,
+                description: `Your order for ${localizedProductName(selectedItem.name)} has been placed. Sellers can now bid on it.`,
             });
 
             setIsOrderDialogOpen(false);
@@ -1384,7 +1484,7 @@ function BuyerDashboardContent() {
             const err = error as { message?: string; details?: string; hint?: string; code?: string };
             console.error('Error creating order:', err?.message ?? err?.details ?? err?.hint ?? err?.code ?? error);
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: getErrorMessage(error, "Failed to create order. Please try again."),
                 variant: "destructive",
             });
@@ -1398,8 +1498,8 @@ function BuyerDashboardContent() {
     const handlePlaceBidRequest = async () => {
         if (!user) {
             toast({
-                title: "Error",
-                description: "You must be logged in to place a bid request.",
+                title: t("common.error"),
+                description: t("buyer.mustLoginBidRequest"),
                 variant: "destructive",
             });
             return;
@@ -1411,8 +1511,8 @@ function BuyerDashboardContent() {
         // Basic required fields
         if (!bidForm.productName || !bidForm.quantity || !bidForm.shippingAddress || !bidForm.expectedDeliveryDate || !bidForm.sellerBidRunningTime || !bidForm.shippingBidRunningTime || !bidForm.country || !bidForm.city) {
             toast({
-                title: "Validation Error",
-                description: "Please fill in all required fields (Product, Quantity, Country, City, Shipping Address, Expected Delivery Date, Seller Bid Time, Shipping Bid Time).",
+                title: t("common.error"),
+                description: t("buyer.fillRequiredBidFields"),
                 variant: "destructive",
             });
             return;
@@ -1422,8 +1522,8 @@ function BuyerDashboardContent() {
         if (isIndia) {
             if (!bidForm.pincode || !bidForm.state) {
                 toast({
-                    title: "Validation Error",
-                    description: "Please fill in Pincode and State for Indian addresses.",
+                    title: t("common.error"),
+                    description: t("buyer.fillPincodeState"),
                     variant: "destructive",
                 });
                 return;
@@ -1432,8 +1532,8 @@ function BuyerDashboardContent() {
             // Validate pincode (6 digits for India)
             if (bidForm.pincode.length !== 6) {
                 toast({
-                    title: "Validation Error",
-                    description: "Please enter a valid 6-digit pincode.",
+                    title: t("common.error"),
+                    description: t("buyer.invalidPincode"),
                     variant: "destructive",
                 });
                 return;
@@ -1442,8 +1542,8 @@ function BuyerDashboardContent() {
             // International order validation
             if (!bidForm.incoterms) {
                 toast({
-                    title: "Validation Error",
-                    description: "Please select Incoterms for international shipments.",
+                    title: t("common.error"),
+                    description: t("buyer.selectIncotermsValidation"),
                     variant: "destructive",
                 });
                 return;
@@ -1453,7 +1553,7 @@ function BuyerDashboardContent() {
         const quantity = parseInt(bidForm.quantity);
         if (isNaN(quantity) || quantity <= 0) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please enter a valid quantity.",
                 variant: "destructive",
             });
@@ -1464,8 +1564,8 @@ function BuyerDashboardContent() {
         const sellerBidDays = parseInt(bidForm.sellerBidRunningTime);
         if (isNaN(sellerBidDays) || sellerBidDays <= 0) {
             toast({
-                title: "Validation Error",
-                description: "Please enter a valid seller bid running time (must be at least 1 day).",
+                title: t("common.error"),
+                description: t("buyer.invalidSellerBidTime"),
                 variant: "destructive",
             });
             return;
@@ -1475,8 +1575,8 @@ function BuyerDashboardContent() {
         const shippingBidDays = parseInt(bidForm.shippingBidRunningTime);
         if (isNaN(shippingBidDays) || shippingBidDays <= 0) {
             toast({
-                title: "Validation Error",
-                description: "Please enter a valid shipping bid running time (must be at least 1 day).",
+                title: t("common.error"),
+                description: t("buyer.invalidShippingBidTime"),
                 variant: "destructive",
             });
             return;
@@ -1517,12 +1617,12 @@ function BuyerDashboardContent() {
             const fullAddress = `${bidForm.shippingAddress}, ${locationInfo}`;
 
             const orderNotes = [
-                `Bid request for ${bidForm.productName}.`,
-                `Quality: ${bidForm.quality || 'Not specified'}.`,
-                `Size: ${bidForm.size || 'Not specified'}.`,
-                `Destination: ${bidForm.country}`,
-                !isIndia ? `Incoterms: ${bidForm.incoterms}` : '',
-                bidForm.notes ? `Additional Notes: ${bidForm.notes}` : ''
+                `${t("buyer.placeBidRequestTitle")}: ${localizedProductName(bidForm.productName)}.`,
+                `${t("seller.quality")}: ${bidForm.quality || '-'}.`,
+                `${t("seller.size")}: ${bidForm.size || '-'}.`,
+                `${t("buyer.destination")}: ${bidForm.country}`,
+                !isIndia ? `${t("buyer.incotermsRequired").replace(' *','')}: ${bidForm.incoterms}` : '',
+                bidForm.notes ? `${t("common.notes")}: ${bidForm.notes}` : ''
             ].filter(Boolean).join(' ');
 
             await createOrder({
@@ -1536,8 +1636,8 @@ function BuyerDashboardContent() {
             });
 
             toast({
-                title: "Bid Request Placed! 🎉",
-                description: `Your bid request for ${bidForm.productName} has been placed. Sellers can now submit their bids.`,
+                title: t("buyer.bidRequestPlacedTitle"),
+                description: t("buyer.bidRequestPlacedDescription"),
             });
 
             setIsPlaceBidDialogOpen(false);
@@ -1566,8 +1666,8 @@ function BuyerDashboardContent() {
             const err = error as { message?: string; details?: string; hint?: string; code?: string };
             console.error('Error creating bid request:', err?.message ?? err?.details ?? err?.hint ?? err?.code ?? error);
             toast({
-                title: "Error",
-                description: getErrorMessage(error, "Failed to place bid request. Please try again."),
+                title: t("common.error"),
+                description: getErrorMessage(error, t("buyer.bidRequestFailed")),
                 variant: "destructive",
             });
         } finally {
@@ -1580,7 +1680,7 @@ function BuyerDashboardContent() {
             const bid = bids.find(b => b.id === bidId);
             if (!bid) {
                 toast({
-                    title: "Error",
+                    title: t("common.error"),
                     description: "Bid not found.",
                     variant: "destructive",
                 });
@@ -1630,7 +1730,7 @@ function BuyerDashboardContent() {
         } catch (error: any) {
             console.error('Error accepting bid:', error);
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: error?.message || "Failed to accept bid. Please try again.",
                 variant: "destructive",
             });
@@ -1652,7 +1752,7 @@ function BuyerDashboardContent() {
         } catch (error: any) {
             console.error('Error rejecting bid:', error);
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: error?.message || "Failed to reject bid. Please try again.",
                 variant: "destructive",
             });
@@ -1672,7 +1772,7 @@ function BuyerDashboardContent() {
         } catch (error: any) {
             console.error('Error deleting bid:', error);
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: error?.message || "Failed to delete bid. Please try again.",
                 variant: "destructive",
             });
@@ -1700,7 +1800,7 @@ function BuyerDashboardContent() {
         } catch (error: any) {
             console.error('Error updating order status:', error);
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: error?.message || "Failed to update order status. Please try again.",
                 variant: "destructive",
             });
@@ -1712,7 +1812,7 @@ function BuyerDashboardContent() {
     const handleAddProduct = async () => {
         if (!user) {
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: "You must be logged in to add products.",
                 variant: "destructive",
             });
@@ -1723,7 +1823,7 @@ function BuyerDashboardContent() {
         if (!productForm.name || !productForm.description || !productForm.price ||
             !productForm.size || !productForm.category || !productForm.quantity) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please fill in all required fields.",
                 variant: "destructive",
             });
@@ -1735,7 +1835,7 @@ function BuyerDashboardContent() {
 
         if (isNaN(price) || price <= 0) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please enter a valid price.",
                 variant: "destructive",
             });
@@ -1744,7 +1844,7 @@ function BuyerDashboardContent() {
 
         if (isNaN(quantity) || quantity <= 0) {
             toast({
-                title: "Validation Error",
+                title: t("common.error"),
                 description: "Please enter a valid quantity.",
                 variant: "destructive",
             });
@@ -1798,7 +1898,7 @@ function BuyerDashboardContent() {
         } catch (error: any) {
             console.error('Error creating product:', error);
             toast({
-                title: "Error",
+                title: t("common.error"),
                 description: error?.message || "Failed to create product. Please try again.",
                 variant: "destructive",
             });
@@ -1890,6 +1990,41 @@ function BuyerDashboardContent() {
     const savings = calculateSavings();
 
     // Monthly spending trend (last 6 months)
+    // Cardamom price chart data
+    const todayCardamomPrices = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayPrices = cardamomPrices.filter(p => {
+            const d = new Date(p.arrivalDate);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime() === today.getTime();
+        });
+        if (todayPrices.length > 0) return todayPrices;
+        // fallback: latest available date
+        if (cardamomPrices.length === 0) return [];
+        const latestDate = new Date(Math.max(...cardamomPrices.map(p => new Date(p.arrivalDate).getTime())));
+        latestDate.setHours(0, 0, 0, 0);
+        return cardamomPrices.filter(p => {
+            const d = new Date(p.arrivalDate);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime() === latestDate.getTime();
+        });
+    }, [cardamomPrices]);
+
+    const cardamomPriceChartData = useMemo(() => {
+        if (cardamomPrices.length === 0) return [];
+        // Group by date, take avg modal price per date
+        const byDate: Record<string, number[]> = {};
+        cardamomPrices.forEach(p => {
+            const d = new Date(p.arrivalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            if (!byDate[d]) byDate[d] = [];
+            byDate[d].push(p.modalPrice);
+        });
+        return Object.entries(byDate)
+            .map(([date, prices]) => ({ date, price: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) }))
+            .slice(-10);
+    }, [cardamomPrices]);
+
     const monthlySpendingData = useMemo(() => {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
         const now = new Date();
@@ -1988,7 +2123,7 @@ function BuyerDashboardContent() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalOrders}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">All time orders placed</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.allTimeOrdersPlaced")}</p>
                             </CardContent>
                         </Card>
 
@@ -2001,7 +2136,7 @@ function BuyerDashboardContent() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.confirmedOrders}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Orders accepted by sellers</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.ordersAcceptedBySellers")}</p>
                             </CardContent>
                         </Card>
 
@@ -2014,7 +2149,7 @@ function BuyerDashboardContent() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.deliveryPending}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Awaiting delivery</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.awaitingDelivery")}</p>
                             </CardContent>
                         </Card>
 
@@ -2027,7 +2162,7 @@ function BuyerDashboardContent() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.activeBids}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Bids awaiting your response</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.bidsAwaitingResponse")}</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -2055,7 +2190,7 @@ function BuyerDashboardContent() {
                                                     <div className="flex gap-2">
                                                         <Input
                                                             id="quick-product-name"
-                                                            placeholder="Enter or search from catalog"
+                                                            placeholder={t("buyer.enterProductOrCatalog")}
                                                             value={bidForm.productName}
                                                             onChange={(e) => setBidForm({ ...bidForm, productName: e.target.value })}
                                                             className="flex-1"
@@ -2065,7 +2200,7 @@ function BuyerDashboardContent() {
                                                             variant="outline"
                                                             size="icon"
                                                             onClick={() => setIsSelectProductDialogOpen(true)}
-                                                            title="Browse Catalog"
+                                                            title={t("buyer.catalog")}
                                                         >
                                                             <Search className="h-4 w-4" />
                                                         </Button>
@@ -2078,7 +2213,7 @@ function BuyerDashboardContent() {
                                                     <Input
                                                         id="quick-quantity"
                                                         type="number"
-                                                        placeholder="Enter quantity"
+                                                            placeholder={t("buyer.quantityPlaceholder")}
                                                         value={bidForm.quantity}
                                                         onChange={(e) => setBidForm({ ...bidForm, quantity: e.target.value })}
                                                     />
@@ -2086,26 +2221,25 @@ function BuyerDashboardContent() {
 
                                                 {/* Quality */}
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="quick-quality" className="text-sm font-medium">Quality</Label>
+                                                    <Label htmlFor="quick-quality" className="text-sm font-medium">{t("seller.quality")}</Label>
                                                     <Select
                                                         value={bidForm.quality}
                                                         onValueChange={(value) => setBidForm({ ...bidForm, quality: value })}
                                                     >
                                                         <SelectTrigger id="quick-quality">
-                                                            <SelectValue placeholder="Select quality" />
+                                                            <SelectValue placeholder={t("buyer.qualityPlaceholder")} />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="premium">Premium Quality</SelectItem>
-                                                            <SelectItem value="standard">Standard Quality</SelectItem>
-                                                            <SelectItem value="commercial">Commercial Quality</SelectItem>
-                                                            <SelectItem value="reject">Reject Quality</SelectItem>
+                                                            {QUALITY_GRADES.map((grade) => (
+                                                                <SelectItem key={grade.value} value={grade.value}>{grade.label}</SelectItem>
+                                                            ))}
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
 
                                                 {/* Expected Delivery Date */}
                                                 <div className="space-y-2">
-                                                    <Label htmlFor="quick-expected-date" className="text-sm font-medium">Expected Date</Label>
+                                                    <Label htmlFor="quick-expected-date" className="text-sm font-medium">{t("buyer.expectedBy")}</Label>
                                                     <Input
                                                         id="quick-expected-date"
                                                         type="date"
@@ -2122,7 +2256,7 @@ function BuyerDashboardContent() {
                                                     onClick={() => setIsPlaceBidDialogOpen(true)}
                                                     disabled={!bidForm.productName || !bidForm.quantity}
                                                 >
-                                                    Continue
+                                                    {t("common.confirm")}
                                                     <Send className="ml-2 h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -2135,10 +2269,10 @@ function BuyerDashboardContent() {
                                     <Card className="border border-dashed border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10">
                                         <CardContent className="p-4 space-y-4">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200">My Bids</p>
+                                                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200">{t("layout.myBids")}</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-muted-foreground">
-                                                        Showing {Math.min(myBidsShowAll ? filteredAndSortedMyBids.length : 10, filteredAndSortedMyBids.length)} of {filteredAndSortedMyBids.length}
+                                                        {t("common.viewAll")}: {Math.min(myBidsShowAll ? filteredAndSortedMyBids.length : 10, filteredAndSortedMyBids.length)} / {filteredAndSortedMyBids.length}
                                                     </span>
                                                     <Button
                                                         variant="ghost"
@@ -2147,7 +2281,7 @@ function BuyerDashboardContent() {
                                                         className="text-xs text-muted-foreground hover:text-foreground"
                                                     >
                                                         <X className="h-3 w-3 mr-1" />
-                                                        Clear
+                                                        {t("seller.clearFilters")}
                                                     </Button>
                                                 </div>
                                             </div>
@@ -2161,7 +2295,7 @@ function BuyerDashboardContent() {
                                                     </div>
                                                     <Input
                                                         type="text"
-                                                        placeholder="Search by product name, order ID, HSN code..."
+                                                        placeholder={t("seller.searchOrdersPlaceholder")}
                                                         className="pl-10 h-8 text-sm"
                                                         value={myBidsSearchQuery}
                                                         onChange={(e) => setMyBidsSearchQuery(e.target.value)}
@@ -2187,10 +2321,10 @@ function BuyerDashboardContent() {
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="date">Date Created</SelectItem>
+                                                            <SelectItem value="date">{t("seller.sortDateCreated")}</SelectItem>
                                                             <SelectItem value="quantity">Quantity</SelectItem>
-                                                            <SelectItem value="ending">Ending Time</SelectItem>
-                                                            <SelectItem value="name">Product Name</SelectItem>
+                                                            <SelectItem value="ending">{t("buyer.timeRemaining")}</SelectItem>
+                                                            <SelectItem value="name">{t("common.name")}</SelectItem>
                                                         </SelectContent>
                                                     </Select>
 
@@ -2241,17 +2375,17 @@ function BuyerDashboardContent() {
                                                                         <span className="font-semibold w-5">{serial}.</span>
                                                                         <div className="space-y-0.5">
                                                                             <p className="font-medium line-clamp-1">
-                                                                                {order.item?.name || 'Bid Request'}
+                                                                                {localizedProductName(order.item?.name) || t("buyer.newOrder")}
                                                                             </p>
                                                                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm text-muted-foreground">
-                                                                                <span>HSN: <span className="font-medium text-foreground">{hsnCode}</span></span>
-                                                                                <span>Quality: <span className="font-medium text-foreground">{quality}</span></span>
-                                                                                <span>Qty: <span className="font-medium text-foreground">{order.quantity}</span></span>
-                                                                                <span>Size: <span className="font-medium text-foreground">{size}</span></span>
-                                                                                <span>Expected: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
-                                                                                <span>Pincode: <span className="font-medium text-foreground">{pincode}</span></span>
+                                                                                <span>{t("seller.hsnCode")}: <span className="font-medium text-foreground">{hsnCode}</span></span>
+                                                                                <span>{t("seller.quality")}: <span className="font-medium text-foreground">{localizedProductMeta(quality)}</span></span>
+                                                                                <span>{t("common.quantity")}: <span className="font-medium text-foreground">{order.quantity}</span></span>
+                                                                                <span>{t("seller.size")}: <span className="font-medium text-foreground">{localizedProductMeta(size)}</span></span>
+                                                                                <span>{t("seller.expectedDelivery")}: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
+                                                                                <span>{t("seller.pincode")}: <span className="font-medium text-foreground">{pincode}</span></span>
                                                                                 <span className="flex items-center gap-1">
-                                                                                    Time Remaining:
+                                                                                    {t("buyer.timeRemaining")}:
                                                                                     <ClockTimer
                                                                                         endTime={calculateBidEndTime(order)}
                                                                                         size={16}
@@ -2409,12 +2543,12 @@ function BuyerDashboardContent() {
                                                         {myBidsShowAll ? (
                                                             <>
                                                                 <ChevronUp className="mr-1 h-3 w-3" />
-                                                                Show less
+                                                                {t("common.showLess")}
                                                             </>
                                                         ) : (
                                                             <>
                                                                 <ChevronDown className="mr-1 h-3 w-3" />
-                                                                Show {filteredAndSortedMyBids.length - 10} more
+                                                                {t("common.viewAll")} {filteredAndSortedMyBids.length - 10} {t("seller.more")}
                                                             </>
                                                         )}
                                                     </Button>
@@ -2435,11 +2569,11 @@ function BuyerDashboardContent() {
                                                             translateZ="50"
                                                             className="text-xl font-bold text-gray-900 dark:text-white"
                                                         >
-                                                            {item.name}
+                                                            {localizedProductName(item.name)}
                                                         </CardItem>
                                                         {item.category && (
                                                             <Badge variant="secondary" className="text-xs">
-                                                                {item.category}
+                                                                {localizedProductMeta(item.category)}
                                                             </Badge>
                                                         )}
                                                     </div>
@@ -2472,7 +2606,7 @@ function BuyerDashboardContent() {
                                                                 setIsItemDetailsDialogOpen(true);
                                                             }}
                                                         >
-                                                            View Details
+                                                            {t("common.details")}
                                                         </CardItem>
                                                     </div>
                                                 </CardBody>
@@ -2482,9 +2616,9 @@ function BuyerDashboardContent() {
                                         {filteredItems.length === 0 && (
                                             <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                                                 <Package className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                                                <h3 className="font-semibold text-lg">No items found</h3>
+                                                <h3 className="font-semibold text-lg">{t("buyer.noItems")}</h3>
                                                 <p className="text-muted-foreground text-sm mt-1">
-                                                    Try a different search term or category filter
+                                                    {t("buyer.filterByCategory")}
                                                 </p>
                                                 <Button
                                                     variant="link"
@@ -2493,7 +2627,7 @@ function BuyerDashboardContent() {
                                                         setItemCategoryFilter('all');
                                                     }}
                                                 >
-                                                    Clear filters
+                                                    {t("seller.clearFilters")}
                                                 </Button>
                                             </div>
                                         )}
@@ -2515,7 +2649,7 @@ function BuyerDashboardContent() {
                                                             <Package className="h-6 w-6 text-purple-600" />
                                                         </div>
                                                         <div>
-                                                            <CardTitle>{order.item?.name || 'Unknown Item'}</CardTitle>
+                                                            <CardTitle>{localizedProductName(order.item?.name) || 'Unknown Item'}</CardTitle>
                                                             <CardDescription>Order #{order.id.slice(0, 8)} • {new Date(order.createdAt).toLocaleDateString()}</CardDescription>
                                                         </div>
                                                     </div>
@@ -2679,7 +2813,7 @@ function BuyerDashboardContent() {
                                     </div>
                                     <Input
                                         type="text"
-                                        placeholder="Search by product name, order ID, or seller ID..."
+                                        placeholder={t("buyer.liveBidsSearchPlaceholder")}
                                         className="pl-10 h-10 text-sm"
                                         value={liveBidsSearchQuery}
                                         onChange={(e) => setLiveBidsSearchQuery(e.target.value)}
@@ -2706,10 +2840,10 @@ function BuyerDashboardContent() {
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="ending">Ending Time</SelectItem>
-                                                <SelectItem value="date">Date Created</SelectItem>
-                                                <SelectItem value="amount">Bid Amount</SelectItem>
-                                                <SelectItem value="delivery">Delivery Date</SelectItem>
+                                                <SelectItem value="ending">{t("buyer.sortEndingTime")}</SelectItem>
+                                                <SelectItem value="date">{t("seller.sortDateCreated")}</SelectItem>
+                                                <SelectItem value="amount">{t("seller.sortBidAmount")}</SelectItem>
+                                                <SelectItem value="delivery">{t("seller.sortDeliveryDate")}</SelectItem>
                                             </SelectContent>
                                         </Select>
 
@@ -2730,7 +2864,7 @@ function BuyerDashboardContent() {
                                     <Card className="p-8 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                         <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse mx-auto mb-4" />
                                         <p className="text-muted-foreground">
-                                            {bids.filter(b => b.status === 'pending').length === 0 ? 'No live bids available' : 'No bids match your search'}
+                                            {bids.filter(b => b.status === 'pending').length === 0 ? t("buyer.noLiveBids") : t("buyer.noBidsMatchSearch")}
                                         </p>
                                         {liveBidsSearchQuery && (
                                             <Button
@@ -2738,7 +2872,7 @@ function BuyerDashboardContent() {
                                                 className="mt-4"
                                                 onClick={resetLiveBidsFilters}
                                             >
-                                                Clear Filters
+                                                {t("seller.clearFilters")}
                                             </Button>
                                         )}
                                     </Card>
@@ -2797,30 +2931,30 @@ function BuyerDashboardContent() {
                                                 <CardContent className="space-y-3">
                                                     <div className={`grid ${isInternational ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2'} gap-4`}>
                                                         <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-900/20">
-                                                            <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">Seller Bid</Label>
+                                                            <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">{t("buyer.sellerBidLabel")}</Label>
                                                             <p className="text-xl font-bold text-purple-600">${Number(bid.bidAmount).toFixed(2)}</p>
-                                                            <p className="text-[10px] text-purple-500 dark:text-purple-400 mt-0.5">exclusive GST</p>
+                                                            <p className="text-[10px] text-purple-500 dark:text-purple-400 mt-0.5">{t("buyer.exclusiveGST")}</p>
                                                         </div>
                                                         {isInternational && (
                                                             <>
                                                                 <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Shipping Cost</Label>
+                                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t("buyer.shippingCostLabel")}</Label>
                                                                     <p className="text-xl font-bold text-blue-600">
-                                                                        {lowestShippingBid ? `$${Number(lowestShippingBid.bidAmount).toFixed(2)}` : 'No bid yet'}
+                                                                        {lowestShippingBid ? `$${Number(lowestShippingBid.bidAmount).toFixed(2)}` : t("buyer.noBidYet")}
                                                                     </p>
                                                                     {orderShippingBids.length > 1 && (
-                                                                        <p className="text-xs text-muted-foreground mt-1">{orderShippingBids.length} shipping bids</p>
+                                                                        <p className="text-xs text-muted-foreground mt-1">{orderShippingBids.length} {t("buyer.shippingBidsCount")}</p>
                                                                     )}
                                                                 </div>
                                                                 <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                                    <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Cost</Label>
+                                                                    <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t("buyer.totalCostLabel")}</Label>
                                                                     <p className="text-2xl font-bold text-emerald-600">${Number(totalCost).toFixed(2)}</p>
                                                                 </div>
                                                             </>
                                                         )}
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
-                                                            <p className="font-medium">{order?.quantity || 'N/A'} units</p>
+                                                            <p className="font-medium">{order?.quantity || 'N/A'} {t("seller.units")}</p>
                                                         </div>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
@@ -2838,12 +2972,12 @@ function BuyerDashboardContent() {
                                                                     <TrendingDown className="h-4 w-4 text-white" />
                                                                 </div>
                                                                 <div className="flex-1">
-                                                                    <Label className="text-xs text-green-700 dark:text-green-300 uppercase tracking-wider font-bold">Best Value</Label>
+                                                                    <Label className="text-xs text-green-700 dark:text-green-300 uppercase tracking-wider font-bold">{t("buyer.bestValueLabel")}</Label>
                                                                     <p className="text-sm font-bold text-green-700 dark:text-green-300 mt-0.5">
-                                                                        This bid is {percentLowerThanHighest}% lower than the highest bid
+                                                                        {t("buyer.bestValueLabel")}: {percentLowerThanHighest}% lower
                                                                     </p>
                                                                     <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                                                                        Competing with {allOrderBids.length - 1} other seller{allOrderBids.length - 1 > 1 ? 's' : ''}
+                                                                        {allOrderBids.length - 1} {allOrderBids.length - 1 > 1 ? t("seller.otherSellers") : t("seller.otherSeller")}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -2855,14 +2989,14 @@ function BuyerDashboardContent() {
                                                         <>
                                                             {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] !== 'India' && order.item.specifications['Incoterms'] && (
                                                                 <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/20">
-                                                                    <Label className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider">International Shipping</Label>
+                                                                    <Label className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider">{t("buyer.internationalShipping")}</Label>
                                                                     <div className="mt-1 space-y-1">
                                                                         <div className="flex justify-between text-sm">
-                                                                            <span className="text-muted-foreground">Destination:</span>
+                                                                            <span className="text-muted-foreground">{t("buyer.destination")}:</span>
                                                                             <span className="font-medium">{order.item.specifications['Destination Country']}</span>
                                                                         </div>
                                                                         <div className="flex justify-between text-sm">
-                                                                            <span className="text-muted-foreground">Incoterms:</span>
+                                                                            <span className="text-muted-foreground">{t("buyer.incotermsLabel")}:</span>
                                                                             <span className="font-medium text-amber-700 dark:text-amber-300">{order.item.specifications['Incoterms']}</span>
                                                                         </div>
                                                                     </div>
@@ -2870,11 +3004,11 @@ function BuyerDashboardContent() {
                                                             )}
                                                             {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] === 'India' && (
                                                                 <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Domestic Shipping</Label>
+                                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t("buyer.domesticShipping")}</Label>
                                                                     <div className="mt-1">
                                                                         <div className="flex justify-between text-sm">
-                                                                            <span className="text-muted-foreground">Destination:</span>
-                                                                            <span className="font-medium">India (Domestic)</span>
+                                                                            <span className="text-muted-foreground">{t("buyer.destination")}:</span>
+                                                                            <span className="font-medium">{t("buyer.indiaDomestic")}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -2941,7 +3075,7 @@ function BuyerDashboardContent() {
                     <div className="space-y-6 mt-12">
                         <div className="flex items-center gap-2">
                             <BarChart3 className="h-5 w-5 text-purple-600" />
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Analytics Overview</h2>
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("buyer.analytics")}</h2>
                         </div>
 
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -2950,9 +3084,9 @@ function BuyerDashboardContent() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
                                         <PieChart className="h-5 w-5 text-purple-600" />
-                                        Order Status Distribution
+                                        {t("buyer.orderStatusDistribution")}
                                     </CardTitle>
-                                    <CardDescription>Overview of your orders</CardDescription>
+                                    <CardDescription>{t("buyer.ordersOverview")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {orderStatusData.length > 0 ? (
@@ -2980,22 +3114,22 @@ function BuyerDashboardContent() {
                                         <div className="h-[220px] flex items-center justify-center text-muted-foreground">
                                             <div className="text-center">
                                                 <PieChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                                <p>No order data available</p>
+                                                <p>{t("buyer.noOrderData")}</p>
                                             </div>
                                         </div>
                                     )}
                                     <div className="flex justify-center gap-4 mt-4 flex-wrap">
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                                            <span className="text-xs text-muted-foreground">Pending ({buyerStats.pendingOrders})</span>
+                                            <span className="text-xs text-muted-foreground">{t("status.pending")} ({buyerStats.pendingOrders})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-green-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">Completed ({buyerStats.completedOrders})</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.completed")} ({buyerStats.completedOrders})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-red-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">Cancelled ({buyerStats.cancelledOrders})</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.cancelled")} ({buyerStats.cancelledOrders})</span>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -3006,9 +3140,9 @@ function BuyerDashboardContent() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
                                         <TrendingUp className="h-5 w-5 text-purple-600" />
-                                        Procurement Metrics
+                                        {t("buyer.procurementMetrics")}
                                     </CardTitle>
-                                    <CardDescription>Your purchasing activity</CardDescription>
+                                    <CardDescription>{t("buyer.purchasingActivity")}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="flex flex-col items-center">
@@ -3025,19 +3159,19 @@ function BuyerDashboardContent() {
                                             </svg>
                                             <div className="absolute inset-0 flex items-center justify-center flex-col">
                                                 <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{buyerStats.totalBidsReceived}</span>
-                                                <span className="text-xs text-muted-foreground">Bids</span>
+                                                <span className="text-xs text-muted-foreground">{t("seller.bidCount")}</span>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mt-2">Total Bids Received</p>
+                                        <p className="text-sm text-muted-foreground mt-2">{t("buyer.totalBidsReceived")}</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                                             <p className="text-2xl font-bold text-purple-600">{buyerStats.activeBidRequests}</p>
-                                            <p className="text-xs text-muted-foreground">Active Requests</p>
+                                            <p className="text-xs text-muted-foreground">{t("buyer.activeRequests")}</p>
                                         </div>
                                         <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                                             <p className="text-2xl font-bold text-blue-600">{buyerStats.totalOrders}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">Total Orders</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{t("buyer.stats.totalOrders")}</p>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -3048,22 +3182,22 @@ function BuyerDashboardContent() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg text-white">
                                         <DollarSign className="h-5 w-5" />
-                                        Cost Savings Summary
+                                        {t("buyer.costSavingsSummary")}
                                     </CardTitle>
-                                    <CardDescription className="text-green-100">Your procurement savings</CardDescription>
+                                    <CardDescription className="text-green-100">{t("buyer.procurementSavings")}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-green-100">Total Spent</span>
+                                            <span className="text-green-100">{t("buyer.stats.totalSpent")}</span>
                                             <span className="text-xl font-bold">₹{Number(buyerStats.totalSpent).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-green-100">Potential Savings</span>
+                                            <span className="text-green-100">{t("buyer.potentialSavings")}</span>
                                             <span className="text-xl font-bold">₹{Number(savings.totalSavings).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-green-100">Savings Rate</span>
+                                            <span className="text-green-100">{t("buyer.savingsRate")}</span>
                                             <span className="text-xl font-bold">
                                                 {savings.savingsPercent.toFixed(1)}%
                                             </span>
@@ -3080,9 +3214,9 @@ function BuyerDashboardContent() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
                                         <Activity className="h-5 w-5 text-purple-600" />
-                                        Monthly Spending Trends
+                                        {t("buyer.monthlySpendingTrends")}
                                     </CardTitle>
-                                    <CardDescription>Your procurement spending over time</CardDescription>
+                                    <CardDescription>{t("buyer.spendingOverTime")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <ChartContainer config={spendingChartConfig} className="h-[250px] w-full">
@@ -3108,9 +3242,9 @@ function BuyerDashboardContent() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
                                         <Trophy className="h-5 w-5 text-purple-600" />
-                                        Bid Activity Timeline
+                                        {t("buyer.bidActivityTimeline")}
                                     </CardTitle>
-                                    <CardDescription>Number of bids received per month</CardDescription>
+                                    <CardDescription>{t("buyer.bidsPerMonth")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <ChartContainer config={spendingChartConfig} className="h-[250px] w-full">
@@ -3125,6 +3259,132 @@ function BuyerDashboardContent() {
                                 </CardContent>
                             </Card>
                         </div>
+
+                        {/* Market Price Chart & Today's Prices */}
+                        <div className="space-y-4 mt-6">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-green-600" />
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("cardamom.pageTitle")}</h3>
+                                {cardamomStats && (
+                                    <span className="text-xs text-muted-foreground ml-2">
+                                        {t("cardamom.lastUpdatedPrefix")} {new Date(cardamomStats.lastUpdated).toLocaleDateString('en-IN')}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                {/* Price History Chart */}
+                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <BarChart3 className="h-5 w-5 text-green-600" />
+                                            {t("cardamom.priceHistoryTitle")}
+                                        </CardTitle>
+                                        <CardDescription>{t("cardamom.priceHistoryDesc")}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {cardamomPriceChartData.length > 0 ? (
+                                            <ChartContainer config={{ price: { label: t('cardamom.modalPriceLabel'), color: '#16a34a' } }} className="h-[250px] w-full">
+                                                <LineChart data={cardamomPriceChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                    <defs>
+                                                        <linearGradient id="buyerPriceGradient" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="5%" stopColor="#16a34a" stopOpacity={0.3} />
+                                                            <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                                                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
+                                                    <ChartTooltip content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            return (
+                                                                <div className="bg-background border rounded-lg p-2 shadow-lg">
+                                                                    <p className="text-sm font-medium">{payload[0].payload.date}</p>
+                                                                    <p className="text-xs text-green-600">₹{payload[0].value}{t("common.perKg")}</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }} />
+                                                    <Line type="monotone" dataKey="price" stroke="#16a34a" strokeWidth={2} dot={{ fill: '#16a34a', r: 4 }} />
+                                                </LineChart>
+                                            </ChartContainer>
+                                        ) : (
+                                            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                                <div className="text-center">
+                                                    <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                                                    <p className="text-sm">{t("cardamom.noData")}</p>
+                                                    <p className="text-xs mt-1">{t("cardamom.visitMarketPrices")}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                {/* Today's Prices */}
+                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <Calendar className="h-5 w-5 text-green-600" />
+                                            {t("cardamom.todaysPrices")}
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {todayCardamomPrices.length > 0
+                                                ? `${todayCardamomPrices.length} listings — ${new Date(todayCardamomPrices[0].arrivalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                                : t('cardamom.latestAvailablePrices')}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {todayCardamomPrices.length > 0 ? (
+                                            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                                                {cardamomStats && (
+                                                    <div className="grid grid-cols-3 gap-2 mb-3">
+                                                        <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                                            <p className="text-xs text-muted-foreground">{t("cardamom.minPrice")}</p>
+                                                            <p className="text-sm font-bold text-green-700 dark:text-green-400">₹{cardamomStats.minPrice}</p>
+                                                        </div>
+                                                        <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                            <p className="text-xs text-muted-foreground">{t("cardamom.avgPrice")}</p>
+                                                            <p className="text-sm font-bold text-blue-700 dark:text-blue-400">₹{Math.round(cardamomStats.avgPrice)}</p>
+                                                        </div>
+                                                        <div className="text-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                                                            <p className="text-xs text-muted-foreground">{t("cardamom.maxPrice")}</p>
+                                                            <p className="text-sm font-bold text-orange-700 dark:text-orange-400">₹{cardamomStats.maxPrice}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {todayCardamomPrices.slice(0, 8).map((p, i) => (
+                                                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{p.variety}</p>
+                                                            <p className="text-xs text-muted-foreground truncate">{p.market}{p.state ? `, ${p.state}` : ''}</p>
+                                                        </div>
+                                                        <div className="text-right ml-3 flex-shrink-0">
+                                                            <p className="text-sm font-bold text-green-600">₹{p.modalPrice}<span className="text-xs font-normal text-muted-foreground">{t("common.perKg")}</span></p>
+                                                            {p.minPrice && p.maxPrice && (
+                                                                <p className="text-xs text-muted-foreground">₹{p.minPrice}–₹{p.maxPrice}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {todayCardamomPrices.length > 8 && (
+                                                    <p className="text-xs text-center text-muted-foreground pt-1">+{todayCardamomPrices.length - 8} more — <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.viewAll")}</a></p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                                <div className="text-center">
+                                                    <Calendar className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                                                    <p className="text-sm">{t("cardamom.noPricesToday")}</p>
+                                                    <p className="text-xs mt-1">
+                                                        <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.refreshMarketData")}</a>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Place Order Dialog */}
@@ -3132,7 +3392,7 @@ function BuyerDashboardContent() {
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>{t("buyer.placeOrder")}</DialogTitle>
-                                <DialogDescription>Order details for {selectedItem?.name}</DialogDescription>
+                                <DialogDescription>{t("buyer.orderDetails")}: {localizedProductName(selectedItem?.name)}</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
                                 <div>
@@ -3162,7 +3422,7 @@ function BuyerDashboardContent() {
                                 </div>
                                 {selectedItem && orderForm.quantity && (
                                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                        <Label>Total Price</Label>
+                                        <Label>{t("common.price")}</Label>
                                         <p className="text-2xl font-bold text-purple-600">
                                             ${(selectedItem.price * parseInt(orderForm.quantity)).toFixed(2)}
                                         </p>
@@ -3175,14 +3435,14 @@ function BuyerDashboardContent() {
                                     onClick={() => setIsOrderDialogOpen(false)}
                                     disabled={placingOrder}
                                 >
-                                    Cancel
+                                    {t("common.cancel")}
                                 </Button>
                                 <Button
                                     onClick={handlePlaceOrder}
                                     disabled={!orderForm.quantity || !orderForm.shippingAddress || placingOrder}
                                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 >
-                                    {placingOrder ? "Placing Order..." : "Place Order"}
+                                    {placingOrder ? t("common.loading") : t("buyer.placeOrder")}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -3192,7 +3452,7 @@ function BuyerDashboardContent() {
                     <Dialog open={isItemDetailsDialogOpen} onOpenChange={setIsItemDetailsDialogOpen}>
                         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
-                                <DialogTitle>{selectedItem?.name}</DialogTitle>
+                                <DialogTitle>{localizedProductName(selectedItem?.name)}</DialogTitle>
                                 <DialogDescription>{selectedItem?.description}</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
@@ -3204,15 +3464,15 @@ function BuyerDashboardContent() {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-muted-foreground">Price</Label>
+                                        <Label className="text-muted-foreground">{t("common.price")}</Label>
                                         <p className="text-2xl font-bold text-purple-600">${selectedItem?.price}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Size</Label>
+                                        <Label className="text-muted-foreground">{t("seller.size")}</Label>
                                         <p className="text-lg font-medium">{selectedItem?.size}</p>
                                     </div>
                                     <div>
-                                        <Label className="text-muted-foreground">Category</Label>
+                                        <Label className="text-muted-foreground">{t("common.category")}</Label>
                                         <p className="text-lg font-medium">{selectedItem?.category}</p>
                                     </div>
                                     <div>
@@ -3275,7 +3535,7 @@ function BuyerDashboardContent() {
                                     }}
                                 >
                                     <Package className="mr-2 h-4 w-4" />
-                                    Place Bid Request
+                                    {t("buyer.placeBidRequestTitle")}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -3372,18 +3632,18 @@ function BuyerDashboardContent() {
                                             <CardContent className="p-4">
                                                 <div className="flex-1">
                                                     <h4 className="font-semibold text-sm group-hover:text-purple-600 transition-colors line-clamp-2">
-                                                        {product.name}
+                                                        {localizedProductName(product.name)}
                                                     </h4>
                                                     <div className="flex flex-wrap items-center gap-1 mt-2">
                                                         <Badge variant="secondary" className="text-xs">
                                                             HSN: {product.hsn}
                                                         </Badge>
                                                         <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
-                                                            {product.variety}
+                                                            {localizedProductMeta(product.variety)}
                                                         </Badge>
                                                     </div>
                                                     <p className="text-xs text-muted-foreground mt-1">
-                                                        {product.category}
+                                                        {localizedProductMeta(product.category)}
                                                     </p>
                                                 </div>
                                                 <div className="mt-3">
@@ -3673,22 +3933,22 @@ function BuyerDashboardContent() {
                     }}>
                         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                             <DialogHeader>
-                                <DialogTitle className="text-2xl">Place Bid Request</DialogTitle>
+                                <DialogTitle className="text-2xl">{t("buyer.placeBidRequestTitle")}</DialogTitle>
                                 <DialogDescription>
-                                    Create a bid request for sellers to submit their offers. Fill in the product details below.
+                                    {t("buyer.placeBidRequestDesc")}
                                 </DialogDescription>
                             </DialogHeader>
 
                             <div className="space-y-4">
                                 {/* Product Selection */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="bidProductName">Product Name *</Label>
+                                    <Label htmlFor="bidProductName">{t("buyer.productNameRequired")}</Label>
                                     <div className="flex gap-2">
                                         <Input
                                             id="bidProductName"
                                             value={bidForm.productName}
                                             onChange={(e) => setBidForm({ ...bidForm, productName: e.target.value })}
-                                            placeholder="Enter product name or select from catalog"
+                                            placeholder={t("buyer.enterProductOrCatalog")}
                                             className="flex-1"
                                         />
                                         <Button
@@ -3700,7 +3960,7 @@ function BuyerDashboardContent() {
                                             }}
                                         >
                                             <Search className="h-4 w-4 mr-2" />
-                                            Catalog
+                                            {t("buyer.catalog")}
                                         </Button>
                                     </div>
                                 </div>
@@ -3708,22 +3968,22 @@ function BuyerDashboardContent() {
                                 {/* HSN Code and Size */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="bidHsnCode">HSN Code</Label>
+                                        <Label htmlFor="bidHsnCode">{t("buyer.hsnCodeLabel")}</Label>
                                         <Input
                                             id="bidHsnCode"
                                             value={bidForm.hsnCode}
                                             onChange={(e) => setBidForm({ ...bidForm, hsnCode: e.target.value })}
-                                            placeholder="e.g., 0909"
+                                            placeholder={t("buyer.hsnPlaceholder")}
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="bidSize">Size / Unit *</Label>
+                                        <Label htmlFor="bidSize">{t("buyer.sizeUnitLabel")}</Label>
                                         <Select
                                             value={bidForm.size}
                                             onValueChange={(value) => setBidForm({ ...bidForm, size: value })}
                                         >
                                             <SelectTrigger id="bidSize">
-                                                <SelectValue placeholder="Select size/unit" />
+                                                <SelectValue placeholder={t("buyer.sizePlaceholder")} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {SIZE_OPTIONS.map((option) => (
@@ -3739,22 +3999,22 @@ function BuyerDashboardContent() {
                                 {/* Specification and Quality */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="bidSpecification">Specification / Variety</Label>
+                                        <Label htmlFor="bidSpecification">{t("buyer.specificationVariety")}</Label>
                                         <Input
                                             id="bidSpecification"
                                             value={bidForm.specification}
                                             onChange={(e) => setBidForm({ ...bidForm, specification: e.target.value })}
-                                            placeholder="e.g., Singapore Quality, Bold"
+                                            placeholder={t("buyer.specificationPlaceholder")}
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="bidQuality">Quality Grade *</Label>
+                                        <Label htmlFor="bidQuality">{t("buyer.qualityGrade")}</Label>
                                         <Select
                                             value={bidForm.quality}
                                             onValueChange={(value) => setBidForm({ ...bidForm, quality: value })}
                                         >
                                             <SelectTrigger id="bidQuality">
-                                                <SelectValue placeholder="Select quality" />
+                                                <SelectValue placeholder={t("buyer.qualityPlaceholder")} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {QUALITY_GRADES.map((grade) => (
@@ -3770,18 +4030,18 @@ function BuyerDashboardContent() {
                                 {/* Quantity and Expected Date */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="bidQuantity">Quantity *</Label>
+                                        <Label htmlFor="bidQuantity">{t("buyer.quantityRequired")}</Label>
                                         <Input
                                             id="bidQuantity"
                                             type="number"
                                             min="1"
                                             value={bidForm.quantity}
                                             onChange={(e) => setBidForm({ ...bidForm, quantity: e.target.value })}
-                                            placeholder="Enter quantity"
+                                            placeholder={t("buyer.quantityPlaceholder")}
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="bidExpectedDate">Expected Delivery Date *</Label>
+                                        <Label htmlFor="bidExpectedDate">{t("buyer.expectedDeliveryDateRequired")}</Label>
                                         <Input
                                             id="bidExpectedDate"
                                             type="date"
@@ -3797,15 +4057,15 @@ function BuyerDashboardContent() {
                                     <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border-2 border-purple-200 dark:border-purple-800">
                                         <h3 className="font-semibold text-purple-700 dark:text-purple-300 mb-3 flex items-center gap-2">
                                             <Calendar className="h-4 w-4" />
-                                            Bidding Timeline
+                                            {t("buyer.biddingTimeline")}
                                         </h3>
                                         <p className="text-sm text-muted-foreground mb-4">
-                                            Set how long sellers can bid on your order. (Shipping provider bidding will automatically be set to 1 day)
+                                            {t("buyer.biddingTimelineDesc")}
                                         </p>
 
                                         <div>
                                             <Label htmlFor="sellerBidRunningTime" className="text-purple-700 dark:text-purple-300 font-semibold">
-                                                Seller Bid Running Time *
+                                                {t("buyer.sellerBidRunningTimeRequired")}
                                             </Label>
                                             <select
                                                 id="sellerBidRunningTime"
@@ -3819,16 +4079,16 @@ function BuyerDashboardContent() {
                                                 }}
                                                 className="mt-1 w-full px-3 py-2 border border-purple-300 dark:border-purple-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
                                             >
-                                                <option value="">Select duration...</option>
-                                                <option value="1">1 Day</option>
-                                                <option value="2">2 Days</option>
-                                                <option value="3">3 Days</option>
+                                                <option value="">{t("buyer.selectDuration")}</option>
+                                                <option value="1">{t("buyer.oneDay")}</option>
+                                                <option value="2">{t("buyer.twoDays")}</option>
+                                                <option value="3">{t("buyer.threeDays")}</option>
                                             </select>
                                             <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
-                                                Sellers will have this many days to place their bids
+                                                {t("buyer.sellerBidTimelineHint")}
                                             </p>
                                             <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                                                ℹ️ Shipping providers will automatically get 1 day to bid after a seller is selected
+                                                {t("buyer.shippingBidAutoHint")}
                                             </p>
                                         </div>
                                     </div>
@@ -3838,13 +4098,13 @@ function BuyerDashboardContent() {
                                 <div className="space-y-4">
                                     {/* Country Selection */}
                                     <div>
-                                        <Label htmlFor="bidCountry">Destination Country *</Label>
+                                        <Label htmlFor="bidCountry">{t("buyer.destinationCountryRequired")}</Label>
                                         <Select
                                             value={bidForm.country}
                                             onValueChange={(value) => setBidForm({ ...bidForm, country: value, incoterms: value !== 'India' ? bidForm.incoterms : '' })}
                                         >
                                             <SelectTrigger id="bidCountry">
-                                                <SelectValue placeholder="Select country" />
+                                                <SelectValue placeholder={t("buyer.selectCountry")} />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <ScrollArea className="h-[200px]">
@@ -3859,13 +4119,13 @@ function BuyerDashboardContent() {
                                     {/* Incoterms - Show only if country is not India */}
                                     {bidForm.country && bidForm.country !== 'India' && (
                                         <div>
-                                            <Label htmlFor="bidIncoterms">Incoterms *</Label>
+                                            <Label htmlFor="bidIncoterms">{t("buyer.incotermsRequired")}</Label>
                                             <Select
                                                 value={bidForm.incoterms}
                                                 onValueChange={(value) => setBidForm({ ...bidForm, incoterms: value })}
                                             >
                                                 <SelectTrigger id="bidIncoterms">
-                                                    <SelectValue placeholder="Select Incoterms" />
+                                                    <SelectValue placeholder={t("buyer.selectIncoterms")} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {INCOTERMS.map((incoterm) => (
@@ -3882,32 +4142,32 @@ function BuyerDashboardContent() {
                                     {bidForm.country === 'India' && (
                                         <div className="grid grid-cols-3 gap-3">
                                             <div>
-                                                <Label htmlFor="bidPincode">Pincode *</Label>
+                                                <Label htmlFor="bidPincode">{t("buyer.pincodeRequired")}</Label>
                                                 <Input
                                                     id="bidPincode"
                                                     value={bidForm.pincode}
                                                     onChange={(e) => setBidForm({ ...bidForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                                                    placeholder="6-digit pincode"
+                                                    placeholder={t("buyer.pincodePlaceholder")}
                                                     maxLength={6}
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="bidCity">City *</Label>
+                                                <Label htmlFor="bidCity">{t("buyer.cityRequired")}</Label>
                                                 <Input
                                                     id="bidCity"
                                                     value={bidForm.city}
                                                     onChange={(e) => setBidForm({ ...bidForm, city: e.target.value })}
-                                                    placeholder="Enter city"
+                                                    placeholder={t("buyer.cityPlaceholder")}
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="bidState">State *</Label>
+                                                <Label htmlFor="bidState">{t("buyer.stateRequired")}</Label>
                                                 <Select
                                                     value={bidForm.state}
                                                     onValueChange={(value) => setBidForm({ ...bidForm, state: value })}
                                                 >
                                                     <SelectTrigger>
-                                                        <SelectValue placeholder="Select state" />
+                                                        <SelectValue placeholder={t("buyer.selectState")} />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <ScrollArea className="h-[200px]">
@@ -3925,21 +4185,21 @@ function BuyerDashboardContent() {
                                     {bidForm.country && bidForm.country !== 'India' && (
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <Label htmlFor="bidCity">City *</Label>
+                                                <Label htmlFor="bidCity">{t("buyer.cityRequired")}</Label>
                                                 <Input
                                                     id="bidCity"
                                                     value={bidForm.city}
                                                     onChange={(e) => setBidForm({ ...bidForm, city: e.target.value })}
-                                                    placeholder="Enter city"
+                                                    placeholder={t("buyer.cityPlaceholder")}
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="bidState">State/Province</Label>
+                                                <Label htmlFor="bidState">{t("buyer.stateProvince")}</Label>
                                                 <Input
                                                     id="bidState"
                                                     value={bidForm.state}
                                                     onChange={(e) => setBidForm({ ...bidForm, state: e.target.value })}
-                                                    placeholder="Enter state/province"
+                                                    placeholder={t("buyer.stateProvincePlaceholder")}
                                                 />
                                             </div>
                                         </div>
@@ -3948,24 +4208,24 @@ function BuyerDashboardContent() {
 
                                 {/* Shipping Address */}
                                 <div>
-                                    <Label htmlFor="bidShippingAddress">Complete Shipping Address *</Label>
+                                    <Label htmlFor="bidShippingAddress">{t("buyer.shippingAddressRequired")}</Label>
                                     <Textarea
                                         id="bidShippingAddress"
                                         value={bidForm.shippingAddress}
                                         onChange={(e) => setBidForm({ ...bidForm, shippingAddress: e.target.value })}
-                                        placeholder="Enter street address, landmark, etc."
+                                        placeholder={t("buyer.shippingAddressPlaceholder")}
                                         rows={2}
                                     />
                                 </div>
 
                                 {/* Additional Notes */}
                                 <div>
-                                    <Label htmlFor="bidNotes">Additional Notes (Optional)</Label>
+                                    <Label htmlFor="bidNotes">{t("buyer.additionalNotesOptional")}</Label>
                                     <Textarea
                                         id="bidNotes"
                                         value={bidForm.notes}
                                         onChange={(e) => setBidForm({ ...bidForm, notes: e.target.value })}
-                                        placeholder="Any special requirements or notes for sellers..."
+                                        placeholder={t("buyer.additionalNotesPlaceholder")}
                                         rows={2}
                                     />
                                 </div>
@@ -3974,48 +4234,48 @@ function BuyerDashboardContent() {
                                 {bidForm.productName && bidForm.quantity && (
                                     <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
                                         <CardContent className="p-4">
-                                            <h4 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">Bid Request Summary</h4>
+                                            <h4 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">{t("buyer.bidRequestSummary")}</h4>
                                             <div className="grid grid-cols-2 gap-2 text-sm">
                                                 <div>
-                                                    <span className="text-muted-foreground">Product:</span>
-                                                    <p className="font-medium">{bidForm.productName}</p>
+                                                    <span className="text-muted-foreground">{t("seller.product")}:</span>
+                                                    <p className="font-medium">{localizedProductName(bidForm.productName)}</p>
                                                 </div>
                                                 <div>
-                                                    <span className="text-muted-foreground">Quantity:</span>
+                                                    <span className="text-muted-foreground">{t("common.quantity")}:</span>
                                                     <p className="font-medium">{bidForm.quantity} {bidForm.size || 'units'}</p>
                                                 </div>
                                                 <div>
-                                                    <span className="text-muted-foreground">Destination:</span>
+                                                    <span className="text-muted-foreground">{t("buyer.destination")}:</span>
                                                     <p className="font-medium">{bidForm.country}</p>
                                                 </div>
                                                 {bidForm.country !== 'India' && bidForm.incoterms && (
                                                     <div>
-                                                        <span className="text-muted-foreground">Incoterms:</span>
+                                                        <span className="text-muted-foreground">{t("buyer.incotermsRequired").replace(' *','')}:</span>
                                                         <p className="font-medium text-amber-600">{bidForm.incoterms} - {INCOTERMS.find(i => i.code === bidForm.incoterms)?.name}</p>
                                                     </div>
                                                 )}
                                                 {bidForm.quality && (
                                                     <div>
-                                                        <span className="text-muted-foreground">Quality:</span>
+                                                        <span className="text-muted-foreground">{t("seller.quality")}:</span>
                                                         <p className="font-medium">{QUALITY_GRADES.find(g => g.value === bidForm.quality)?.label}</p>
                                                     </div>
                                                 )}
                                                 {bidForm.expectedDeliveryDate && (
                                                     <div>
-                                                        <span className="text-muted-foreground">Expected By:</span>
+                                                        <span className="text-muted-foreground">{t("buyer.expectedBy")}:</span>
                                                         <p className="font-medium">{new Date(bidForm.expectedDeliveryDate).toLocaleDateString()}</p>
                                                     </div>
                                                 )}
                                                 {bidForm.sellerBidRunningTime && (
                                                     <div>
-                                                        <span className="text-muted-foreground">Seller Bid Time:</span>
-                                                        <p className="font-medium text-purple-600">{bidForm.sellerBidRunningTime} days</p>
+                                                        <span className="text-muted-foreground">{t("buyer.sellerBidTime")}:</span>
+                                                        <p className="font-medium text-purple-600">{bidForm.sellerBidRunningTime} {t("buyer.dayUnit")}</p>
                                                     </div>
                                                 )}
                                                 {bidForm.shippingBidRunningTime && (
                                                     <div>
-                                                        <span className="text-muted-foreground">Shipping Bid Time:</span>
-                                                        <p className="font-medium text-blue-600">{bidForm.shippingBidRunningTime} days</p>
+                                                        <span className="text-muted-foreground">{t("buyer.shippingBidTime")}:</span>
+                                                        <p className="font-medium text-blue-600">{bidForm.shippingBidRunningTime} {t("buyer.dayUnit")}</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -4026,7 +4286,7 @@ function BuyerDashboardContent() {
 
                             <DialogFooter className="mt-4">
                                 <Button variant="outline" onClick={() => setIsPlaceBidDialogOpen(false)}>
-                                    Cancel
+                                    {t("common.cancel")}
                                 </Button>
                                 <Button
                                     onClick={handlePlaceBidRequest}
@@ -4045,7 +4305,7 @@ function BuyerDashboardContent() {
                                     className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 >
                                     <ShoppingCart className="mr-2 h-4 w-4" />
-                                    {placingBidRequest ? "Placing Request..." : "Place Bid Request"}
+                                    {placingBidRequest ? t("buyer.placingRequest") : t("buyer.placeBidRequestTitle")}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -4359,3 +4619,4 @@ export default function BuyerDashboardPage() {
         </Suspense>
     );
 }
+

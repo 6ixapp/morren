@@ -15,22 +15,95 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
-import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder, sendNotificationToUser } from '@/lib/api-client';
+import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder, sendNotificationToUser, getCardamomPrices, getCardamomStats } from '@/lib/api-client';
+import type { CardamomPrice, CardamomPriceStats } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Language } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, LineChart, Line } from 'recharts';
 
+type LocalizedTerm = readonly [source: string, target: string];
+
+const PRODUCT_TEXT_LOCALIZATION: Record<Exclude<Language, 'en'>, LocalizedTerm[]> = {
+    hi: [
+        ['Green Cardamom', 'हरी इलायची'],
+        ['Black Cardamom', 'काली इलायची'],
+        ['Cardamom', 'इलायची'],
+        ['Coriander Seeds', 'धनिया बीज'],
+        ['Mustard Seeds', 'सरसों के बीज'],
+        ['Fennel Seeds', 'सौंफ'],
+        ['Fenugreek Seeds', 'मेथी दाना'],
+        ['Carom Seeds', 'अजवाइन'],
+        ['Nigella Seeds', 'कलौंजी'],
+        ['Black Pepper', 'काली मिर्च'],
+        ['Turmeric', 'हल्दी'],
+        ['Red Chilli', 'लाल मिर्च'],
+        ['Dry Ginger', 'सूखी अदरक'],
+        ['Powder', 'पाउडर'],
+        ['Whole', 'साबुत'],
+        ['Broken', 'टूटा हुआ'],
+        ['Quality', 'गुणवत्ता'],
+        ['Regular', 'सामान्य'],
+        ['Premium', 'प्रीमियम'],
+        ['Standard', 'मानक'],
+        ['Spices', 'मसाले'],
+        ['Vegetables', 'सब्जियां'],
+        ['Pulses', 'दालें'],
+        ['Dry Fruits & Nuts', 'सूखे मेवे और मेवे'],
+    ],
+    ml: [
+        ['Green Cardamom', 'പച്ച ഏലക്ക'],
+        ['Black Cardamom', 'കറുത്ത ഏലക്ക'],
+        ['Cardamom', 'ഏലക്ക'],
+        ['Coriander Seeds', 'മല്ലിവിത്ത്'],
+        ['Mustard Seeds', 'കടുക് വിത്ത്'],
+        ['Fennel Seeds', 'പെരുഞ്ചീരകം'],
+        ['Fenugreek Seeds', 'ഉലുവ വിത്ത്'],
+        ['Carom Seeds', 'അജ്വൈൻ'],
+        ['Nigella Seeds', 'കരിഞ്ചീരകം'],
+        ['Black Pepper', 'കുരുമുളക്'],
+        ['Turmeric', 'മഞ്ഞൾ'],
+        ['Red Chilli', 'ചുവപ്പ് മുളക്'],
+        ['Dry Ginger', 'ഉണങ്ങിയ ഇഞ്ചി'],
+        ['Powder', 'പൊടി'],
+        ['Whole', 'മുഴുവൻ'],
+        ['Broken', 'തകർന്നത്'],
+        ['Quality', 'ഗുണമേന്മ'],
+        ['Regular', 'സാധാരണ'],
+        ['Premium', 'പ്രീമിയം'],
+        ['Standard', 'സ്റ്റാൻഡേർഡ്'],
+        ['Spices', 'മസാലകൾ'],
+        ['Vegetables', 'പച്ചക്കറികൾ'],
+        ['Pulses', 'പയർവർഗങ്ങൾ'],
+        ['Dry Fruits & Nuts', 'ഉണങ്ങിയ പഴങ്ങളും നട്ടുകളും'],
+    ],
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const localizeProductText = (text: string, language: Language): string => {
+    if (!text || language === 'en') return text;
+
+    const terms = PRODUCT_TEXT_LOCALIZATION[language];
+    return terms.reduce((localized, [source, target]) => {
+        const pattern = new RegExp(escapeRegExp(source), 'gi');
+        return localized.replace(pattern, target);
+    }, text);
+};
+
 export default function SellerDashboard() {
     const { user, loading: authLoading } = useAuth();
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const router = useRouter();
     const { toast } = useToast();
     const [orders, setOrders] = useState<Order[]>([]);
     const [bids, setBids] = useState<Bid[]>([]);
+    const [cardamomPrices, setCardamomPrices] = useState<CardamomPrice[]>([]);
+    const [cardamomStats, setCardamomStats] = useState<CardamomPriceStats | null>(null);
     const [allOrderBids, setAllOrderBids] = useState<Record<string, Bid[]>>({});
     const [showAllOrders, setShowAllOrders] = useState(false);
     const [showAllBids, setShowAllBids] = useState(false);
@@ -55,6 +128,16 @@ export default function SellerDashboard() {
     const [bidSortDirection, setBidSortDirection] = useState<'asc' | 'desc'>('desc');
     const [bidStatusFilter, setBidStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
     const [orderCategoryFilter, setOrderCategoryFilter] = useState<'all' | string>('all');
+
+    const localizedProductName = useCallback((name?: string) => {
+        if (!name) return '';
+        return localizeProductText(name, language);
+    }, [language]);
+
+    const localizedProductMeta = useCallback((value?: string) => {
+        if (!value) return '';
+        return localizeProductText(value, language);
+    }, [language]);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -104,7 +187,7 @@ export default function SellerDashboard() {
             console.error('Error fetching data:', error);
             if (!silent) {
                 toast({
-                    title: "Error",
+                    title: t("common.error"),
                     description: error?.message || "Failed to load orders. Please refresh the page.",
                     variant: "destructive",
                 });
@@ -122,6 +205,13 @@ export default function SellerDashboard() {
             fetchData(false);
         }
     }, [user, fetchData]);
+
+    // Fetch cardamom price data for dashboard
+    useEffect(() => {
+        if (!user) return;
+        getCardamomPrices().then(setCardamomPrices).catch(() => {});
+        getCardamomStats().then(setCardamomStats).catch(() => {});
+    }, [user]);
 
     // Auto-refresh DISABLED - Only manual refresh on page reload
     // useEffect(() => {
@@ -157,14 +247,14 @@ export default function SellerDashboard() {
 
     // Chart configurations
     const bidStatusChartConfig = {
-        pending: { label: 'Pending', color: '#eab308' },
-        accepted: { label: 'Accepted', color: '#22c55e' },
-        rejected: { label: 'Rejected', color: '#ef4444' },
+        pending: { label: t('status.pending'), color: '#eab308' },
+        accepted: { label: t('status.accepted'), color: '#22c55e' },
+        rejected: { label: t('status.rejected'), color: '#ef4444' },
     };
 
     const revenueChartConfig = {
-        revenue: { label: 'Revenue', color: '#10b981' },
-        bids: { label: 'Bids', color: '#3b82f6' },
+        revenue: { label: t('seller.acceptedRevenue'), color: '#10b981' },
+        bids: { label: t('seller.totalBidValueLabel'), color: '#3b82f6' },
     };
 
     // Get unique categories from orders
@@ -341,15 +431,51 @@ export default function SellerDashboard() {
         const accepted = bids.filter(b => b.status === 'accepted').length;
         const rejected = bids.filter(b => b.status === 'rejected').length;
         return [
-            { name: 'Pending', value: pending, fill: '#eab308' },
-            { name: 'Accepted', value: accepted, fill: '#22c55e' },
-            { name: 'Rejected', value: rejected, fill: '#ef4444' },
+            { name: t('status.pending'), value: pending, fill: '#eab308' },
+            { name: t('status.accepted'), value: accepted, fill: '#22c55e' },
+            { name: t('status.rejected'), value: rejected, fill: '#ef4444' },
         ].filter(item => item.value > 0);
-    }, [bids]);
+    }, [bids, t]);
+
+    // Cardamom price chart data
+    const todayCardamomPrices = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayPrices = cardamomPrices.filter(p => {
+            const d = new Date(p.arrivalDate);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime() === today.getTime();
+        });
+        if (todayPrices.length > 0) return todayPrices;
+        if (cardamomPrices.length === 0) return [];
+        const latestDate = new Date(Math.max(...cardamomPrices.map(p => new Date(p.arrivalDate).getTime())));
+        latestDate.setHours(0, 0, 0, 0);
+        return cardamomPrices.filter(p => {
+            const d = new Date(p.arrivalDate);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime() === latestDate.getTime();
+        });
+    }, [cardamomPrices]);
+
+    const cardamomPriceChartData = useMemo(() => {
+        if (cardamomPrices.length === 0) return [];
+        const byDate: Record<string, number[]> = {};
+        cardamomPrices.forEach(p => {
+            const d = new Date(p.arrivalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+            if (!byDate[d]) byDate[d] = [];
+            byDate[d].push(p.modalPrice);
+        });
+        return Object.entries(byDate)
+            .map(([date, prices]) => ({ date, price: Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) }))
+            .slice(-10);
+    }, [cardamomPrices]);
 
     // Prepare monthly revenue data from bids
     const monthlyRevenueData = useMemo(() => {
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const locale = language === 'hi' ? 'hi-IN' : language === 'ml' ? 'ml-IN' : 'en-IN';
+        const months = Array.from({ length: 12 }, (_, i) =>
+            new Date(2000, i, 1).toLocaleDateString(locale, { month: 'short' })
+        );
         const currentYear = new Date().getFullYear();
 
         const monthlyData = months.map((month, index) => {
@@ -373,7 +499,7 @@ export default function SellerDashboard() {
         });
 
         return monthlyData;
-    }, [bids]);
+    }, [bids, language]);
 
     // Prepare bid performance data (last 7 days or recent activity)
     const recentBidActivity = useMemo(() => {
@@ -381,7 +507,8 @@ export default function SellerDashboard() {
         for (let i = 6; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
-            const dateStr = date.toLocaleDateString('en-US', { weekday: 'short' });
+            const locale = language === 'hi' ? 'hi-IN' : language === 'ml' ? 'ml-IN' : 'en-IN';
+            const dateStr = date.toLocaleDateString(locale, { weekday: 'short' });
 
             const dayBids = bids.filter(b => {
                 const bidDate = new Date(b.createdAt);
@@ -395,7 +522,7 @@ export default function SellerDashboard() {
             });
         }
         return last7Days;
-    }, [bids]);
+    }, [bids, language]);
 
     // Calculate success rate
     const successRate = useMemo(() => {
@@ -485,14 +612,14 @@ export default function SellerDashboard() {
                             <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-full">
                                 <Trophy className="h-6 w-6" />
                             </div>
-                            <span>You're the only bidder!</span>
+                            <span>{t('seller.onlyBidder')}</span>
                         </div>
                         <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 px-3 py-1 text-sm">
-                            Leading
+                            {t('seller.leading')}
                         </Badge>
                     </div>
                     <p className="text-blue-600 dark:text-blue-400 mt-3 ml-14">
-                        Your bid is currently the only offer for this order. You have a high chance of winning!
+                        {t('seller.onlyBidderMessage')}
                     </p>
                 </div>
             );
@@ -516,32 +643,32 @@ export default function SellerDashboard() {
             bgLight = 'bg-emerald-50 dark:bg-emerald-900/20';
             borderColor = 'border-emerald-200 dark:border-emerald-800';
             icon = <Trophy className="h-5 w-5" />;
-            statusTitle = "Best Price!";
-            message = "You have the lowest bid";
+            statusTitle = t('seller.bestPriceLabel');
+            message = t('seller.youHaveLowestBid');
         } else if (diffFromLowest <= 5) {
             bgColor = 'bg-emerald-400';
             textColor = 'text-emerald-700 dark:text-emerald-300';
             bgLight = 'bg-emerald-50 dark:bg-emerald-900/20';
             borderColor = 'border-emerald-200 dark:border-emerald-800';
             icon = <ArrowDown className="h-5 w-5" />;
-            statusTitle = "Very Competitive";
-            message = `Only ${diffFromLowest.toFixed(1)}% above lowest`;
+            statusTitle = t('seller.veryCompetitive');
+            message = `${t('seller.onlyWord')} ${diffFromLowest.toFixed(1)}% ${t('seller.aboveLowest')}`;
         } else if (diffFromLowest <= 15) {
             bgColor = 'bg-yellow-500';
             textColor = 'text-yellow-700 dark:text-yellow-300';
             bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
             borderColor = 'border-yellow-200 dark:border-yellow-800';
             icon = <AlertTriangle className="h-5 w-5" />;
-            statusTitle = "Competitive";
-            message = `${diffFromLowest.toFixed(1)}% higher than lowest`;
+            statusTitle = t('seller.competitive');
+            message = `${diffFromLowest.toFixed(1)}% ${t('seller.higherThanLowest')}`;
         } else {
             bgColor = 'bg-red-500';
             textColor = 'text-red-700 dark:text-red-300';
             bgLight = 'bg-red-50 dark:bg-red-900/20';
             borderColor = 'border-red-200 dark:border-red-800';
             icon = <ArrowUp className="h-5 w-5" />;
-            statusTitle = "High Price";
-            message = `${diffFromLowest.toFixed(1)}% higher than lowest`;
+            statusTitle = t('seller.highPrice');
+            message = `${diffFromLowest.toFixed(1)}% ${t('seller.higherThanLowest')}`;
         }
 
         return (
@@ -558,7 +685,7 @@ export default function SellerDashboard() {
                     </div>
                     <div className="text-right">
                         <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">#{myPosition}</div>
-                        <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Rank</div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t('seller.rank')}</div>
                     </div>
                 </div>
 
@@ -567,10 +694,10 @@ export default function SellerDashboard() {
                     {/* Labels */}
                     <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
                         <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                            Best Price
+                            {t('seller.bestPriceLabel')}
                         </span>
                         <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
-                            Highest Price
+                            {t('seller.highestPriceLabel')}
                         </span>
                     </div>
 
@@ -602,11 +729,11 @@ export default function SellerDashboard() {
                 <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700/50 text-sm">
                     <span className="text-muted-foreground font-medium">
                         <Users className="h-4 w-4 inline mr-1.5 mb-0.5" />
-                        {competitorCount} other seller{competitorCount !== 1 ? 's' : ''}
+                        {competitorCount} {competitorCount === 1 ? t('seller.otherSeller') : t('seller.otherSellers')}
                     </span>
                     {!isLowest && (
                         <span className={`${textColor} font-medium flex items-center`}>
-                            Reduce by approx. {((myBid - lowestBid) / myBid * 100).toFixed(1)}% to match best
+                            {t('seller.reduceByApprox')} {((myBid - lowestBid) / myBid * 100).toFixed(1)}% {t('seller.toMatchBest')}
                         </span>
                     )}
                 </div>
@@ -638,8 +765,8 @@ export default function SellerDashboard() {
     const handleInlineBidSubmit = async (order: Order) => {
         if (!user) {
             toast({
-                title: "Error",
-                description: "Please log in to place a bid.",
+                title: t("common.error"),
+                description: t("seller.loginToPlaceBid"),
                 variant: "destructive",
             });
             return;
@@ -648,8 +775,8 @@ export default function SellerDashboard() {
         const bidData = inlineBidForms[order.id];
         if (!bidData?.bidAmount || !bidData?.estimatedDelivery) {
             toast({
-                title: "Validation Error",
-                description: "Please fill in bid amount and delivery date.",
+                title: t("common.error"),
+                description: t("seller.fillBidAmountDelivery"),
                 variant: "destructive",
             });
             return;
@@ -658,8 +785,8 @@ export default function SellerDashboard() {
         const bidAmount = parseFloat(bidData.bidAmount);
         if (isNaN(bidAmount) || bidAmount <= 0) {
             toast({
-                title: "Validation Error",
-                description: "Please enter a valid bid amount.",
+                title: t("common.error"),
+                description: t("seller.enterValidBidAmount"),
                 variant: "destructive",
             });
             return;
@@ -681,8 +808,8 @@ export default function SellerDashboard() {
             });
 
             toast({
-                title: "Bid Submitted Successfully! 🎉",
-                description: `Your bid of ₹${bidAmount.toFixed(2)} has been submitted for this order.`,
+                title: t("seller.bidSubmitted"),
+                description: t("seller.bidSubmittedDescription"),
             });
 
             // Notify the buyer about the new bid
@@ -707,8 +834,8 @@ export default function SellerDashboard() {
         } catch (error: any) {
             console.error('Error creating bid:', error);
             toast({
-                title: "Error",
-                description: error?.message || "Failed to create bid. Please try again.",
+                title: t("common.error"),
+                description: error?.message || t("seller.failedCreateBid"),
                 variant: "destructive",
             });
         } finally {
@@ -719,8 +846,8 @@ export default function SellerDashboard() {
     const submitBid = async () => {
         if (!selectedOrder || !user) {
             toast({
-                title: "Error",
-                description: "Please select an order to bid on.",
+                title: t("common.error"),
+                description: t("seller.selectOrderToBid"),
                 variant: "destructive",
             });
             return;
@@ -728,8 +855,8 @@ export default function SellerDashboard() {
 
         if (!bidForm.bidAmount || !bidForm.estimatedDelivery) {
             toast({
-                title: "Validation Error",
-                description: "Please fill in bid amount and delivery date.",
+                title: t("common.error"),
+                description: t("seller.fillBidAmountDelivery"),
                 variant: "destructive",
             });
             return;
@@ -738,8 +865,8 @@ export default function SellerDashboard() {
         const bidAmount = parseFloat(bidForm.bidAmount);
         if (isNaN(bidAmount) || bidAmount <= 0) {
             toast({
-                title: "Validation Error",
-                description: "Please enter a valid bid amount.",
+                title: t("common.error"),
+                description: t("seller.enterValidBidAmount"),
                 variant: "destructive",
             });
             return;
@@ -761,8 +888,8 @@ export default function SellerDashboard() {
             });
 
             toast({
-                title: "Bid Submitted Successfully! 🎉",
-                description: `Your bid of ₹${bidAmount.toFixed(2)} has been submitted for this order.`,
+                title: t("seller.bidSubmitted"),
+                description: t("seller.bidSubmittedDescription"),
             });
 
             // Notify the buyer about the new bid
@@ -784,8 +911,8 @@ export default function SellerDashboard() {
         } catch (error: any) {
             console.error('Error creating bid:', error);
             toast({
-                title: "Error",
-                description: error?.message || "Failed to create bid. Please try again.",
+                title: t("common.error"),
+                description: error?.message || t("seller.failedCreateBid"),
                 variant: "destructive",
             });
         } finally {
@@ -796,8 +923,8 @@ export default function SellerDashboard() {
     const updateExistingBid = async () => {
         if (!editingBid || !user) {
             toast({
-                title: "Error",
-                description: "No bid selected for editing.",
+                title: t("common.error"),
+                description: t("seller.noBidSelectedForEdit"),
                 variant: "destructive",
             });
             return;
@@ -805,8 +932,8 @@ export default function SellerDashboard() {
 
         if (!bidForm.bidAmount || !bidForm.estimatedDelivery) {
             toast({
-                title: "Validation Error",
-                description: "Please fill in bid amount and delivery date.",
+                title: t("common.error"),
+                description: t("seller.fillBidAmountDelivery"),
                 variant: "destructive",
             });
             return;
@@ -815,8 +942,8 @@ export default function SellerDashboard() {
         const bidAmount = parseFloat(bidForm.bidAmount);
         if (isNaN(bidAmount) || bidAmount <= 0) {
             toast({
-                title: "Validation Error",
-                description: "Please enter a valid bid amount.",
+                title: t("common.error"),
+                description: t("seller.enterValidBidAmount"),
                 variant: "destructive",
             });
             return;
@@ -831,8 +958,8 @@ export default function SellerDashboard() {
             });
 
             toast({
-                title: "Bid Updated Successfully! 🎉",
-                description: `Your bid has been updated to ₹${bidAmount.toFixed(2)}.`,
+                title: t("seller.bidUpdated"),
+                description: t("seller.bidUpdatedDescription"),
             });
 
             setIsBidDialogOpen(false);
@@ -844,8 +971,8 @@ export default function SellerDashboard() {
         } catch (error: any) {
             console.error('Error updating bid:', error);
             toast({
-                title: "Error",
-                description: error?.message || "Failed to update bid. Please try again.",
+                title: t("common.error"),
+                description: error?.message || t("seller.failedUpdateBid"),
                 variant: "destructive",
             });
         } finally {
@@ -871,7 +998,7 @@ export default function SellerDashboard() {
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-                        <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
+                        <p className="mt-4 text-muted-foreground">{t("seller.loadingDashboard")}</p>
                     </div>
                 </div>
             </DashboardLayout>
@@ -905,7 +1032,7 @@ export default function SellerDashboard() {
                             className="gap-2"
                         >
                             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                            {loading ? "Refreshing..." : "Refresh"}
+                            {loading ? t("seller.refreshing") : t("common.refresh")}
                         </Button>
                     </div>
 
@@ -919,7 +1046,7 @@ export default function SellerDashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{newOrders.length}</div>
-                                <p className="text-xs text-gray-500 mt-1">Orders available for bidding</p>
+                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_ordersAvailable")}</p>
                             </CardContent>
                         </Card>
 
@@ -933,7 +1060,7 @@ export default function SellerDashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{liveOrders.length}</div>
-                                <p className="text-xs text-gray-500 mt-1">Active bids placed</p>
+                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_activeBidsPlaced")}</p>
                             </CardContent>
                         </Card>
 
@@ -946,7 +1073,7 @@ export default function SellerDashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.pendingBids}</div>
-                                <p className="text-xs text-gray-500 mt-1">Awaiting response</p>
+                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_awaitingResponse")}</p>
                             </CardContent>
                         </Card>
 
@@ -959,7 +1086,7 @@ export default function SellerDashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.acceptedBids}</div>
-                                <p className="text-xs text-gray-500 mt-1">Confirmed orders</p>
+                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_confirmedOrders")}</p>
                             </CardContent>
                         </Card>
 
@@ -972,7 +1099,7 @@ export default function SellerDashboard() {
                             </CardHeader>
                             <CardContent>
                                 <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{Number(stats.potentialRevenue).toFixed(2)}</div>
-                                <p className="text-xs text-gray-500 mt-1">From accepted bids</p>
+                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_fromAcceptedBids")}</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -984,8 +1111,8 @@ export default function SellerDashboard() {
                                 <div className="flex items-center gap-2">
                                     <Package className="h-5 w-5 text-emerald-600" />
                                     <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.buyerOrders")}</h2>
-                                    <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} new</Badge>
-                                    <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{liveOrders.length} live</Badge>
+                                    <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} {t("seller.newBadge")}</Badge>
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{liveOrders.length} {t("seller.liveBadge")}</Badge>
                                 </div>
                                 <Button
                                     variant="ghost"
@@ -994,7 +1121,7 @@ export default function SellerDashboard() {
                                     className="text-muted-foreground hover:text-foreground"
                                 >
                                     <X className="mr-1 h-4 w-4" />
-                                    Clear Filters
+                                    {t("seller.clearFilters")}
                                 </Button>
                             </div>
 
@@ -1007,7 +1134,7 @@ export default function SellerDashboard() {
                                     </div>
                                     <Input
                                         type="text"
-                                        placeholder="Search by product name, order ID, or HSN code..."
+                                        placeholder={t("seller.searchOrdersPlaceholder")}
                                         className="pl-10 py-6 text-lg"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -1030,10 +1157,10 @@ export default function SellerDashboard() {
                                         <Filter className="h-4 w-4 text-muted-foreground" />
                                         <Select value={orderCategoryFilter} onValueChange={setOrderCategoryFilter}>
                                             <SelectTrigger className="w-[180px]">
-                                                <SelectValue placeholder="Filter by category" />
+                                                <SelectValue placeholder={t("buyer.filterByCategory")} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="all">All Categories</SelectItem>
+                                                <SelectItem value="all">{t("seller.allCategories")}</SelectItem>
                                                 {availableCategories.slice(1).map(category => (
                                                     <SelectItem key={category || 'unknown'} value={category || 'unknown'}>{category}</SelectItem>
                                                 ))}
@@ -1042,16 +1169,16 @@ export default function SellerDashboard() {
                                     </div>
 
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm text-muted-foreground">Sort by:</span>
+                                        <span className="text-sm text-muted-foreground">{t("buyer.sortBy")}:</span>
                                         <Select value={orderSortBy} onValueChange={(value: any) => setOrderSortBy(value)}>
                                             <SelectTrigger className="w-[140px]">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="date">Date Created</SelectItem>
-                                                <SelectItem value="quantity">Quantity</SelectItem>
-                                                <SelectItem value="price">Total Price</SelectItem>
-                                                <SelectItem value="name">Product Name</SelectItem>
+                                                <SelectItem value="date">{t("seller.sortDateCreated")}</SelectItem>
+                                                <SelectItem value="quantity">{t("common.quantity")}</SelectItem>
+                                                <SelectItem value="price">{t("seller.sortTotalPrice")}</SelectItem>
+                                                <SelectItem value="name">{t("seller.sortProductName")}</SelectItem>
                                             </SelectContent>
                                         </Select>
 
@@ -1079,13 +1206,13 @@ export default function SellerDashboard() {
                                 ) : (
                                     <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                        <p className="text-muted-foreground">No orders found matching your filters.</p>
+                                        <p className="text-muted-foreground">{t("seller.noOrdersFiltered")}</p>
                                         <Button
                                             variant="outline"
                                             className="mt-4"
                                             onClick={resetOrderFilters}
                                         >
-                                            Clear Filters
+                                            {t("seller.clearFilters")}
                                         </Button>
                                     </Card>
                                 )
@@ -1093,8 +1220,8 @@ export default function SellerDashboard() {
                                 <>
                                     <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                         <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                        <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400">NEW REQUESTS</h3>
-                                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} available</Badge>
+                                        <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400">{t("seller.newRequests")}</h3>
+                                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} {t("seller.available")}</Badge>
                                     </div>
 
                                     {(showAllOrders ? newOrders : newOrders.slice(0, 5)).map((order) => (
@@ -1107,11 +1234,11 @@ export default function SellerDashboard() {
                                                         </div>
                                                         <div>
                                                             <CardTitle className="flex items-center gap-2">
-                                                                {order.item?.name || 'Unknown Item'}
-                                                                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{order.item?.category}</Badge>
+                                                                {localizedProductName(order.item?.name) || 'Unknown Item'}
+                                                                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{localizedProductMeta(order.item?.category)}</Badge>
                                                             </CardTitle>
                                                             <CardDescription>
-                                                                Enquiry Number: {order.id}
+                                                                {t("seller.enquiryNumber")}: {order.id}
                                                             </CardDescription>
                                                         </div>
                                                     </div>
@@ -1162,35 +1289,35 @@ export default function SellerDashboard() {
                                             <CardContent className="space-y-4">
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Product</Label>
-                                                        <p className="text-sm font-bold truncate" title={order.item?.name}>{order.item?.name || 'N/A'}</p>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.product")}</Label>
+                                                        <p className="text-sm font-bold truncate" title={localizedProductName(order.item?.name)}>{localizedProductName(order.item?.name) || 'N/A'}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">HSN Code</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.hsnCode")}</Label>
                                                         <p className="text-sm font-medium">{order.item?.specifications?.hsnCode || 'N/A'}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quality</Label>
-                                                        <p className="text-sm font-medium capitalize">{order.item?.condition || 'N/A'}</p>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.quality")}</Label>
+                                                        <p className="text-sm font-medium capitalize">{localizedProductMeta(order.item?.condition) || 'N/A'}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Size</Label>
-                                                        <p className="text-sm font-medium">{order.item?.size || 'N/A'}</p>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.size")}</Label>
+                                                        <p className="text-sm font-medium">{localizedProductMeta(order.item?.size) || 'N/A'}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
                                                         <p className="text-sm font-bold">{order.quantity} units</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Expected Delivery</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.expectedDelivery")}</Label>
                                                         <p className="text-sm font-medium">{new Date(new Date(order.createdAt).setDate(new Date(order.createdAt).getDate() + 7)).toLocaleDateString()}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Pincode</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.pincode")}</Label>
                                                         <p className="text-sm font-medium">{order.shippingAddress?.match(/\d{6}/)?.[0] || 'N/A'}</p>
                                                     </div>
                                                     <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">Bid Running Till</Label>
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.bidRunningTill")}</Label>
                                                         <div className="flex items-center gap-2">
                                                             <ClockTimer
                                                                 endTime={calculateBidEndTime(order)}
@@ -1214,12 +1341,12 @@ export default function SellerDashboard() {
                                             {showAllOrders ? (
                                                 <>
                                                     <ChevronUp className="mr-2 h-4 w-4" />
-                                                    Show Less
+                                                    {t("common.showLess")}
                                                 </>
                                             ) : (
                                                 <>
                                                     <ChevronDown className="mr-2 h-4 w-4" />
-                                                    Load More ({newOrders.length - 5} more)
+                                                    {t("seller.loadMore")} ({newOrders.length - 5} {t("seller.more")})
                                                 </>
                                             )}
                                         </Button>
@@ -1235,7 +1362,7 @@ export default function SellerDashboard() {
                             <div className="flex items-center gap-2">
                                 <TrendingUp className="h-5 w-5 text-emerald-600" />
                                 <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.myBids")}</h2>
-                                <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} bids</Badge>
+                                <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} {t("seller.bidCount")}</Badge>
                             </div>
                             <Button
                                 variant="ghost"
@@ -1244,7 +1371,7 @@ export default function SellerDashboard() {
                                 className="text-muted-foreground hover:text-foreground"
                             >
                                 <X className="mr-1 h-4 w-4" />
-                                Clear Filters
+                                {t("seller.clearFilters")}
                             </Button>
                         </div>
 
@@ -1257,7 +1384,7 @@ export default function SellerDashboard() {
                                 </div>
                                 <Input
                                     type="text"
-                                    placeholder="Search by product name, order ID, or message..."
+                                    placeholder={t("seller.searchBidsPlaceholder")}
                                     className="pl-10 py-6 text-lg"
                                     value={bidSearchQuery}
                                     onChange={(e) => setBidSearchQuery(e.target.value)}
@@ -1280,28 +1407,28 @@ export default function SellerDashboard() {
                                     <Filter className="h-4 w-4 text-muted-foreground" />
                                     <Select value={bidStatusFilter} onValueChange={(value: any) => setBidStatusFilter(value)}>
                                         <SelectTrigger className="w-[160px]">
-                                            <SelectValue placeholder="Filter by status" />
+                                            <SelectValue placeholder={t("seller.filterStatus")} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="all">All Status</SelectItem>
-                                            <SelectItem value="pending">Pending</SelectItem>
-                                            <SelectItem value="accepted">Accepted</SelectItem>
-                                            <SelectItem value="rejected">Rejected</SelectItem>
+                                            <SelectItem value="all">{t("seller.allStatus")}</SelectItem>
+                                            <SelectItem value="pending">{t("status.pending")}</SelectItem>
+                                            <SelectItem value="accepted">{t("status.accepted")}</SelectItem>
+                                            <SelectItem value="rejected">{t("status.rejected")}</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm text-muted-foreground">Sort by:</span>
+                                    <span className="text-sm text-muted-foreground">{t("buyer.sortBy")}:</span>
                                     <Select value={bidSortBy} onValueChange={(value: any) => setBidSortBy(value)}>
                                         <SelectTrigger className="w-[140px]">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="date">Date Created</SelectItem>
-                                            <SelectItem value="amount">Bid Amount</SelectItem>
-                                            <SelectItem value="status">Status</SelectItem>
-                                            <SelectItem value="delivery">Delivery Date</SelectItem>
+                                            <SelectItem value="date">{t("seller.sortDateCreated")}</SelectItem>
+                                            <SelectItem value="amount">{t("seller.sortBidAmount")}</SelectItem>
+                                            <SelectItem value="status">{t("common.status")}</SelectItem>
+                                            <SelectItem value="delivery">{t("seller.sortDeliveryDate")}</SelectItem>
                                         </SelectContent>
                                     </Select>
 
@@ -1322,18 +1449,18 @@ export default function SellerDashboard() {
                                 bids.length === 0 ? (
                                     <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                         <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                        <p className="text-muted-foreground">You haven't placed any bids yet.</p>
+                                        <p className="text-muted-foreground">{t("seller.noBidsYet")}</p>
                                     </Card>
                                 ) : (
                                     <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
                                         <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                        <p className="text-muted-foreground">No bids found matching your filters.</p>
+                                        <p className="text-muted-foreground">{t("seller.noBidsFiltered")}</p>
                                         <Button
                                             variant="outline"
                                             className="mt-4"
                                             onClick={resetBidFilters}
                                         >
-                                            Clear Filters
+                                            {t("seller.clearFilters")}
                                         </Button>
                                     </Card>
                                 )
@@ -1351,17 +1478,17 @@ export default function SellerDashboard() {
                                                             </div>
                                                             <div>
                                                                 <CardTitle className="flex items-center gap-2">
-                                                                    {order?.item?.name || 'Unknown Item'}
+                                                                    {localizedProductName(order?.item?.name) || 'Unknown Item'}
                                                                     {order?.item?.category && (
-                                                                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{order.item.category}</Badge>
+                                                                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{localizedProductMeta(order.item.category)}</Badge>
                                                                     )}
                                                                 </CardTitle>
                                                                 <CardDescription>
-                                                                    Order #{bid.orderId.slice(0, 8)} • Placed on {new Date(bid.createdAt).toLocaleDateString()}
+                                                                    {t("seller.orderNumber")}{bid.orderId.slice(0, 8)} • {t("seller.placedOn")} {new Date(bid.createdAt).toLocaleDateString()}
                                                                 </CardDescription>
                                                             </div>
                                                         </div>
-                                                        <Badge variant="outline" className={getStatusColor(bid.status)}>{bid.status}</Badge>
+                                                        <Badge variant="outline" className={getStatusColor(bid.status)}>{t(`status.${bid.status}`)}</Badge>
                                                     </div>
                                                 </CardHeader>
                                                 <CardContent className="space-y-4">
@@ -1378,26 +1505,26 @@ export default function SellerDashboard() {
                                                                 }`}
                                                         >
                                                             <TrendingUp className="mr-2 h-4 w-4" />
-                                                {bid.status === 'pending' ? t("seller.updateBid") : 'Bid ' + bid.status.charAt(0).toUpperCase() + bid.status.slice(1)}
+                                                {bid.status === 'pending' ? t("seller.updateBid") : (bid.status === 'accepted' ? t("seller.bidAcceptedStatus") : t("seller.bidRejectedStatus"))}
                                                         </Button>
                                                     </div>
 
                                                     {/* Product Info */}
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
-                                                            <p className="text-lg font-bold">{order?.quantity || 'N/A'} units</p>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
+                                                            <p className="text-lg font-bold">{order?.quantity || 'N/A'} {t("seller.units")}</p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Size</Label>
-                                                            <p className="text-lg font-medium">{order?.item?.size || 'N/A'}</p>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.size")}</Label>
+                                                            <p className="text-lg font-medium">{localizedProductMeta(order?.item?.size) || 'N/A'}</p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quality/Condition</Label>
-                                                            <p className="text-lg font-medium capitalize">{order?.item?.condition || 'N/A'}</p>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.qualityCondition")}</Label>
+                                                            <p className="text-lg font-medium capitalize">{localizedProductMeta(order?.item?.condition) || 'N/A'}</p>
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Order Budget</Label>
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.orderBudget")}</Label>
                                                             <p className="text-lg font-medium text-gray-600">₹{Number(order?.totalPrice || 0).toFixed(2)}</p>
                                                         </div>
                                                     </div>
@@ -1417,7 +1544,7 @@ export default function SellerDashboard() {
                                                         </div>
                                                         <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.bidStatus")}</Label>
-                                                            <p className="font-medium capitalize">{bid.status}</p>
+                                                            <p className="font-medium capitalize">{t(`status.${bid.status}`)}</p>
                                                         </div>
                                                         <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
                                                             <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">{t("buyer.timeRemaining")}</Label>
@@ -1465,12 +1592,12 @@ export default function SellerDashboard() {
                                             {showAllBids ? (
                                                 <>
                                                     <ChevronUp className="mr-2 h-4 w-4" />
-                                                    Show Less
+                                                    {t("common.showLess")}
                                                 </>
                                             ) : (
                                                 <>
                                                     <ChevronDown className="mr-2 h-4 w-4" />
-                                                    Load More ({filteredAndSortedBids.length - 5} more)
+                                                    {t("seller.loadMore")} ({filteredAndSortedBids.length - 5} {t("seller.more")})
                                                 </>
                                             )}
                                         </Button>
@@ -1484,7 +1611,7 @@ export default function SellerDashboard() {
                     <div className="space-y-6">
                         <div className="flex items-center gap-2">
                             <BarChart3 className="h-5 w-5 text-emerald-600" />
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Analytics Overview</h2>
+                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.analyticsOverview")}</h2>
                         </div>
 
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -1493,9 +1620,9 @@ export default function SellerDashboard() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
                                         <PieChart className="h-5 w-5 text-emerald-600" />
-                                        Bid Status Distribution
+                                        {t("seller.bidStatusDistribution")}
                                     </CardTitle>
-                                    <CardDescription>Overview of your bid outcomes</CardDescription>
+                                    <CardDescription>{t("seller.bidOutcomesOverview")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     {bidStatusData.length > 0 ? (
@@ -1523,22 +1650,22 @@ export default function SellerDashboard() {
                                         <div className="h-[220px] flex items-center justify-center text-muted-foreground">
                                             <div className="text-center">
                                                 <PieChart className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                                                <p>No bid data available</p>
+                                                <p>{t("seller.noBidData")}</p>
                                             </div>
                                         </div>
                                     )}
                                     <div className="flex justify-center gap-4 mt-4">
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-yellow-500" />
-                                            <span className="text-xs text-muted-foreground">Pending ({stats.pendingBids})</span>
+                                            <span className="text-xs text-muted-foreground">{t("status.pending")} ({stats.pendingBids})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-green-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">Accepted ({stats.acceptedBids})</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.accepted")} ({stats.acceptedBids})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-red-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">Rejected ({stats.rejectedBids})</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.rejected")} ({stats.rejectedBids})</span>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -1549,9 +1676,9 @@ export default function SellerDashboard() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
                                         <TrendingUp className="h-5 w-5 text-emerald-600" />
-                                        Performance Metrics
+                                        {t("seller.performanceMetrics")}
                                     </CardTitle>
-                                    <CardDescription>Your overall success rate</CardDescription>
+                                    <CardDescription>{t("seller.overallSuccessRate")}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
                                     <div className="flex flex-col items-center">
@@ -1564,16 +1691,16 @@ export default function SellerDashboard() {
                                                 <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{successRate}%</span>
                                             </div>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mt-2">Bid Success Rate</p>
+                                        <p className="text-sm text-muted-foreground mt-2">{t("seller.bidSuccessRate")}</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                                             <p className="text-2xl font-bold text-emerald-600">{bids.length}</p>
-                                            <p className="text-xs text-muted-foreground">Total Bids</p>
+                                            <p className="text-xs text-muted-foreground">{t("seller.totalBids")}</p>
                                         </div>
                                         <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                                             <p className="text-2xl font-bold text-blue-600">₹{Number(stats.totalBidValue || 0).toFixed(0)}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">Total Value</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">{t("seller.totalValue")}</p>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -1584,22 +1711,22 @@ export default function SellerDashboard() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg text-white">
                                         <IndianRupee className="h-5 w-5" />
-                                        Revenue Summary
+                                        {t("seller.revenueSummary")}
                                     </CardTitle>
-                                    <CardDescription className="text-emerald-100">Your earnings overview</CardDescription>
+                                    <CardDescription className="text-emerald-100">{t("seller.earningsOverview")}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-emerald-100">Total Potential</span>
+                                            <span className="text-emerald-100">{t("seller.totalPotential")}</span>
                                             <span className="text-xl font-bold">₹{Number(stats.totalBidValue).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-emerald-100">Confirmed Revenue</span>
+                                            <span className="text-emerald-100">{t("seller.confirmedRevenue")}</span>
                                             <span className="text-xl font-bold">₹{Number(stats.potentialRevenue).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-emerald-100">Avg. Bid Value</span>
+                                            <span className="text-emerald-100">{t("seller.avgBidValue")}</span>
                                             <span className="text-xl font-bold">
                                                 ${bids.length > 0 ? (Number(stats.totalBidValue) / bids.length).toFixed(2) : '0.00'}
                                             </span>
@@ -1615,9 +1742,9 @@ export default function SellerDashboard() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
                                         <Activity className="h-5 w-5 text-emerald-600" />
-                                        Monthly Revenue Trends
+                                        {t("seller.monthlyRevenueTrends")}
                                     </CardTitle>
-                                    <CardDescription>Your earnings from accepted bids over time</CardDescription>
+                                    <CardDescription>{t("seller.earningsOverTime")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <ChartContainer config={revenueChartConfig} className="h-[250px] w-full">
@@ -1636,18 +1763,18 @@ export default function SellerDashboard() {
                                             <XAxis dataKey="month" tick={{ fontSize: 12 }} className="text-muted-foreground" />
                                             <YAxis tick={{ fontSize: 12 }} className="text-muted-foreground" tickFormatter={(value) => `₹${value}`} />
                                             <ChartTooltip content={<ChartTooltipContent />} />
-                                            <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" name="Accepted Revenue" />
-                                            <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" name="Total Bid Value" />
+                                            <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" name={t("seller.acceptedRevenue")} />
+                                            <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" name={t("seller.totalBidValueLabel")} />
                                         </AreaChart>
                                     </ChartContainer>
                                     <div className="flex justify-center gap-6 mt-4">
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-emerald-500" />
-                                            <span className="text-xs text-muted-foreground">Accepted Revenue</span>
+                                            <span className="text-xs text-muted-foreground">{t("seller.acceptedRevenue")}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <div className="h-3 w-3 rounded-full bg-blue-500" />
-                                            <span className="text-xs text-muted-foreground">Total Bid Value</span>
+                                            <span className="text-xs text-muted-foreground">{t("seller.totalBidValueLabel")}</span>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -1657,12 +1784,12 @@ export default function SellerDashboard() {
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
                                         <BarChart3 className="h-5 w-5 text-emerald-600" />
-                                        Last 7 Days Activity
+                                        {t("seller.last7DaysActivity")}
                                     </CardTitle>
-                                    <CardDescription>Your recent bidding activity</CardDescription>
+                                    <CardDescription>{t("seller.recentBiddingActivity")}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <ChartContainer config={{ bids: { label: 'Bids', color: '#10b981' } }} className="h-[250px] w-full">
+                                    <ChartContainer config={{ bids: { label: t('seller.totalBids'), color: '#10b981' } }} className="h-[250px] w-full">
                                         <BarChart data={recentBidActivity} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                                             <XAxis dataKey="day" tick={{ fontSize: 12 }} className="text-muted-foreground" />
@@ -1673,8 +1800,8 @@ export default function SellerDashboard() {
                                                         return (
                                                             <div className="bg-background border rounded-lg p-2 shadow-lg">
                                                                 <p className="text-sm font-medium">{payload[0].payload.day}</p>
-                                                                <p className="text-xs text-muted-foreground">Bids: {payload[0].payload.bids}</p>
-                                                                <p className="text-xs text-emerald-600">Value: ${payload[0].payload.value.toFixed(2)}</p>
+                                                                <p className="text-xs text-muted-foreground">{t('seller.bidsLabel')} {payload[0].payload.bids}</p>
+                                                                <p className="text-xs text-emerald-600">{t('seller.valueLabel')} ₹{payload[0].payload.value.toFixed(2)}</p>
                                                             </div>
                                                         );
                                                     }
@@ -1687,6 +1814,126 @@ export default function SellerDashboard() {
                                 </CardContent>
                             </Card>
                         </div>
+
+                        {/* Market Price Chart & Today's Prices */}
+                        <div className="space-y-4 mt-6">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp className="h-5 w-5 text-green-600" />
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("cardamom.pageTitle")}</h3>
+                                {cardamomStats && (
+                                    <span className="text-xs text-muted-foreground ml-2">
+                                        {t("cardamom.lastUpdatedPrefix")} {new Date(cardamomStats.lastUpdated).toLocaleDateString('en-IN')}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                {/* Price History Chart */}
+                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <BarChart3 className="h-5 w-5 text-green-600" />
+                                            {t("cardamom.priceHistoryTitle")}
+                                        </CardTitle>
+                                        <CardDescription>{t("cardamom.priceHistoryDesc")}</CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {cardamomPriceChartData.length > 0 ? (
+                                            <ChartContainer config={{ price: { label: t('cardamom.modalPriceLabel'), color: '#16a34a' } }} className="h-[250px] w-full">
+                                                <LineChart data={cardamomPriceChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                                    <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                                                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
+                                                    <ChartTooltip content={({ active, payload }) => {
+                                                        if (active && payload && payload.length) {
+                                                            return (
+                                                                <div className="bg-background border rounded-lg p-2 shadow-lg">
+                                                                    <p className="text-sm font-medium">{payload[0].payload.date}</p>
+                                                                    <p className="text-xs text-green-600">₹{payload[0].value}{t("common.perKg")}</p>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    }} />
+                                                    <Line type="monotone" dataKey="price" stroke="#16a34a" strokeWidth={2} dot={{ fill: '#16a34a', r: 4 }} />
+                                                </LineChart>
+                                            </ChartContainer>
+                                        ) : (
+                                            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                                <div className="text-center">
+                                                    <TrendingUp className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                                                    <p className="text-sm">{t("cardamom.noData")}</p>
+                                                    <p className="text-xs mt-1">{t("cardamom.visitMarketPrices")}</p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+
+                                {/* Today's Prices */}
+                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-lg">
+                                            <Calendar className="h-5 w-5 text-green-600" />
+                                            {t("cardamom.todaysPrices")}
+                                        </CardTitle>
+                                        <CardDescription>
+                                            {todayCardamomPrices.length > 0
+                                                ? `${todayCardamomPrices.length} listings — ${new Date(todayCardamomPrices[0].arrivalDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
+                                                : t('cardamom.latestAvailablePrices')}
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        {todayCardamomPrices.length > 0 ? (
+                                            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                                                {cardamomStats && (
+                                                    <div className="grid grid-cols-3 gap-2 mb-3">
+                                                        <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                                            <p className="text-xs text-muted-foreground">{t("cardamom.minPrice")}</p>
+                                                            <p className="text-sm font-bold text-green-700 dark:text-green-400">₹{cardamomStats.minPrice}</p>
+                                                        </div>
+                                                        <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                            <p className="text-xs text-muted-foreground">{t("cardamom.avgPrice")}</p>
+                                                            <p className="text-sm font-bold text-blue-700 dark:text-blue-400">₹{Math.round(cardamomStats.avgPrice)}</p>
+                                                        </div>
+                                                        <div className="text-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                                                            <p className="text-xs text-muted-foreground">{t("cardamom.maxPrice")}</p>
+                                                            <p className="text-sm font-bold text-orange-700 dark:text-orange-400">₹{cardamomStats.maxPrice}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {todayCardamomPrices.slice(0, 8).map((p, i) => (
+                                                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{p.variety}</p>
+                                                            <p className="text-xs text-muted-foreground truncate">{p.market}{p.state ? `, ${p.state}` : ''}</p>
+                                                        </div>
+                                                        <div className="text-right ml-3 flex-shrink-0">
+                                                            <p className="text-sm font-bold text-green-600">₹{p.modalPrice}<span className="text-xs font-normal text-muted-foreground">{t("common.perKg")}</span></p>
+                                                            {p.minPrice && p.maxPrice && (
+                                                                <p className="text-xs text-muted-foreground">₹{p.minPrice}–₹{p.maxPrice}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {todayCardamomPrices.length > 8 && (
+                                                    <p className="text-xs text-center text-muted-foreground pt-1">+{todayCardamomPrices.length - 8} more — <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.viewAll")}</a></p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                                                <div className="text-center">
+                                                    <Calendar className="h-12 w-12 mx-auto mb-2 opacity-30" />
+                                                    <p className="text-sm">{t("cardamom.noPricesToday")}</p>
+                                                    <p className="text-xs mt-1">
+                                                        <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.refreshMarketData")}</a>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
                     </div>
 
                     <Dialog open={isBidDialogOpen} onOpenChange={setIsBidDialogOpen}>
@@ -1695,8 +1942,8 @@ export default function SellerDashboard() {
                                 <DialogTitle>{editingBid ? t("seller.updateBid") : t("seller.submitBid")}</DialogTitle>
                                 <DialogDescription>
                                     {editingBid
-                                        ? `Update your bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
-                                        : `Submit a competitive bid for ${selectedOrder?.item?.name} (Order #${selectedOrder?.id.slice(0, 8)})`
+                                        ? `${t('seller.updateBid')} - ${localizedProductName(selectedOrder?.item?.name)} (${t('seller.orderNumber')}${selectedOrder?.id.slice(0, 8)})`
+                                        : `${t('seller.submitBid')} - ${localizedProductName(selectedOrder?.item?.name)} (${t('seller.orderNumber')}${selectedOrder?.id.slice(0, 8)})`
                                     }
                                 </DialogDescription>
                             </DialogHeader>
@@ -1710,13 +1957,13 @@ export default function SellerDashboard() {
                                             type="number"
                                             step="0.01"
                                             className="pl-9"
-                                            placeholder="Enter your bid amount"
+                                            placeholder={t("seller.enterBidAmount")}
                                             value={bidForm.bidAmount}
                                             onChange={(e) => setBidForm({ ...bidForm, bidAmount: e.target.value })}
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                        Order budget: <span className="font-semibold">₹{Number(selectedOrder?.totalPrice || 0).toFixed(2)}</span>
+                                        {t("seller.orderBudgetLabel")} <span className="font-semibold">₹{Number(selectedOrder?.totalPrice || 0).toFixed(2)}</span>
                                     </p>
                                 </div>
                                 <div className="space-y-2">
@@ -1733,7 +1980,7 @@ export default function SellerDashboard() {
                                     <Label htmlFor="message" className="text-sm font-medium">{t("seller.message")}</Label>
                                     <Textarea
                                         id="message"
-                                        placeholder="Add a personalized message to increase your chances..."
+                                        placeholder={t("seller.personalizedMessage")}
                                         value={bidForm.message}
                                         onChange={(e) => setBidForm({ ...bidForm, message: e.target.value })}
                                         rows={3}
