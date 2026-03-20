@@ -25,6 +25,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { HistoricalPriceChart, YearComparisonChart } from '@/components/cardamom/historical-charts';
+import { useTheme } from '@/components/theme-provider';
 
 type LocalizedTerm = readonly [source: string, target: string];
 
@@ -100,6 +102,7 @@ export default function SellerDashboard() {
     const { t, language } = useLanguage();
     const router = useRouter();
     const { toast } = useToast();
+    const { resolvedTheme } = useTheme();
     const [orders, setOrders] = useState<Order[]>([]);
     const [bids, setBids] = useState<Bid[]>([]);
     const [cardamomPrices, setCardamomPrices] = useState<CardamomPrice[]>([]);
@@ -1932,6 +1935,12 @@ export default function SellerDashboard() {
                                         )}
                                     </CardContent>
                                 </Card>
+                            </div>
+
+                            {/* Historical Price Charts */}
+                            <div className="space-y-6 mt-2">
+                                <HistoricalPriceChart isDark={resolvedTheme === "dark"} />
+                                <YearComparisonChart isDark={resolvedTheme === "dark"} />
                             </div>
                         </div>
                     </div>

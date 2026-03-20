@@ -34,6 +34,9 @@ import {
 } from "recharts"
 import { RefreshCw, TrendingUp, MapPin, Package, BarChart3 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
+import { HistoricalPriceChart, YearComparisonChart } from "@/components/cardamom/historical-charts"
+
+
 
 export default function CardamomPricesPage() {
   const { toast } = useToast()
@@ -304,6 +307,12 @@ export default function CardamomPricesPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Historical Price Chart */}
+      <HistoricalPriceChart isDark={isDark} />
+
+      {/* Year-over-Year Comparison */}
+      <YearComparisonChart isDark={isDark} />
 
       {/* Price Table */}
       <Card>

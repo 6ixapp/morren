@@ -31,6 +31,8 @@ import { processAutoAccepts } from '@/lib/auto-accept';
 import { getErrorMessage } from '@/lib/utils';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
+import { HistoricalPriceChart, YearComparisonChart } from '@/components/cardamom/historical-charts';
+import { useTheme } from '@/components/theme-provider';
 import { Language } from '@/contexts/LanguageContext';
 
 type LocalizedTerm = readonly [source: string, target: string];
@@ -631,6 +633,7 @@ function BuyerDashboardContent() {
     const searchParams = useSearchParams();
     const currentTab = searchParams.get('tab') || 'items'; // Default to items (Browse Items)
     const { toast } = useToast();
+    const { resolvedTheme } = useTheme();
     const [items, setItems] = useState<Item[]>([]);
     const [orders, setOrders] = useState<Order[]>([]);
     const [bids, setBids] = useState<Bid[]>([]);
@@ -3383,6 +3386,12 @@ function BuyerDashboardContent() {
                                         )}
                                     </CardContent>
                                 </Card>
+                            </div>
+
+                            {/* Historical Price Charts */}
+                            <div className="space-y-6 mt-2">
+                                <HistoricalPriceChart isDark={resolvedTheme === "dark"} />
+                                <YearComparisonChart isDark={resolvedTheme === "dark"} />
                             </div>
                         </div>
                     </div>
