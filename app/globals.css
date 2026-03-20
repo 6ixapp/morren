@@ -123,6 +123,33 @@
   }
 }
 
+@layer components {
+  .btn-primary {
+    background: #00C853;
+    color: #fff;
+    padding: 0.875rem 2.25rem;
+    border-radius: 9999px;
+    font-weight: 700;
+    font-size: 0.9375rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 24px rgba(0, 200, 83, 0.3);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-primary:hover {
+    background: #00E060;
+    box-shadow: 0 0 36px rgba(0, 200, 83, 0.5);
+    transform: scale(1.02);
+  }
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+}
+
 @keyframes spotlight {
   0% {
     opacity: 0;
