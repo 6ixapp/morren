@@ -22,6 +22,7 @@ import buyerProfileRoutes from './routes/buyerProfileRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import sellerPublicRoutes from './routes/sellerPublicRoutes';
 import cardamomPriceRoutes from './routes/cardamomPriceRoutes';
+import whatsappRoutes from './routes/whatsappRoutes';
 
 // Load environment variables
 dotenv.config();
@@ -79,6 +80,7 @@ app.use('/api/buyer-profiles', buyerProfileRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/sellers', sellerPublicRoutes);
 app.use('/api/cardamom-prices', cardamomPriceRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 
 // 404 handler
 app.use((req, res) => {

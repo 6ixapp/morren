@@ -417,14 +417,17 @@ export default function SellerDashboard() {
     // Calculate bid end time based on order creation and bid running time
     const calculateBidEndTime = (order: Order) => {
         const createdAt = new Date(order.createdAt);
-        const bidRunningDays = 7; // Default 7 days if not specified
+        const defaultHours = 7 * 24; // Default 7 days in hours
 
-        // Try to get bid running time from specifications
+        // Try to get bid running time from specifications (hours takes priority)
         const specs = order.item?.specifications as any;
+        const specifiedHours = specs?.['Seller Bid Running Time (hours)'];
         const specifiedDays = specs?.['Seller Bid Running Time (days)'] || specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
-        const daysToAdd = specifiedDays ? parseInt(specifiedDays.toString()) : bidRunningDays;
+        const hoursToAdd = specifiedHours
+            ? parseInt(specifiedHours.toString())
+            : (specifiedDays ? parseInt(specifiedDays.toString()) * 24 : defaultHours);
 
-        const endTime = new Date(createdAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+        const endTime = new Date(createdAt.getTime() + (hoursToAdd * 60 * 60 * 1000));
         return endTime;
     };
 

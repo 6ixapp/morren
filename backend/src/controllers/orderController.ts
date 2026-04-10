@@ -3,6 +3,7 @@ import { query } from '../db';
 import { asyncHandler, AppError } from '../utils/errorHandler';
 import { keysToCamel, buildUpdateClause } from '../utils/dbHelpers';
 import { Order, CreateOrderRequest } from '../types';
+import { createAuctionAndBroadcast, isWhatsappAutomationEnabled } from '../services/whatsappAuctionService';
 
 // Helper to parse order with item and buyer
 const parseOrderRow = (row: any) => {
@@ -178,7 +179,34 @@ export const createOrder = asyncHandler(async (req: Request, res: Response) => {
 
   const order = keysToCamel(result.rows[0]) as Order;
 
-  res.status(201).json(order);
+  if (!isWhatsappAutomationEnabled()) {
+    res.status(201).json(order);
+    return;
+  }
+
+  try {
+    const whatsappAutomation = await createAuctionAndBroadcast(order.id);
+    res.status(201).json({
+      ...order,
+      whatsappAutomation,
+    });
+    return;
+  } catch (automationError: any) {
+    console.error('WhatsApp automation failed for order:', order.id, automationError?.message || automationError);
+    res.status(201).json({
+      ...order,
+      whatsappAutomation: {
+        enabled: true,
+        orderId: order.id,
+        auctionId: null,
+        sellersTargeted: 0,
+        sentCount: 0,
+        failedCount: 0,
+        skippedReason: automationError?.message || 'Unknown automation failure',
+      },
+    });
+    return;
+  }
 });
 
 // PATCH /api/orders/:id

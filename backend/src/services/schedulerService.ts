@@ -6,6 +6,7 @@
 import cron from 'node-cron';
 import { query } from '../db';
 import { fetchCardamomPricesWithRetry } from './dataGovInService';
+import { closeExpiredOrderAuctions } from './whatsappAuctionService';
 
 /**
  * Seed cardamom prices on startup if the table is empty.
@@ -216,8 +217,20 @@ export function initScheduledJobs() {
     }
   );
 
+  // Close expired WhatsApp auctions every 2 minutes
+  cron.schedule('*/2 * * * *', async () => {
+    try {
+      const result = await closeExpiredOrderAuctions();
+      if (result.closedAuctionCount > 0) {
+        console.log(`✅ [CRON] Closed ${result.closedAuctionCount} auctions and sent ${result.notifiedCount} notifications`);
+      }
+    } catch (error) {
+      console.error('❌ [CRON] Failed to close expired WhatsApp auctions:', error);
+    }
+  });
+
   console.log(
-    '✅ Scheduled jobs initialized: Daily cardamom price refresh at 8:00 PM IST'
+    '✅ Scheduled jobs initialized: Cardamom refresh + WhatsApp auction close jobs'
   );
 }
 

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -456,9 +456,9 @@ const ALL_PRODUCTS_FULL = [
     ...PRODUCT_CATALOG.dry_fruits_and_nuts.map(p => ({ ...p, category: 'Dry Fruits & Nuts' })),
 ];
 
-// ACTIVE catalog (currently only Green Cardamom - expand later)
+// ACTIVE catalog (Green Cardamom + Cumin)
 const ALL_PRODUCTS = ALL_PRODUCTS_FULL.filter(p =>
-    p.name.includes('Green Cardamom')
+    p.name.includes('Green Cardamom') || p.name.toLowerCase().includes('cumin')
 );
 
 type CatalogProduct = { name: string; hsn: string; category: string; variety: string };
@@ -639,6 +639,7 @@ function BuyerDashboardContent() {
     const [bids, setBids] = useState<Bid[]>([]);
     const [shippingBids, setShippingBids] = useState<ShippingBid[]>([]);
     const [loading, setLoading] = useState(true);
+    const hasLoadedOnce = useRef(false);
     const [cardamomPrices, setCardamomPrices] = useState<CardamomPrice[]>([]);
     const [cardamomStats, setCardamomStats] = useState<CardamomPriceStats | null>(null);
     const [placingOrder, setPlacingOrder] = useState(false);
@@ -701,8 +702,8 @@ function BuyerDashboardContent() {
         incoterms: '',
         shippingAddress: '',
         notes: '',
-        sellerBidRunningTime: '1', // Phase 1: Seller bid running time in days (default 1 day)
-        shippingBidRunningTime: '1', // Phase 2: Shipping bid running time in days (default 1 day)
+        sellerBidRunningTime: '24', // Phase 1: Seller bid running time in hours (default 24 hours)
+        shippingBidRunningTime: '24', // Phase 2: Shipping bid running time in hours (default 24 hours)
     });
     const [selectedCatalogProduct, setSelectedCatalogProduct] = useState<CatalogProduct | null>(null);
 
@@ -813,10 +814,10 @@ function BuyerDashboardContent() {
                 case 'ending':
                     const aSpecs = aOrder?.item?.specifications as any;
                     const bSpecs = bOrder?.item?.specifications as any;
-                    const aBidTime = aSpecs?.['Bid Running Time (days)'] || '0';
-                    const bBidTime = bSpecs?.['Bid Running Time (days)'] || '0';
-                    aValue = new Date(new Date(aOrder?.createdAt || a.createdAt).getTime() + (parseInt(aBidTime) * 24 * 60 * 60 * 1000));
-                    bValue = new Date(new Date(bOrder?.createdAt || b.createdAt).getTime() + (parseInt(bBidTime) * 24 * 60 * 60 * 1000));
+                    const aBidHours = aSpecs?.['Seller Bid Running Time (hours)'] || (aSpecs?.['Bid Running Time (days)'] ? parseInt(aSpecs['Bid Running Time (days)']) * 24 : 0);
+                    const bBidHours = bSpecs?.['Seller Bid Running Time (hours)'] || (bSpecs?.['Bid Running Time (days)'] ? parseInt(bSpecs['Bid Running Time (days)']) * 24 : 0);
+                    aValue = new Date(new Date(aOrder?.createdAt || a.createdAt).getTime() + (parseInt(String(aBidHours)) * 60 * 60 * 1000));
+                    bValue = new Date(new Date(bOrder?.createdAt || b.createdAt).getTime() + (parseInt(String(bBidHours)) * 60 * 60 * 1000));
                     break;
                 default:
                     aValue = new Date(a.createdAt);
@@ -854,28 +855,31 @@ function BuyerDashboardContent() {
         if (!order) return new Date();
 
         const createdAt = new Date(order.createdAt);
-        const bidRunningDays = 7; // Default 7 days if not specified
+        const defaultHours = 7 * 24; // Default 7 days in hours
 
-        // Try to get bid running time from specifications
+        // Try to get bid running time from specifications (hours takes priority, fall back to days)
         const specs = order.item?.specifications as any;
+        const specifiedHours = specs?.['Seller Bid Running Time (hours)'];
         const specifiedDays = specs?.['Seller Bid Running Time (days)'] || specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
-        const daysToAdd = specifiedDays ? parseInt(specifiedDays.toString()) : bidRunningDays;
+        const hoursToAdd = specifiedHours
+            ? parseInt(specifiedHours.toString())
+            : (specifiedDays ? parseInt(specifiedDays.toString()) * 24 : defaultHours);
 
-        const endTime = new Date(createdAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+        const endTime = new Date(createdAt.getTime() + (hoursToAdd * 60 * 60 * 1000));
         return endTime;
     };
 
-    // Function to calculate remaining time for bids
-    const calculateRemainingTime = (createdAt: string, bidRunningTimeDays: string | number) => {
-        if (!createdAt || !bidRunningTimeDays) return 'N/A';
+    // Function to calculate remaining time for bids (bidRunningTimeHours is in hours)
+    const calculateRemainingTime = (createdAt: string, bidRunningTimeHours: string | number) => {
+        if (!createdAt || !bidRunningTimeHours) return 'N/A';
 
         try {
             const createdDate = new Date(createdAt);
-            const bidDays = typeof bidRunningTimeDays === 'string' ? parseInt(bidRunningTimeDays) : bidRunningTimeDays;
+            const bidHours = typeof bidRunningTimeHours === 'string' ? parseInt(bidRunningTimeHours) : bidRunningTimeHours;
 
-            if (isNaN(bidDays)) return 'N/A';
+            if (isNaN(bidHours)) return 'N/A';
 
-            const endDate = new Date(createdDate.getTime() + (bidDays * 24 * 60 * 60 * 1000));
+            const endDate = new Date(createdDate.getTime() + (bidHours * 60 * 60 * 1000));
             const now = new Date();
             const remainingMs = endDate.getTime() - now.getTime();
 
@@ -949,10 +953,10 @@ function BuyerDashboardContent() {
                 case 'ending':
                     const aSpecs = a.item?.specifications as any;
                     const bSpecs = b.item?.specifications as any;
-                    const aBidTime = aSpecs?.['Bid Running Time (days)'] || '0';
-                    const bBidTime = bSpecs?.['Bid Running Time (days)'] || '0';
-                    aValue = new Date(new Date(a.createdAt).getTime() + (parseInt(aBidTime) * 24 * 60 * 60 * 1000));
-                    bValue = new Date(new Date(b.createdAt).getTime() + (parseInt(bBidTime) * 24 * 60 * 60 * 1000));
+                    const aBidHours2 = aSpecs?.['Seller Bid Running Time (hours)'] || (aSpecs?.['Bid Running Time (days)'] ? parseInt(aSpecs['Bid Running Time (days)']) * 24 : 0);
+                    const bBidHours2 = bSpecs?.['Seller Bid Running Time (hours)'] || (bSpecs?.['Bid Running Time (days)'] ? parseInt(bSpecs['Bid Running Time (days)']) * 24 : 0);
+                    aValue = new Date(new Date(a.createdAt).getTime() + (parseInt(String(aBidHours2)) * 60 * 60 * 1000));
+                    bValue = new Date(new Date(b.createdAt).getTime() + (parseInt(String(bBidHours2)) * 60 * 60 * 1000));
                     break;
                 default:
                     aValue = new Date(a.createdAt);
@@ -972,12 +976,15 @@ function BuyerDashboardContent() {
     const getBidTimeLeftLabel = (order: Order | undefined) => {
         if (!order) return 'N/A';
         const specs = order.item?.specifications || {};
+        const runningHoursRaw = (specs as any)['Seller Bid Running Time (hours)'];
         const runningDaysRaw = (specs as any)['Seller Bid Running Time (days)'] || (specs as any)['Bid Running Time (days)'];
-        const runningDays = runningDaysRaw ? parseInt(String(runningDaysRaw)) : NaN;
-        if (!runningDays || isNaN(runningDays) || runningDays <= 0) return 'N/A';
+        const runningHours = runningHoursRaw
+            ? parseInt(String(runningHoursRaw))
+            : (runningDaysRaw ? parseInt(String(runningDaysRaw)) * 24 : NaN);
+        if (!runningHours || isNaN(runningHours) || runningHours <= 0) return 'N/A';
 
         const created = new Date(order.createdAt).getTime();
-        const deadline = created + runningDays * 24 * 60 * 60 * 1000;
+        const deadline = created + runningHours * 60 * 60 * 1000;
         const now = Date.now();
         const diffMs = deadline - now;
         if (diffMs <= 0) return 'Expired';
@@ -1249,7 +1256,10 @@ function BuyerDashboardContent() {
         console.log('fetchData: Starting...', { forceRefresh, userId: user.id, retryCount });
 
         try {
-            setLoading(true);
+            // Only show the full-screen loading spinner on the very first load or a forced refresh
+            if (!hasLoadedOnce.current || forceRefresh) {
+                setLoading(true);
+            }
 
             // Clear cache on force refresh (hard refresh)
             if (forceRefresh) {
@@ -1364,6 +1374,7 @@ function BuyerDashboardContent() {
                 console.error('Error in auto-accept:', err);
             });
 
+            hasLoadedOnce.current = true;
             console.log('fetchData: Success!');
 
         } catch (error: any) {
@@ -1398,14 +1409,32 @@ function BuyerDashboardContent() {
     // Auto-refresh every 30 seconds to see new bids in real-time
     useEffect(() => {
         if (!user || user.role !== 'buyer') return;
-        
+
         const intervalId = setInterval(() => {
             console.log('Auto-refreshing data for new bids...');
             fetchData(false); // Soft refresh (uses cache for some data)
         }, 30000); // 30 seconds
-        
+
         return () => clearInterval(intervalId);
     }, [user, fetchData]);
+
+    // Auto-fill city/state from pincode using India Post API
+    useEffect(() => {
+        if (bidForm.pincode.length !== 6 || bidForm.country !== 'India') return;
+        fetch(`https://api.postalpincode.in/pincode/${bidForm.pincode}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data[0]?.Status === 'Success' && data[0]?.PostOffice?.length > 0) {
+                    const po = data[0].PostOffice[0];
+                    setBidForm(prev => ({
+                        ...prev,
+                        city: prev.city || po.District || po.Division || '',
+                        state: prev.state || po.State || '',
+                    }));
+                }
+            })
+            .catch(() => {});
+    }, [bidForm.pincode, bidForm.country]);
 
     // Safety timeout: Force stop loading after 8 seconds to prevent stuck state
     useEffect(() => {
@@ -1512,7 +1541,7 @@ function BuyerDashboardContent() {
         const isIndia = bidForm.country === 'India';
 
         // Basic required fields
-        if (!bidForm.productName || !bidForm.quantity || !bidForm.shippingAddress || !bidForm.expectedDeliveryDate || !bidForm.sellerBidRunningTime || !bidForm.shippingBidRunningTime || !bidForm.country || !bidForm.city) {
+        if (!bidForm.productName || !bidForm.quantity || !bidForm.sellerBidRunningTime || !bidForm.country) {
             toast({
                 title: t("common.error"),
                 description: t("buyer.fillRequiredBidFields"),
@@ -1523,7 +1552,7 @@ function BuyerDashboardContent() {
 
         // India-specific validation
         if (isIndia) {
-            if (!bidForm.pincode || !bidForm.state) {
+            if (!bidForm.pincode) {
                 toast({
                     title: t("common.error"),
                     description: t("buyer.fillPincodeState"),
@@ -1563,9 +1592,9 @@ function BuyerDashboardContent() {
             return;
         }
 
-        // Validate seller bid running time (in days)
-        const sellerBidDays = parseInt(bidForm.sellerBidRunningTime);
-        if (isNaN(sellerBidDays) || sellerBidDays <= 0) {
+        // Validate seller bid running time (in hours)
+        const sellerBidHours = parseInt(bidForm.sellerBidRunningTime);
+        if (isNaN(sellerBidHours) || sellerBidHours <= 0) {
             toast({
                 title: t("common.error"),
                 description: t("buyer.invalidSellerBidTime"),
@@ -1574,9 +1603,9 @@ function BuyerDashboardContent() {
             return;
         }
 
-        // Validate shipping bid running time (in days)
-        const shippingBidDays = parseInt(bidForm.shippingBidRunningTime);
-        if (isNaN(shippingBidDays) || shippingBidDays <= 0) {
+        // Shipping bid running time auto-set to 24 hours
+        const shippingBidHours = bidForm.shippingBidRunningTime ? parseInt(bidForm.shippingBidRunningTime) : 24;
+        if (isNaN(shippingBidHours) || shippingBidHours <= 0) {
             toast({
                 title: t("common.error"),
                 description: t("buyer.invalidShippingBidTime"),
@@ -1605,8 +1634,8 @@ function BuyerDashboardContent() {
                     'Expected Delivery': bidForm.expectedDeliveryDate,
                     'Destination Country': bidForm.country,
                     ...(bidForm.country !== 'India' && bidForm.incoterms && { 'Incoterms': `${bidForm.incoterms} - ${INCOTERMS.find(i => i.code === bidForm.incoterms)?.name || bidForm.incoterms}` }),
-                    'Seller Bid Running Time (days)': String(sellerBidDays),
-                    'Shipping Bid Running Time (days)': String(shippingBidDays),
+                    'Seller Bid Running Time (hours)': String(sellerBidHours),
+                    'Shipping Bid Running Time (hours)': String(shippingBidHours),
                 },
                 sellerId: null as any, // Bid request items don't have a seller initially
                 status: 'active',
@@ -1615,9 +1644,11 @@ function BuyerDashboardContent() {
             // Then create the order/bid request
             const isIndia = bidForm.country === 'India';
             const locationInfo = isIndia
-                ? `${bidForm.city}, ${bidForm.state} - ${bidForm.pincode}`
-                : `${bidForm.city}, ${bidForm.state ? bidForm.state + ', ' : ''}${bidForm.country}`;
-            const fullAddress = `${bidForm.shippingAddress}, ${locationInfo}`;
+                ? [bidForm.city, bidForm.state, bidForm.pincode].filter(Boolean).join(', ')
+                : [bidForm.city, bidForm.state, bidForm.country].filter(Boolean).join(', ');
+            const fullAddress = bidForm.shippingAddress
+                ? `${bidForm.shippingAddress}, ${locationInfo}`
+                : locationInfo;
 
             const orderNotes = [
                 `${t("buyer.placeBidRequestTitle")}: ${localizedProductName(bidForm.productName)}.`,
@@ -2355,8 +2386,10 @@ function BuyerDashboardContent() {
                                                         const quality = (specifications as any)['Quality Grade'] || '-';
                                                         const size = order.item?.size || '-';
                                                         const expectedDelivery = (specifications as any)['Expected Delivery'] || '-';
-                                                        const sellerBidTime = (specifications as any)['Seller Bid Running Time (days)'] || (specifications as any)['Bid Running Time (days)'] || '-';
-                                                        const remainingTime = calculateRemainingTime(order.createdAt.toString(), sellerBidTime);
+                                                        const sellerBidHoursVal = (specifications as any)['Seller Bid Running Time (hours)'];
+                                                        const sellerBidDaysVal = (specifications as any)['Seller Bid Running Time (days)'] || (specifications as any)['Bid Running Time (days)'];
+                                                        const sellerBidTimeHours = sellerBidHoursVal || (sellerBidDaysVal ? String(parseInt(sellerBidDaysVal) * 24) : '-');
+                                                        const remainingTime = calculateRemainingTime(order.createdAt.toString(), sellerBidTimeHours);
                                                         const pincodeMatch = order.shippingAddress?.match(/(\d{6})(?!.*\d{6})/);
                                                         const pincode = pincodeMatch ? pincodeMatch[1] : '-';
 
@@ -2432,8 +2465,8 @@ function BuyerDashboardContent() {
                                                                                         incoterms: '',
                                                                                         shippingAddress: order.shippingAddress || '',
                                                                                         notes: order.notes || '',
-                                                                                        sellerBidRunningTime: (specs as any)['Seller Bid Running Time (days)'] || (specs as any)['Bid Running Time (days)'] || '',
-                                                                                        shippingBidRunningTime: (specs as any)['Shipping Bid Running Time (days)'] || '',
+                                                                                        sellerBidRunningTime: (specs as any)['Seller Bid Running Time (hours)'] || ((specs as any)['Seller Bid Running Time (days)'] ? String(parseInt((specs as any)['Seller Bid Running Time (days)']) * 24) : '24'),
+                                                                                        shippingBidRunningTime: (specs as any)['Shipping Bid Running Time (hours)'] || ((specs as any)['Shipping Bid Running Time (days)'] ? String(parseInt((specs as any)['Shipping Bid Running Time (days)']) * 24) : '24'),
                                                                                     });
                                                                                     setIsPlaceBidDialogOpen(true);
                                                                                     setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
@@ -2460,8 +2493,8 @@ function BuyerDashboardContent() {
                                                                                         incoterms: '',
                                                                                         shippingAddress: order.shippingAddress || '',
                                                                                         notes: order.notes || '',
-                                                                                        sellerBidRunningTime: (specs as any)['Seller Bid Running Time (days)'] || (specs as any)['Bid Running Time (days)'] || '',
-                                                                                        shippingBidRunningTime: (specs as any)['Shipping Bid Running Time (days)'] || '',
+                                                                                        sellerBidRunningTime: (specs as any)['Seller Bid Running Time (hours)'] || ((specs as any)['Seller Bid Running Time (days)'] ? String(parseInt((specs as any)['Seller Bid Running Time (days)']) * 24) : '24'),
+                                                                                        shippingBidRunningTime: (specs as any)['Shipping Bid Running Time (hours)'] || ((specs as any)['Shipping Bid Running Time (days)'] ? String(parseInt((specs as any)['Shipping Bid Running Time (days)']) * 24) : '24'),
                                                                                     });
                                                                                     setIsPlaceBidDialogOpen(true);
                                                                                     setOpenDropdowns(prev => ({ ...prev, [order.id]: false }));
@@ -3940,7 +3973,7 @@ function BuyerDashboardContent() {
                             setSelectedCatalogProduct(null);
                         }
                     }}>
-                        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-950 border shadow-xl">
                             <DialogHeader>
                                 <DialogTitle className="text-2xl">{t("buyer.placeBidRequestTitle")}</DialogTitle>
                                 <DialogDescription>
@@ -4083,15 +4116,17 @@ function BuyerDashboardContent() {
                                                     setBidForm({
                                                         ...bidForm,
                                                         sellerBidRunningTime: e.target.value,
-                                                        shippingBidRunningTime: '1' // Auto-set to 1 day
+                                                        shippingBidRunningTime: '24' // Auto-set to 24 hours
                                                     });
                                                 }}
                                                 className="mt-1 w-full px-3 py-2 border border-purple-300 dark:border-purple-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
                                             >
                                                 <option value="">{t("buyer.selectDuration")}</option>
-                                                <option value="1">{t("buyer.oneDay")}</option>
-                                                <option value="2">{t("buyer.twoDays")}</option>
-                                                <option value="3">{t("buyer.threeDays")}</option>
+                                                <option value="6">{t("buyer.sixHours")}</option>
+                                                <option value="12">{t("buyer.twelveHours")}</option>
+                                                <option value="24">{t("buyer.twentyFourHours")}</option>
+                                                <option value="48">{t("buyer.fortyEightHours")}</option>
+                                                <option value="72">{t("buyer.seventyTwoHours")}</option>
                                             </select>
                                             <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
                                                 {t("buyer.sellerBidTimelineHint")}
@@ -4155,28 +4190,28 @@ function BuyerDashboardContent() {
                                                 <Input
                                                     id="bidPincode"
                                                     value={bidForm.pincode}
-                                                    onChange={(e) => setBidForm({ ...bidForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                                                    onChange={(e) => setBidForm({ ...bidForm, pincode: e.target.value.replace(/\D/g, '').slice(0, 6), city: '', state: '' })}
                                                     placeholder={t("buyer.pincodePlaceholder")}
                                                     maxLength={6}
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="bidCity">{t("buyer.cityRequired")}</Label>
+                                                <Label htmlFor="bidCity">City <span className="text-muted-foreground text-xs">(auto-filled)</span></Label>
                                                 <Input
                                                     id="bidCity"
                                                     value={bidForm.city}
                                                     onChange={(e) => setBidForm({ ...bidForm, city: e.target.value })}
-                                                    placeholder={t("buyer.cityPlaceholder")}
+                                                    placeholder="Auto-filled from pincode"
                                                 />
                                             </div>
                                             <div>
-                                                <Label htmlFor="bidState">{t("buyer.stateRequired")}</Label>
+                                                <Label htmlFor="bidState">State <span className="text-muted-foreground text-xs">(auto-filled)</span></Label>
                                                 <Select
                                                     value={bidForm.state}
                                                     onValueChange={(value) => setBidForm({ ...bidForm, state: value })}
                                                 >
                                                     <SelectTrigger>
-                                                        <SelectValue placeholder={t("buyer.selectState")} />
+                                                        <SelectValue placeholder="Auto-filled from pincode" />
                                                     </SelectTrigger>
                                                     <SelectContent>
                                                         <ScrollArea className="h-[200px]">
@@ -4215,9 +4250,9 @@ function BuyerDashboardContent() {
                                     )}
                                 </div>
 
-                                {/* Shipping Address */}
+                                {/* Shipping Address (optional - pincode provides location) */}
                                 <div>
-                                    <Label htmlFor="bidShippingAddress">{t("buyer.shippingAddressRequired")}</Label>
+                                    <Label htmlFor="bidShippingAddress">Complete Shipping Address <span className="text-muted-foreground text-xs">(optional)</span></Label>
                                     <Textarea
                                         id="bidShippingAddress"
                                         value={bidForm.shippingAddress}
@@ -4278,13 +4313,13 @@ function BuyerDashboardContent() {
                                                 {bidForm.sellerBidRunningTime && (
                                                     <div>
                                                         <span className="text-muted-foreground">{t("buyer.sellerBidTime")}:</span>
-                                                        <p className="font-medium text-purple-600">{bidForm.sellerBidRunningTime} {t("buyer.dayUnit")}</p>
+                                                        <p className="font-medium text-purple-600">{bidForm.sellerBidRunningTime} {t("buyer.hourUnit")}</p>
                                                     </div>
                                                 )}
                                                 {bidForm.shippingBidRunningTime && (
                                                     <div>
                                                         <span className="text-muted-foreground">{t("buyer.shippingBidTime")}:</span>
-                                                        <p className="font-medium text-blue-600">{bidForm.shippingBidRunningTime} {t("buyer.dayUnit")}</p>
+                                                        <p className="font-medium text-blue-600">{bidForm.shippingBidRunningTime} {t("buyer.hourUnit")}</p>
                                                     </div>
                                                 )}
                                             </div>

@@ -8,6 +8,10 @@ export interface User {
   role: UserRole;
   avatar?: string;
   phone?: string;
+  whatsappNumber?: string;
+  whatsappOptIn?: boolean;
+  whatsappLastActiveAt?: Date;
+  interaktUserId?: string;
   address?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -243,6 +247,9 @@ export interface CreateUserRequest {
   role: UserRole;
   avatar?: string;
   phone?: string;
+  whatsappNumber?: string;
+  whatsappOptIn?: boolean;
+  interaktUserId?: string;
   address?: string;
 }
 
@@ -252,6 +259,10 @@ export interface UpdateUserRequest {
   role?: UserRole;
   avatar?: string;
   phone?: string;
+  whatsappNumber?: string;
+  whatsappOptIn?: boolean;
+  whatsappLastActiveAt?: Date;
+  interaktUserId?: string;
   address?: string;
 }
 

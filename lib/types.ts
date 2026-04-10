@@ -15,6 +15,10 @@ export interface User {
   role: UserRole;
   avatar?: string;
   phone?: string;
+  whatsappNumber?: string;
+  whatsappOptIn?: boolean;
+  whatsappLastActiveAt?: Date;
+  interaktUserId?: string;
   address?: string;
   createdAt: Date;
 }

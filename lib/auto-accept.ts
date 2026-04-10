@@ -8,13 +8,16 @@ import { updateBid, updateShippingBid, updateOrder } from './api-client';
  */
 export function calculateBidEndTime(order: Order): Date {
   const createdAt = new Date(order.createdAt);
-  const bidRunningDays = 7; // Default 7 days if not specified
+  const defaultHours = 7 * 24; // Default 7 days in hours
 
   const specs = order.item?.specifications as any;
+  const specifiedHours = specs?.['Seller Bid Running Time (hours)'];
   const specifiedDays = specs?.['Seller Bid Running Time (days)'] || specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
-  const daysToAdd = specifiedDays ? parseInt(specifiedDays.toString()) : bidRunningDays;
+  const hoursToAdd = specifiedHours
+    ? parseInt(specifiedHours.toString())
+    : (specifiedDays ? parseInt(specifiedDays.toString()) * 24 : defaultHours);
 
-  const endTime = new Date(createdAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+  const endTime = new Date(createdAt.getTime() + (hoursToAdd * 60 * 60 * 1000));
   return endTime;
 }
 
@@ -33,14 +36,17 @@ export function isBidExpired(order: Order): boolean {
 export function calculateShippingBidEndTime(order: Order): Date {
   // Shipping bidding starts when order status becomes 'accepted' (seller bid accepted)
   const acceptedAt = new Date(order.updatedAt);
-  const bidRunningDays = 7; // Default 7 days if not specified
+  const defaultHours = 7 * 24; // Default 7 days in hours
 
   const specs = order.item?.specifications as any;
   // Use SHIPPING bid running time, not seller bid running time
+  const specifiedHours = specs?.['Shipping Bid Running Time (hours)'];
   const specifiedDays = specs?.['Shipping Bid Running Time (days)'] || specs?.['Bid Running Time (days)'] || specs?.['bidRunningTime'];
-  const daysToAdd = specifiedDays ? parseInt(specifiedDays.toString()) : bidRunningDays;
+  const hoursToAdd = specifiedHours
+    ? parseInt(specifiedHours.toString())
+    : (specifiedDays ? parseInt(specifiedDays.toString()) * 24 : defaultHours);
 
-  const endTime = new Date(acceptedAt.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+  const endTime = new Date(acceptedAt.getTime() + (hoursToAdd * 60 * 60 * 1000));
   return endTime;
 }
 

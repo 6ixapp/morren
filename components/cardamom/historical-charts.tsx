@@ -59,9 +59,29 @@ function buildYearComparisonData() {
       yearMap[year][monthStr] = price
     }
   })
+
+  // Interpolate missing months between known data points for each year
+  const activeYears = [2022, 2023, 2024, 2025, 2026]
+  activeYears.forEach((yr) => {
+    if (!yearMap[yr]) return
+    const knownIndices = MONTHS.map((m, i) => (yearMap[yr][m] !== undefined ? i : -1)).filter((i) => i >= 0)
+    if (knownIndices.length < 2) return
+    for (let ki = 0; ki < knownIndices.length - 1; ki++) {
+      const startIdx = knownIndices[ki]
+      const endIdx = knownIndices[ki + 1]
+      if (endIdx - startIdx <= 1) continue
+      const startPrice = yearMap[yr][MONTHS[startIdx]]
+      const endPrice = yearMap[yr][MONTHS[endIdx]]
+      for (let mi = startIdx + 1; mi < endIdx; mi++) {
+        const fraction = (mi - startIdx) / (endIdx - startIdx)
+        yearMap[yr][MONTHS[mi]] = Math.round((startPrice + fraction * (endPrice - startPrice)) * 100) / 100
+      }
+    }
+  })
+
   return MONTHS.map((month) => {
     const point: Record<string, number | string> = { month }
-    ;[2022, 2023, 2024, 2025, 2026].forEach((yr) => {
+    activeYears.forEach((yr) => {
       if (yearMap[yr]?.[month] !== undefined) {
         point[`y${yr}`] = yearMap[yr][month]
       }

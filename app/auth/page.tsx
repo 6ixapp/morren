@@ -191,6 +191,9 @@ function AuthForm() {
         firstName: "",
         lastName: "",
         email: "",
+        phone: "",
+        whatsappNumber: "",
+        whatsappOptIn: false,
         password: "",
         confirmPassword: "",
     });
@@ -222,7 +225,12 @@ function AuthForm() {
                     formData.email,
                     formData.password,
                     `${formData.firstName} ${formData.lastName}`,
-                    redirectRole as "buyer" | "seller" | "admin" | "shipping_provider"
+                    redirectRole as "buyer" | "seller" | "admin" | "shipping_provider",
+                    {
+                        phone: formData.phone || undefined,
+                        whatsappNumber: formData.whatsappNumber || undefined,
+                        whatsappOptIn: formData.whatsappOptIn,
+                    }
                 );
                 if (error) {
                     setError(error.message || error.error_description || "Failed to sign up");
@@ -245,7 +253,16 @@ function AuthForm() {
     const switchMode = () => {
         setIsSignUp((s) => !s);
         setError(null);
-        setFormData({ firstName: "", lastName: "", email: "", password: "", confirmPassword: "" });
+        setFormData({
+            firstName: "",
+            lastName: "",
+            email: "",
+            phone: "",
+            whatsappNumber: "",
+            whatsappOptIn: false,
+            password: "",
+            confirmPassword: "",
+        });
     };
 
     if (authLoading) {
@@ -369,6 +386,50 @@ function AuthForm() {
                                 accentColor={role.color}
                             />
                         </div>
+
+                        {isSignUp && (
+                            <>
+                                <div className="space-y-1.5">
+                                    <label htmlFor="phone" className="block text-[12px] font-semibold text-[#aaa] uppercase tracking-wider">
+                                        Phone number
+                                    </label>
+                                    <input
+                                        id="phone"
+                                        type="tel"
+                                        placeholder="+91XXXXXXXXXX"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        className="w-full rounded-xl px-4 py-3 text-[14px] text-white placeholder-[#555] outline-none transition-all duration-200"
+                                        style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label htmlFor="whatsappNumber" className="block text-[12px] font-semibold text-[#aaa] uppercase tracking-wider">
+                                        WhatsApp number
+                                    </label>
+                                    <input
+                                        id="whatsappNumber"
+                                        type="tel"
+                                        placeholder="+91XXXXXXXXXX"
+                                        value={formData.whatsappNumber}
+                                        onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                                        className="w-full rounded-xl px-4 py-3 text-[14px] text-white placeholder-[#555] outline-none transition-all duration-200"
+                                        style={{ backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)" }}
+                                    />
+                                </div>
+
+                                <label className="flex items-center gap-2 text-[12px] text-[#aaa]">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.whatsappOptIn}
+                                        onChange={(e) => setFormData({ ...formData, whatsappOptIn: e.target.checked })}
+                                        className="h-4 w-4 accent-green-500"
+                                    />
+                                    I want WhatsApp bid updates on this number
+                                </label>
+                            </>
+                        )}
 
                         {/* Password */}
                         <div className="space-y-1.5">

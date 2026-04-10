@@ -44,6 +44,12 @@ DATABASE_URL=postgresql://username:password@127.0.0.1:5432/morren_db
 JWT_SECRET=your-secret-key
 JWT_REFRESH_SECRET=your-refresh-secret-key
 CORS_ORIGIN=http://localhost:3000
+WHATSAPP_AUTOMATION_ENABLED=false
+DEFAULT_AUCTION_DURATION_DAYS=1
+INTERAKT_BASE_URL=https://api.interakt.ai/v1/public
+INTERAKT_API_KEY=your-interakt-api-key
+INTERAKT_CHANNEL_NUMBER=
+INTERAKT_WEBHOOK_SECRET=your-interakt-webhook-secret
 ```
 
 ### 3. Create Database
@@ -176,6 +182,13 @@ In development, if migrations fail the server still starts so you can hit `/heal
 
 - `GET /api/buyer-profiles/:buyerId` - Get buyer profile
 - `PUT /api/buyer-profiles/:buyerId` - Update buyer profile
+
+### WhatsApp Automation (Interakt)
+
+- `POST /api/whatsapp/interakt/webhook` - Interakt webhook for seller replies
+- `POST /api/whatsapp/order/:orderId/broadcast` - Manual auction broadcast/rebroadcast
+- Commands sellers can send: `BID <orderId> <amount>`, `STATUS <orderId>`, `RANK <orderId>`
+- If `INTERAKT_WEBHOOK_SECRET` is set, webhook requests must include `x-interakt-secret` (or `x-webhook-secret`) header with the same value.
 
 ## Scripts
 

@@ -7,7 +7,17 @@ import * as api from '@/lib/api-client';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, role: 'buyer' | 'seller' | 'admin' | 'shipping_provider') => Promise<{ error: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    role: 'buyer' | 'seller' | 'admin' | 'shipping_provider',
+    options?: {
+      phone?: string;
+      whatsappNumber?: string;
+      whatsappOptIn?: boolean;
+    }
+  ) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -82,12 +92,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     password: string,
     name: string,
-    role: 'buyer' | 'seller' | 'admin' | 'shipping_provider'
+    role: 'buyer' | 'seller' | 'admin' | 'shipping_provider',
+    options?: {
+      phone?: string;
+      whatsappNumber?: string;
+      whatsappOptIn?: boolean;
+    }
   ) => {
     try {
       console.log('Starting signup with:', { email, name, role });
 
-      const response = await api.signUp(email, password, name, role);
+      const response = await api.signUp(email, password, name, role, options);
       console.log('Signup response:', response);
 
       if (response.user) {

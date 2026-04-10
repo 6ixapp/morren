@@ -10,17 +10,21 @@ const SALT_ROUNDS = 10;
 
 // POST /auth/register
 export const register = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, name, role } = req.body as RegisterRequest;
+  const { email, password, name, role, phone, whatsappNumber, whatsappOptIn } = req.body as RegisterRequest & {
+    phone?: string;
+    whatsappNumber?: string;
+    whatsappOptIn?: boolean;
+  };
 
   // Hash password
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
   // Create user
   const result = await query(
-    `INSERT INTO users (name, email, password_hash, role) 
-     VALUES ($1, $2, $3, $4) 
-     RETURNING id, name, email, role, avatar, phone, address, created_at, updated_at`,
-    [name, email, passwordHash, role]
+    `INSERT INTO users (name, email, password_hash, role, phone, whatsapp_number, whatsapp_opt_in) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7) 
+     RETURNING id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at`,
+    [name, email, passwordHash, role, phone || null, whatsappNumber || null, Boolean(whatsappOptIn)]
   );
 
   const user = keysToCamel(result.rows[0]) as User;
@@ -56,7 +60,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   // Find user
   const result = await query(
-    `SELECT id, name, email, password_hash, role, avatar, phone, address, created_at, updated_at 
+    `SELECT id, name, email, password_hash, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at 
      FROM users 
      WHERE email = $1`,
     [email]
@@ -82,6 +86,10 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     role: dbUser.role,
     avatar: dbUser.avatar,
     phone: dbUser.phone,
+    whatsappNumber: dbUser.whatsapp_number,
+    whatsappOptIn: dbUser.whatsapp_opt_in,
+    whatsappLastActiveAt: dbUser.whatsapp_last_active_at,
+    interaktUserId: dbUser.interakt_user_id,
     address: dbUser.address,
     createdAt: dbUser.created_at,
     updatedAt: dbUser.updated_at,
@@ -125,7 +133,7 @@ export const refresh = asyncHandler(async (req: Request, res: Response) => {
 
   // Check if refresh token matches stored token
   const result = await query(
-    'SELECT id, name, email, role, avatar, phone, address, created_at, updated_at FROM users WHERE id = $1 AND refresh_token = $2',
+    'SELECT id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at FROM users WHERE id = $1 AND refresh_token = $2',
     [decoded.userId, refreshToken]
   );
 
@@ -164,7 +172,7 @@ export const me = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const result = await query(
-    'SELECT id, name, email, role, avatar, phone, address, created_at, updated_at FROM users WHERE id = $1',
+    'SELECT id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at FROM users WHERE id = $1',
     [req.user.userId]
   );
 

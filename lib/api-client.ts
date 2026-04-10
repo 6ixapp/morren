@@ -133,11 +133,24 @@ export async function signUp(
   email: string,
   password: string,
   name: string,
-  role: UserRole
+  role: UserRole,
+  options?: {
+    phone?: string;
+    whatsappNumber?: string;
+    whatsappOptIn?: boolean;
+  }
 ): Promise<AuthResponse> {
   const response = await apiCall<AuthResponse>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name, role }),
+    body: JSON.stringify({
+      email,
+      password,
+      name,
+      role,
+      phone: options?.phone,
+      whatsappNumber: options?.whatsappNumber,
+      whatsappOptIn: options?.whatsappOptIn ?? false,
+    }),
   });
   setTokens(response.accessToken, response.refreshToken);
   return response;
@@ -208,10 +221,28 @@ export async function updateUser(id: string, updates: Partial<User>): Promise<Us
   });
 }
 
-export async function createSellerAccount(email: string, password: string, name: string): Promise<User> {
+export async function createSellerAccount(
+  email: string,
+  password: string,
+  name: string,
+  options?: {
+    phone?: string;
+    whatsappNumber?: string;
+    whatsappOptIn?: boolean;
+    interaktUserId?: string;
+  }
+): Promise<User> {
   return await apiCall<User>('/api/users/seller', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify({
+      email,
+      password,
+      name,
+      phone: options?.phone,
+      whatsappNumber: options?.whatsappNumber,
+      whatsappOptIn: options?.whatsappOptIn ?? false,
+      interaktUserId: options?.interaktUserId,
+    }),
   });
 }
 

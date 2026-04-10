@@ -10,7 +10,7 @@ const SALT_ROUNDS = 10;
 // GET /api/users
 export const getUsers = asyncHandler(async (req: Request, res: Response) => {
   const result = await query(
-    'SELECT id, name, email, role, avatar, phone, address, created_at, updated_at FROM users ORDER BY created_at DESC'
+    'SELECT id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at FROM users ORDER BY created_at DESC'
   );
 
   const users = result.rows.map((row) => keysToCamel(row)) as User[];
@@ -23,7 +23,7 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const result = await query(
-    'SELECT id, name, email, role, avatar, phone, address, created_at, updated_at FROM users WHERE id = $1',
+    'SELECT id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at FROM users WHERE id = $1',
     [id]
   );
 
@@ -38,7 +38,7 @@ export const getUserById = asyncHandler(async (req: Request, res: Response) => {
 
 // POST /api/users
 export const createUser = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, password, role, avatar, phone, address } = req.body as CreateUserRequest;
+  const { name, email, password, role, avatar, phone, whatsappNumber, whatsappOptIn, interaktUserId, address } = req.body as CreateUserRequest;
 
   let passwordHash: string | null = null;
   if (password) {
@@ -46,10 +46,10 @@ export const createUser = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const result = await query(
-    `INSERT INTO users (name, email, password_hash, role, avatar, phone, address) 
-     VALUES ($1, $2, $3, $4, $5, $6, $7) 
-     RETURNING id, name, email, role, avatar, phone, address, created_at, updated_at`,
-    [name, email, passwordHash, role, avatar || null, phone || null, address || null]
+    `INSERT INTO users (name, email, password_hash, role, avatar, phone, whatsapp_number, whatsapp_opt_in, interakt_user_id, address) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) 
+     RETURNING id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at`,
+    [name, email, passwordHash, role, avatar || null, phone || null, whatsappNumber || null, Boolean(whatsappOptIn), interaktUserId || null, address || null]
   );
 
   const user = keysToCamel(result.rows[0]) as User;
@@ -70,7 +70,7 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
 
   const result = await query(
     `UPDATE users ${clause} WHERE id = $${values.length + 1} 
-     RETURNING id, name, email, role, avatar, phone, address, created_at, updated_at`,
+     RETURNING id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at`,
     [...values, id]
   );
 
@@ -85,7 +85,7 @@ export const updateUser = asyncHandler(async (req: Request, res: Response) => {
 
 // POST /api/users/seller
 export const createSellerAccount = asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, name } = req.body;
+  const { email, password, name, phone, whatsappNumber, whatsappOptIn, interaktUserId } = req.body;
 
   if (!email || !password || !name) {
     throw new AppError('Email, password, and name are required', 400);
@@ -94,10 +94,10 @@ export const createSellerAccount = asyncHandler(async (req: Request, res: Respon
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
   const result = await query(
-    `INSERT INTO users (name, email, password_hash, role) 
-     VALUES ($1, $2, $3, 'seller') 
-     RETURNING id, name, email, role, avatar, phone, address, created_at, updated_at`,
-    [name, email, passwordHash]
+    `INSERT INTO users (name, email, password_hash, role, phone, whatsapp_number, whatsapp_opt_in, interakt_user_id) 
+     VALUES ($1, $2, $3, 'seller', $4, $5, $6, $7) 
+     RETURNING id, name, email, role, avatar, phone, whatsapp_number, whatsapp_opt_in, whatsapp_last_active_at, interakt_user_id, address, created_at, updated_at`,
+    [name, email, passwordHash, phone || null, whatsappNumber || null, Boolean(whatsappOptIn), interaktUserId || null]
   );
 
   const user = keysToCamel(result.rows[0]) as User;

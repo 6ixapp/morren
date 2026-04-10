@@ -14,12 +14,21 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(50) NOT NULL CHECK (role IN ('buyer', 'seller', 'admin', 'shipping_provider')),
   avatar VARCHAR(500),
   phone VARCHAR(50),
+  whatsapp_number VARCHAR(30),
+  whatsapp_opt_in BOOLEAN DEFAULT FALSE,
+  whatsapp_last_active_at TIMESTAMP WITH TIME ZONE,
+  interakt_user_id VARCHAR(255),
   address TEXT,
   refresh_token TEXT,
   onesignal_player_id TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(30);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_opt_in BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_last_active_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS interakt_user_id VARCHAR(255);
 
 -- Suppliers table
 CREATE TABLE IF NOT EXISTS suppliers (
@@ -204,9 +213,53 @@ CREATE TABLE IF NOT EXISTS notification_logs (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- WhatsApp order auctions table
+CREATE TABLE IF NOT EXISTS order_auctions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id UUID UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+  auction_status VARCHAR(50) DEFAULT 'open' CHECK (auction_status IN ('open', 'closed', 'cancelled')),
+  source VARCHAR(50) DEFAULT 'interakt_whatsapp',
+  started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  winning_bid_id UUID REFERENCES bids(id) ON DELETE SET NULL,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Auction invite status per seller
+CREATE TABLE IF NOT EXISTS seller_auction_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auction_id UUID REFERENCES order_auctions(id) ON DELETE CASCADE,
+  seller_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  invite_status VARCHAR(50) DEFAULT 'pending' CHECK (invite_status IN ('pending', 'sent', 'failed', 'replied')),
+  interakt_message_id TEXT,
+  error TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (auction_id, seller_id)
+);
+
+-- Generic WhatsApp message logs for in/out tracking
+CREATE TABLE IF NOT EXISTS whatsapp_message_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auction_id UUID REFERENCES order_auctions(id) ON DELETE SET NULL,
+  order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+  seller_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  direction VARCHAR(20) NOT NULL CHECK (direction IN ('outbound', 'inbound')),
+  message_type VARCHAR(50) DEFAULT 'text',
+  message_text TEXT NOT NULL,
+  interakt_message_id TEXT,
+  delivery_status VARCHAR(50) DEFAULT 'pending',
+  payload JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_whatsapp_number ON users(whatsapp_number);
+CREATE INDEX IF NOT EXISTS idx_users_whatsapp_opt_in ON users(whatsapp_opt_in);
 
 CREATE INDEX IF NOT EXISTS idx_items_seller_id ON items(seller_id);
 CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
@@ -245,6 +298,16 @@ CREATE INDEX IF NOT EXISTS idx_cardamom_prices_variety_date ON cardamom_prices(v
 
 CREATE INDEX IF NOT EXISTS idx_notification_tokens_userid ON notification_tokens(userid);
 CREATE INDEX IF NOT EXISTS idx_notification_logs_order_id ON notification_logs(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_auctions_order_id ON order_auctions(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_auctions_status ON order_auctions(auction_status);
+CREATE INDEX IF NOT EXISTS idx_order_auctions_ends_at ON order_auctions(ends_at);
+CREATE INDEX IF NOT EXISTS idx_seller_auction_invites_auction_id ON seller_auction_invites(auction_id);
+CREATE INDEX IF NOT EXISTS idx_seller_auction_invites_seller_id ON seller_auction_invites(seller_id);
+CREATE INDEX IF NOT EXISTS idx_seller_auction_invites_status ON seller_auction_invites(invite_status);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_auction_id ON whatsapp_message_logs(auction_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_order_id ON whatsapp_message_logs(order_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_seller_id ON whatsapp_message_logs(seller_id);
+CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_created_at ON whatsapp_message_logs(created_at DESC);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -268,6 +331,8 @@ DROP TRIGGER IF EXISTS update_suppliers_updated_at ON suppliers;
 DROP TRIGGER IF EXISTS update_supplier_invites_updated_at ON supplier_invites;
 DROP TRIGGER IF EXISTS update_notification_tokens_updated_at ON notification_tokens;
 DROP TRIGGER IF EXISTS update_notification_logs_updated_at ON notification_logs;
+DROP TRIGGER IF EXISTS update_order_auctions_updated_at ON order_auctions;
+DROP TRIGGER IF EXISTS update_seller_auction_invites_updated_at ON seller_auction_invites;
 
 CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_items_updated_at BEFORE UPDATE ON items FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -281,3 +346,5 @@ CREATE TRIGGER update_suppliers_updated_at BEFORE UPDATE ON suppliers FOR EACH R
 CREATE TRIGGER update_supplier_invites_updated_at BEFORE UPDATE ON supplier_invites FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_notification_tokens_updated_at BEFORE UPDATE ON notification_tokens FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_notification_logs_updated_at BEFORE UPDATE ON notification_logs FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_order_auctions_updated_at BEFORE UPDATE ON order_auctions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_seller_auction_invites_updated_at BEFORE UPDATE ON seller_auction_invites FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

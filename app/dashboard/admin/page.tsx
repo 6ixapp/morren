@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Package, ShoppingCart, TrendingUp, Users, Plus, Edit, Trash2, Eye, BarChart3, Shield, UserPlus } from 'lucide-react';
 import { Item, Order, Bid, User } from '@/lib/types';
@@ -52,6 +53,9 @@ export default function AdminDashboard() {
     const [sellerForm, setSellerForm] = useState({
         name: '',
         email: '',
+        phone: '',
+        whatsappNumber: '',
+        whatsappOptIn: false,
         password: '',
         confirmPassword: '',
     });
@@ -263,27 +267,24 @@ export default function AdminDashboard() {
 
         setIsCreatingSeller(true);
         try {
-            const { user: newSeller, error } = await createSellerAccount(
+            await createSellerAccount(
                 sellerForm.email,
                 sellerForm.password,
-                sellerForm.name
+                sellerForm.name,
+                {
+                    phone: sellerForm.phone || undefined,
+                    whatsappNumber: sellerForm.whatsappNumber || undefined,
+                    whatsappOptIn: sellerForm.whatsappOptIn,
+                }
             );
 
-            if (error) {
-                toast({
-                    title: 'Error',
-                    description: error.message || 'Failed to create seller account',
-                    variant: 'destructive',
-                });
-            } else {
-                toast({
-                    title: 'Success',
-                    description: `Seller account created for ${sellerForm.name}. They can now login with their email and password.`,
-                });
-                setIsAddSellerDialogOpen(false);
-                setSellerForm({ name: '', email: '', password: '', confirmPassword: '' });
-                await fetchData();
-            }
+            toast({
+                title: 'Success',
+                description: `Seller account created for ${sellerForm.name}. They can now login with their email and password.`,
+            });
+            setIsAddSellerDialogOpen(false);
+            setSellerForm({ name: '', email: '', phone: '', whatsappNumber: '', whatsappOptIn: false, password: '', confirmPassword: '' });
+            await fetchData();
         } catch (error: any) {
             toast({
                 title: 'Error',
@@ -644,6 +645,15 @@ export default function AdminDashboard() {
                                                     <p className="font-medium text-sm">{user.phone}</p>
                                                 </div>
                                             )}
+                                            {user.whatsappNumber && (
+                                                <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">WhatsApp</Label>
+                                                    <p className="font-medium text-sm">{user.whatsappNumber}</p>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        {user.whatsappOptIn ? 'Opted in' : 'Not opted in'}
+                                                    </p>
+                                                </div>
+                                            )}
                                             {user.address && (
                                                 <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Address</Label>
@@ -844,6 +854,33 @@ export default function AdminDashboard() {
                                     />
                                 </div>
                                 <div>
+                                    <Label htmlFor="seller-phone">Phone Number</Label>
+                                    <Input
+                                        id="seller-phone"
+                                        type="tel"
+                                        value={sellerForm.phone}
+                                        onChange={(e) => setSellerForm({ ...sellerForm, phone: e.target.value })}
+                                        placeholder="+91XXXXXXXXXX"
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="seller-whatsapp">WhatsApp Number</Label>
+                                    <Input
+                                        id="seller-whatsapp"
+                                        type="tel"
+                                        value={sellerForm.whatsappNumber}
+                                        onChange={(e) => setSellerForm({ ...sellerForm, whatsappNumber: e.target.value })}
+                                        placeholder="+91XXXXXXXXXX"
+                                    />
+                                </div>
+                                <label className="flex items-center gap-2 text-sm">
+                                    <Checkbox
+                                        checked={sellerForm.whatsappOptIn}
+                                        onCheckedChange={(checked) => setSellerForm({ ...sellerForm, whatsappOptIn: Boolean(checked) })}
+                                    />
+                                    Enable WhatsApp bidding updates for this seller
+                                </label>
+                                <div>
                                     <Label htmlFor="seller-confirm-password">Confirm Password *</Label>
                                     <Input
                                         id="seller-confirm-password"
@@ -859,7 +896,7 @@ export default function AdminDashboard() {
                                     variant="outline"
                                     onClick={() => {
                                         setIsAddSellerDialogOpen(false);
-                                        setSellerForm({ name: '', email: '', password: '', confirmPassword: '' });
+                                        setSellerForm({ name: '', email: '', phone: '', whatsappNumber: '', whatsappOptIn: false, password: '', confirmPassword: '' });
                                     }}
                                 >
                                     Cancel
