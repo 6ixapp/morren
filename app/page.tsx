@@ -328,11 +328,6 @@ const Hero = () => (
                         <p className="text-[28px] sm:text-[36px] md:text-[42px] font-bold text-white leading-none mb-1">45%</p>
                         <p className="text-[11px] sm:text-[12px] text-[#888] uppercase tracking-wider">India&apos;s Export Share</p>
                     </div>
-                    <div className="w-px h-10 bg-white/10 hidden sm:block" />
-                    <div className="text-center">
-                        <p className="text-[28px] sm:text-[36px] md:text-[42px] font-bold text-white leading-none mb-1">100+</p>
-                        <p className="text-[11px] sm:text-[12px] text-[#888] uppercase tracking-wider">Countries Served</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -682,87 +677,6 @@ const Features = () => (
 /* ═══════════════════════════════════════════════════════════
    7. TESTIMONIALS
    ═══════════════════════════════════════════════════════════ */
-const testimonials = [
-    {
-        quote: "SPACESHIPZ transformed how we source spices. Instead of calling dozens of suppliers, we post one bid request and get competitive offers from verified sellers across India. Our procurement costs dropped significantly in the first quarter.",
-        author: "Rajesh Mehta", role: "Head of Procurement, Food Processing Company", stat: "30%", statLabel: "Reduction in procurement costs",
-    },
-    {
-        quote: "As a seller on the platform, we now have direct access to international buyers we never could have reached before. The bidding system is transparent, and the integrated shipping makes cross-border trade seamless.",
-        author: "Priya Shankar", role: "Director, Spice Export FPO", stat: "5x", statLabel: "Increase in buyer reach",
-    },
-    {
-        quote: "The RFQ system is a game-changer. We can specify exact quality grades, HSN codes, and Incoterms, then invite specific suppliers to bid. The entire process from sourcing to shipping is handled in one platform.",
-        author: "Michael Torres", role: "Supply Chain Manager, European Distributor", stat: "60%", statLabel: "Faster procurement cycle",
-    },
-];
-
-const Testimonials = () => {
-    const [activeTab, setActiveTab] = useState(0);
-    return (
-        <section className="py-16 sm:py-[100px] overflow-hidden" style={{ backgroundColor: "#071A10" }}>
-            <div className="container mx-auto px-4 sm:px-6">
-                <div className="text-center mb-10 sm:mb-16">
-                    <h2 className="text-[26px] sm:text-[36px] md:text-[48px] font-semibold text-white leading-[1.2] mb-4 tracking-tight">
-                        Why businesses choose <br /><span style={{ color: "#00C853" }}>SPACESHIPZ</span>
-                    </h2>
-                    <p className="text-[#888] text-[15px] sm:text-[17px] max-w-2xl mx-auto">From small importers to large food processors, our platform streamlines global spice procurement.</p>
-                </div>
-
-                <div className="relative max-w-5xl mx-auto">
-                    <div className="flex flex-col md:flex-row items-stretch gap-8 md:gap-12 rounded-2xl p-6 sm:p-10 md:p-12"
-                        style={{ backgroundColor: "#0A1A0A", border: "1px solid rgba(0,200,83,0.15)" }}>
-                        <div className="flex-1 text-left flex flex-col justify-between">
-                            <div className="mb-6 sm:mb-8">
-                                <p className="font-serif text-[18px] sm:text-[22px] md:text-[26px] leading-[1.5] text-white italic font-medium">
-                                    &ldquo;{testimonials[activeTab].quote}&rdquo;
-                                </p>
-                            </div>
-                            <div>
-                                <div className="mb-6">
-                                    <p className="text-[16px] sm:text-[17px] font-bold text-white">{testimonials[activeTab].author}</p>
-                                    <p className="text-[13px] sm:text-[14px] text-[#888]">{testimonials[activeTab].role}</p>
-                                </div>
-                                <div className="border-t pt-6" style={{ borderColor: "rgba(0,200,83,0.15)" }}>
-                                    <p className="text-[32px] sm:text-[40px] font-bold text-white leading-none mb-1">{testimonials[activeTab].stat}</p>
-                                    <p className="text-[12px] sm:text-[13px] uppercase tracking-wider font-semibold text-[#888]">{testimonials[activeTab].statLabel}</p>
-                                </div>
-                            </div>
-                        </div>
-                        {/* Visual panel - responsive fix: controlled height instead of aspect-square */}
-                        <div className="w-full md:w-[280px] lg:w-[320px] h-[180px] sm:h-[220px] md:h-auto md:min-h-[240px] rounded-xl relative overflow-hidden flex items-center justify-center flex-shrink-0"
-                            style={{ background: "linear-gradient(135deg, rgba(0,200,83,0.06) 0%, rgba(0,168,68,0.1) 100%)", border: "1px solid rgba(0,200,83,0.15)" }}>
-                            <div className="text-center p-6">
-                                <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
-                                    style={{ backgroundColor: "rgba(0,200,83,0.1)", border: "1px solid rgba(0,200,83,0.25)" }}>
-                                    <SvgIcon d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" className="w-8 h-8 text-[#00C853]" />
-                                </div>
-                                <p className="font-bold text-base text-[#00C853]">Real Results</p>
-                                <p className="text-[#888] text-sm mt-1">Verified platform metrics</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-10 sm:mt-12 flex justify-center items-center flex-wrap gap-3 sm:gap-6 md:gap-8">
-                    {testimonials.map((t, index) => (
-                        <button
-                            key={index}
-                            onClick={() => setActiveTab(index)}
-                            className="relative pb-3 transition-all duration-300 flex flex-col items-center"
-                            style={{ opacity: activeTab === index ? 1 : 0.4 }}
-                        >
-                            <div className="h-10 flex items-center px-3">
-                                <span className="font-bold text-[14px] sm:text-[15px] text-white">{t.author.split(" ")[0]}</span>
-                            </div>
-                            {activeTab === index && <div className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full" style={{ backgroundColor: "#00C853" }} />}
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </section>
-    );
-};
 
 /* ═══════════════════════════════════════════════════════════
    8. USER ROLES
@@ -835,45 +749,6 @@ const UserRoles = () => (
                 ))}
             </div>
         </div>
-    </section>
-);
-
-/* ═══════════════════════════════════════════════════════════
-   9. STATS
-   ═══════════════════════════════════════════════════════════ */
-const stats = [
-    { value: "500+", label: "Verified Suppliers", description: "FPOs, auctioneers, farmers, and exporters across India" },
-    { value: "50+", label: "Countries Connected", description: "Cross-border procurement and shipping worldwide" },
-    { value: "10K+", label: "Orders Processed", description: "From bid to delivery, fully managed on platform" },
-];
-
-const Stats = () => (
-    <section className="text-white py-16 sm:py-[100px] overflow-hidden relative" style={{ backgroundColor: "#071A10" }}>
-        <div className="container px-4 sm:px-6 mx-auto relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-8 mb-12 sm:mb-16">
-                <div className="max-w-2xl">
-                    <h2 className="text-[24px] sm:text-[36px] md:text-[48px] font-semibold leading-[1.2] tracking-tight text-white mb-4">
-                        Procurement made powerful <br className="hidden sm:block" />enough to scale, simple enough to start.
-                    </h2>
-                </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12 mb-12 sm:mb-16">
-                {stats.map((stat, index) => (
-                    <div key={index} className="flex flex-col space-y-2">
-                        <div className="text-[36px] sm:text-[48px] md:text-[56px] font-bold leading-[1.1] tracking-tight text-white mb-2">{stat.value}</div>
-                        <div className="text-[16px] sm:text-[18px] md:text-[20px] font-medium text-white mb-1">{stat.label}</div>
-                        <p className="text-[13px] sm:text-[14px] md:text-[15px] text-[#888] leading-[1.6]">{stat.description}</p>
-                    </div>
-                ))}
-            </div>
-            <div className="mt-4">
-                <Link href="/dashboard" className="btn-primary text-[14px] sm:text-[15px]">
-                    Start Sourcing Today
-                </Link>
-            </div>
-        </div>
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] pointer-events-none opacity-15"
-            style={{ background: "radial-gradient(circle, rgba(0,200,83,0.2) 0%, transparent 70%)", transform: "translate(30%, -30%)" }} />
     </section>
 );
 
@@ -1132,9 +1007,7 @@ export default function Home() {
             <PriceHistory />
             <RoleSelection />
             <Features />
-            <Testimonials />
             <UserRoles />
-            <Stats />
             <HowItWorks />
             <FAQ />
             <CTA />
