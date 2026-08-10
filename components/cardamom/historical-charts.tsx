@@ -13,6 +13,7 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { TrendingUp, TrendingDown } from "lucide-react"
 
 // ─── Historical Price Data (Monthly auction prices ₹/kg, 2014–2026) ───────────
 export const HISTORICAL_DATA = [
@@ -39,11 +40,11 @@ export const HISTORICAL_DATA = [
 ]
 
 export const YEAR_LINE_COLORS: Record<string, string> = {
-  "2022": "#FF6B6B",
-  "2023": "#FFD93D",
-  "2024": "#4D96FF",
-  "2025": "#FF69B4",
-  "2026": "#00C853",
+  "2022": "var(--chart-1)",
+  "2023": "var(--chart-2)",
+  "2024": "var(--chart-3)",
+  "2025": "var(--chart-4)",
+  "2026": "var(--chart-5)",
 }
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
@@ -110,6 +111,8 @@ export function HistoricalPriceChart({ isDark }: { isDark: boolean }) {
   const maxPrice = Math.max(...filtered.map((d) => d.price))
   const minPrice = Math.min(...filtered.map((d) => d.price))
   const xInterval = Math.max(0, Math.floor(filtered.length / 8) - 1)
+  const isUp = pctChange >= 0
+  const trendColor = isUp ? "var(--success)" : "var(--destructive)"
 
   return (
     <Card>
@@ -124,12 +127,11 @@ export function HistoricalPriceChart({ isDark }: { isDark: boolean }) {
               <button
                 key={opt.label}
                 onClick={() => setRange(opt.months)}
-                className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
-                style={{
-                  background: range === opt.months ? "#00C853" : "transparent",
-                  color: range === opt.months ? "#fff" : isDark ? "#aaa" : "#555",
-                  borderColor: range === opt.months ? "#00C853" : isDark ? "#374151" : "#d1d5db",
-                }}
+                className={`px-3 py-1 rounded-md text-xs font-semibold border transition-colors ${
+                  range === opt.months
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-transparent text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                }`}
               >
                 {opt.label}
               </button>
@@ -139,20 +141,21 @@ export function HistoricalPriceChart({ isDark }: { isDark: boolean }) {
         <div className="flex flex-wrap gap-4 mt-2">
           <div className="text-sm">
             <span className="text-muted-foreground">Current: </span>
-            <span className="font-bold text-green-500">₹{currentPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+            <span className="font-bold text-foreground tabular-nums">₹{currentPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="text-sm">
             <span className="text-muted-foreground">Range High: </span>
-            <span className="font-semibold">₹{maxPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+            <span className="font-semibold tabular-nums">₹{maxPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="text-sm">
             <span className="text-muted-foreground">Range Low: </span>
-            <span className="font-semibold">₹{minPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
+            <span className="font-semibold tabular-nums">₹{minPrice.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="text-sm">
             <span className="text-muted-foreground">Change: </span>
-            <span className={`font-bold ${pctChange >= 0 ? "text-green-500" : "text-red-500"}`}>
-              {pctChange >= 0 ? "+" : ""}{pctChange.toFixed(1)}%
+            <span className={`inline-flex items-center gap-1 font-bold tabular-nums ${isUp ? "text-success" : "text-destructive"}`}>
+              {isUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+              {isUp ? "+" : ""}{pctChange.toFixed(1)}%
             </span>
           </div>
         </div>
@@ -162,39 +165,40 @@ export function HistoricalPriceChart({ isDark }: { isDark: boolean }) {
           <AreaChart data={filtered} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="histGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00C853" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#00C853" stopOpacity={0} />
+                <stop offset="5%" stopColor={trendColor} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={trendColor} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
               dataKey="date"
-              stroke={isDark ? "#9ca3af" : "#6b7280"}
+              stroke="var(--muted-foreground)"
               tick={{ fontSize: 11 }}
               interval={xInterval}
             />
             <YAxis
-              stroke={isDark ? "#9ca3af" : "#6b7280"}
+              stroke="var(--muted-foreground)"
               tickFormatter={(v) => v >= 1000 ? `₹${(v / 1000).toFixed(1)}k` : `₹${v}`}
               tick={{ fontSize: 11 }}
               width={60}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: isDark ? "#1f2937" : "#ffffff",
-                border: `1px solid ${isDark ? "#374151" : "#e5e7eb"}`,
+                backgroundColor: "var(--popover)",
+                border: "1px solid var(--border)",
                 borderRadius: "8px",
+                color: "var(--popover-foreground)",
               }}
               formatter={(val: number) => [`₹${val.toLocaleString("en-IN", { maximumFractionDigits: 0 })}/kg`, "Price"]}
             />
             <Area
               type="monotone"
               dataKey="price"
-              stroke="#00C853"
+              stroke={trendColor}
               strokeWidth={2}
               fill="url(#histGradient)"
               dot={false}
-              activeDot={{ r: 5, fill: "#00C853" }}
+              activeDot={{ r: 5, fill: trendColor }}
             />
           </AreaChart>
         </ResponsiveContainer>
@@ -225,7 +229,7 @@ export function YearComparisonChart({ isDark }: { isDark: boolean }) {
                   boxShadow: yr === "2026" ? `0 0 6px ${YEAR_LINE_COLORS[yr]}` : "none",
                 }}
               />
-              <span style={{ color: yr === "2026" ? YEAR_LINE_COLORS[yr] : isDark ? "#ccc" : "#555" }}>
+              <span style={{ color: yr === "2026" ? YEAR_LINE_COLORS[yr] : "var(--muted-foreground)" }}>
                 {yr}{yr === "2026" ? " ●" : ""}
               </span>
             </div>
@@ -235,23 +239,24 @@ export function YearComparisonChart({ isDark }: { isDark: boolean }) {
       <CardContent>
         <ResponsiveContainer width="100%" height={340}>
           <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
               dataKey="month"
-              stroke={isDark ? "#9ca3af" : "#6b7280"}
+              stroke="var(--muted-foreground)"
               tick={{ fontSize: 11 }}
             />
             <YAxis
-              stroke={isDark ? "#9ca3af" : "#6b7280"}
+              stroke="var(--muted-foreground)"
               tickFormatter={(v) => v >= 1000 ? `₹${(v / 1000).toFixed(1)}k` : `₹${v}`}
               tick={{ fontSize: 11 }}
               width={60}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: isDark ? "#1f2937" : "#ffffff",
-                border: `1px solid ${isDark ? "#374151" : "#e5e7eb"}`,
+                backgroundColor: "var(--popover)",
+                border: "1px solid var(--border)",
                 borderRadius: "8px",
+                color: "var(--popover-foreground)",
               }}
               formatter={(val: number, name: string) => [
                 `₹${val.toLocaleString("en-IN", { maximumFractionDigits: 0 })}/kg`,

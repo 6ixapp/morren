@@ -166,8 +166,8 @@ export default function CardamomPricesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("cardamom.pageTitle")}</h1>
-          <p className="text-muted-foreground mt-1">Live prices from indianspices.com (Last 7 days)</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">{t("cardamom.pageTitle")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Live prices from indianspices.com (Last 7 days)</p>
         </div>
         <Button onClick={handleRefresh} disabled={refreshing}>
           <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
@@ -184,7 +184,7 @@ export default function CardamomPricesPage() {
                 <MapPin className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{stats?.totalMarkets || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{stats?.totalMarkets || 0}</div>
                 <div className="text-sm text-muted-foreground">{t("cardamom.market")}</div>
               </div>
             </div>
@@ -194,11 +194,11 @@ export default function CardamomPricesPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <Package className="h-5 w-5 text-green-500" />
+              <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
+                <Package className="h-5 w-5 text-info" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{stats?.totalVarieties || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{stats?.totalVarieties || 0}</div>
                 <div className="text-sm text-muted-foreground">{t("cardamom.variety")}</div>
               </div>
             </div>
@@ -208,11 +208,11 @@ export default function CardamomPricesPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-yellow-600 dark:text-yellow-500" />
+              <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-accent-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold">₹{stats?.avgPrice?.toFixed(0) || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">₹{stats?.avgPrice?.toFixed(0) || 0}</div>
                 <div className="text-sm text-muted-foreground">Avg Price/Kg</div>
               </div>
             </div>
@@ -222,11 +222,11 @@ export default function CardamomPricesPage() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-purple-500" />
+              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{filteredPrices.length}</div>
+                <div className="text-2xl font-bold tabular-nums">{filteredPrices.length}</div>
                 <div className="text-sm text-muted-foreground">Price Entries</div>
               </div>
             </div>
@@ -285,20 +285,22 @@ export default function CardamomPricesPage() {
           <CardContent>
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
-                <XAxis dataKey="date" stroke={isDark ? "#9ca3af" : "#6b7280"} />
-                <YAxis stroke={isDark ? "#9ca3af" : "#6b7280"} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" stroke="var(--muted-foreground)" />
+                <YAxis stroke="var(--muted-foreground)" />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: isDark ? "#1f2937" : "#ffffff",
-                    border: `1px solid ${isDark ? "#374151" : "#e5e7eb"}`,
+                    backgroundColor: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "8px",
+                    color: "var(--popover-foreground)",
                   }}
                 />
                 <Legend />
                 <Line
                   type="monotone"
                   dataKey="modalPrice"
-                  stroke="#3b82f6"
+                  stroke="var(--chart-1)"
                   strokeWidth={2}
                   name="Modal Price (₹/Kg)"
                 />
@@ -334,9 +336,9 @@ export default function CardamomPricesPage() {
                     <TableHead>{t("common.date")}</TableHead>
                     <TableHead>{t("cardamom.market")}</TableHead>
                     <TableHead>{t("cardamom.variety")}</TableHead>
-                    <TableHead>{t("cardamom.minPrice")}</TableHead>
-                    <TableHead>{t("cardamom.modalPrice")}</TableHead>
-                    <TableHead>{t("cardamom.maxPrice")}</TableHead>
+                    <TableHead className="text-right">{t("cardamom.minPrice")}</TableHead>
+                    <TableHead className="text-right">{t("cardamom.modalPrice")}</TableHead>
+                    <TableHead className="text-right">{t("cardamom.maxPrice")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -356,13 +358,13 @@ export default function CardamomPricesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{price.variety}</Badge>
+                        <Badge variant="secondary">{price.variety}</Badge>
                       </TableCell>
-                      <TableCell>₹{price.minPrice?.toLocaleString() || '-'}</TableCell>
-                      <TableCell className="font-bold text-primary">
+                      <TableCell className="text-right text-muted-foreground tabular-nums">₹{price.minPrice?.toLocaleString() || '-'}</TableCell>
+                      <TableCell className="text-right font-bold text-foreground tabular-nums">
                         ₹{price.modalPrice.toLocaleString()}
                       </TableCell>
-                      <TableCell>₹{price.maxPrice?.toLocaleString() || '-'}</TableCell>
+                      <TableCell className="text-right text-muted-foreground tabular-nums">₹{price.maxPrice?.toLocaleString() || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

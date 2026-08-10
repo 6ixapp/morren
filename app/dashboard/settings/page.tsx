@@ -112,14 +112,14 @@ export default function SettingsPage() {
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your profile and preferences</p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Settings</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Manage your profile and preferences</p>
       </div>
 
       {/* Company Profile */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
             <Building2 className="h-5 w-5" />
             Company Profile
           </CardTitle>
@@ -141,7 +141,7 @@ export default function SettingsPage() {
       {/* Buyer Information */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
             <User className="h-5 w-5" />
             Buyer Information
           </CardTitle>

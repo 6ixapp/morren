@@ -50,11 +50,18 @@ import {
   Trophy,
 } from "lucide-react"
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  INVITE_SENT: { label: "Invite Sent", color: "bg-blue-100 text-blue-700" },
-  VIEWED: { label: "Viewed", color: "bg-yellow-100 text-yellow-700" },
-  QUOTED: { label: "Quoted", color: "bg-green-100 text-green-700" },
-  UPDATED: { label: "Updated", color: "bg-purple-100 text-purple-700" },
+const rfqStatusConfig: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning"> = {
+  DRAFT: "secondary",
+  OPEN: "warning",
+  CLOSED: "outline",
+  AWARDED: "success",
+}
+
+const inviteStatusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" }> = {
+  INVITE_SENT: { label: "Invite Sent", variant: "info" },
+  VIEWED: { label: "Viewed", variant: "warning" },
+  QUOTED: { label: "Quoted", variant: "success" },
+  UPDATED: { label: "Updated", variant: "default" },
 }
 
 function generateInviteUrl(token: string): string {
@@ -233,12 +240,10 @@ export default function RFQDetailPage() {
             Back to RFQs
           </Link>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">{rfq.productName}</h1>
-            <Badge variant={rfq.status === "AWARDED" ? "default" : rfq.status === "OPEN" ? "secondary" : "outline"}>
-              {rfq.status}
-            </Badge>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">{rfq.productName}</h1>
+            <Badge variant={rfqStatusConfig[rfq.status] ?? "outline"}>{rfq.status}</Badge>
           </div>
-          <p className="text-muted-foreground mt-1">{rfq.specs}</p>
+          <p className="text-sm text-muted-foreground mt-1">{rfq.specs}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={loadData}>
@@ -305,7 +310,7 @@ export default function RFQDetailPage() {
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Quantity</div>
-            <div className="text-xl font-bold text-foreground">
+            <div className="text-xl font-bold text-foreground tabular-nums">
               {rfq.quantity} {rfq.unit}
             </div>
           </CardContent>
@@ -313,19 +318,19 @@ export default function RFQDetailPage() {
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Required By</div>
-            <div className="text-xl font-bold text-foreground">{format(new Date(rfq.requiredByDate), "MMM dd")}</div>
+            <div className="text-xl font-bold text-foreground tabular-nums">{format(new Date(rfq.requiredByDate), "MMM dd")}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Invites</div>
-            <div className="text-xl font-bold text-foreground">{rfq.invites.length}</div>
+            <div className="text-xl font-bold text-foreground tabular-nums">{rfq.invites.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-sm text-muted-foreground">Quotes</div>
-            <div className="text-xl font-bold text-foreground">{rfq.quotes.length}</div>
+            <div className="text-xl font-bold text-foreground tabular-nums">{rfq.quotes.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -341,7 +346,7 @@ export default function RFQDetailPage() {
               <div>
                 <div className="font-medium text-foreground">Awarded to {rfq.awardedTo.supplierName}</div>
                 <div className="text-sm text-muted-foreground">
-                  Winning price: ₹{rfq.awardedTo.price.toLocaleString()}/unit • Awarded on{" "}
+                  Winning price: <span className="tabular-nums">₹{rfq.awardedTo.price.toLocaleString()}/unit</span> • Awarded on{" "}
                   {format(new Date(rfq.awardedTo.awardedAt), "MMM dd, yyyy")}
                 </div>
               </div>
@@ -378,7 +383,7 @@ export default function RFQDetailPage() {
               {lowestQuote && (
                 <div className="text-right">
                   <div className="text-sm text-muted-foreground">Lowest Bid</div>
-                  <div className="text-xl font-bold text-success">
+                  <div className="text-xl font-bold text-success tabular-nums">
                     ₹{lowestQuote.pricePerUnit.toLocaleString()}/unit
                   </div>
                 </div>
@@ -421,7 +426,7 @@ export default function RFQDetailPage() {
                           >
                             <TableCell>
                               {isLowest ? (
-                                <Badge className="bg-success text-success-foreground">
+                                <Badge variant="success">
                                   <TrendingDown className="h-3 w-3 mr-1" />
                                   Lowest
                                 </Badge>
@@ -433,7 +438,7 @@ export default function RFQDetailPage() {
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-foreground">{quote.supplierName}</span>
                                 {isWinner && (
-                                  <Badge variant="outline" className="text-success border-success">
+                                  <Badge variant="success">
                                     <Trophy className="h-3 w-3 mr-1" />
                                     Winner
                                   </Badge>
@@ -445,13 +450,13 @@ export default function RFQDetailPage() {
                                 </div>
                               )}
                             </TableCell>
-                            <TableCell className="text-right font-medium">
+                            <TableCell className="text-right font-medium tabular-nums">
                               ₹{quote.pricePerUnit.toLocaleString()}
                             </TableCell>
-                            <TableCell className="text-right">₹{quote.totalPrice.toLocaleString()}</TableCell>
-                            <TableCell className="text-right">{quote.deliveryDays} days</TableCell>
-                            <TableCell className="text-right">{quote.validityDays} days</TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="text-right tabular-nums">₹{quote.totalPrice.toLocaleString()}</TableCell>
+                            <TableCell className="text-right tabular-nums">{quote.deliveryDays} days</TableCell>
+                            <TableCell className="text-right tabular-nums">{quote.validityDays} days</TableCell>
+                            <TableCell className="text-right tabular-nums">
                               {isLowest ? (
                                 <span className="text-success">-</span>
                               ) : (
@@ -487,15 +492,15 @@ export default function RFQDetailPage() {
                                       </div>
                                       <div className="flex justify-between">
                                         <span className="text-muted-foreground">Price per Unit</span>
-                                        <span className="font-medium">₹{quote.pricePerUnit.toLocaleString()}</span>
+                                        <span className="font-medium tabular-nums">₹{quote.pricePerUnit.toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
                                         <span className="text-muted-foreground">Total Price</span>
-                                        <span className="font-medium">₹{quote.totalPrice.toLocaleString()}</span>
+                                        <span className="font-medium tabular-nums">₹{quote.totalPrice.toLocaleString()}</span>
                                       </div>
                                       <div className="flex justify-between">
                                         <span className="text-muted-foreground">Delivery</span>
-                                        <span className="font-medium">{quote.deliveryDays} days</span>
+                                        <span className="font-medium tabular-nums">{quote.deliveryDays} days</span>
                                       </div>
                                     </div>
                                     <DialogFooter>
@@ -544,20 +549,20 @@ export default function RFQDetailPage() {
                 <div className="space-y-3">
                   {rfq.invites.map((invite: SupplierInvite) => {
                     const supplier = suppliers.find((s) => s.id === invite.supplierId)
-                    const status = statusConfig[invite.status]
+                    const status = inviteStatusConfig[invite.status]
                     const inviteUrl = generateInviteUrl(invite.inviteToken)
 
                     return (
                       <div
                         key={invite.id}
-                        className="flex flex-col lg:flex-row lg:items-center gap-4 p-4 rounded-lg border border-border"
+                        className="flex flex-col lg:flex-row lg:items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-medium text-foreground">{supplier?.name}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
+                            <Badge variant={status.variant}>
                               {status.label}
-                            </span>
+                            </Badge>
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {supplier?.email} • {supplier?.phone}
@@ -601,7 +606,7 @@ export default function RFQDetailPage() {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">Quantity</div>
-                  <div className="font-medium text-foreground">
+                  <div className="font-medium text-foreground tabular-nums">
                     {rfq.quantity} {rfq.unit}
                   </div>
                 </div>

@@ -612,19 +612,19 @@ export default function SellerDashboard() {
         // If only bidder, show a special message
         if (isOnlyBidder) {
             return (
-                <div className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 border rounded-xl p-6 mb-6 shadow-sm">
+                <div className="bg-info/10 border-info/20 border rounded-xl p-6 mb-6">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-blue-700 dark:text-blue-300 font-bold text-lg">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-full">
+                        <div className="flex items-center gap-3 text-info font-bold text-lg">
+                            <div className="p-2 bg-info/15 rounded-full">
                                 <Trophy className="h-6 w-6" />
                             </div>
                             <span>{t('seller.onlyBidder')}</span>
                         </div>
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 px-3 py-1 text-sm">
+                        <Badge variant="info" className="px-3 py-1 text-sm">
                             {t('seller.leading')}
                         </Badge>
                     </div>
-                    <p className="text-blue-600 dark:text-blue-400 mt-3 ml-14">
+                    <p className="text-info/90 mt-3 ml-14">
                         {t('seller.onlyBidderMessage')}
                     </p>
                 </div>
@@ -635,53 +635,53 @@ export default function SellerDashboard() {
         const positionPercent = totalBidders > 1 ? ((myPosition - 1) / (totalBidders - 1)) * 100 : 0;
 
         // Determine color and message
-        let bgColor = 'bg-yellow-500';
-        let textColor = 'text-yellow-700 dark:text-yellow-300';
-        let bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
-        let borderColor = 'border-yellow-200 dark:border-yellow-800';
+        let bgColor = 'bg-warning';
+        let textColor = 'text-warning';
+        let bgLight = 'bg-warning/10';
+        let borderColor = 'border-warning/20';
         let icon = <Minus className="h-5 w-5" />;
         let message = '';
         let statusTitle = '';
 
         if (isLowest) {
-            bgColor = 'bg-emerald-500';
-            textColor = 'text-emerald-700 dark:text-emerald-300';
-            bgLight = 'bg-emerald-50 dark:bg-emerald-900/20';
-            borderColor = 'border-emerald-200 dark:border-emerald-800';
+            bgColor = 'bg-success';
+            textColor = 'text-success';
+            bgLight = 'bg-success/10';
+            borderColor = 'border-success/20';
             icon = <Trophy className="h-5 w-5" />;
             statusTitle = t('seller.bestPriceLabel');
             message = t('seller.youHaveLowestBid');
         } else if (diffFromLowest <= 5) {
-            bgColor = 'bg-emerald-400';
-            textColor = 'text-emerald-700 dark:text-emerald-300';
-            bgLight = 'bg-emerald-50 dark:bg-emerald-900/20';
-            borderColor = 'border-emerald-200 dark:border-emerald-800';
+            bgColor = 'bg-success';
+            textColor = 'text-success';
+            bgLight = 'bg-success/10';
+            borderColor = 'border-success/20';
             icon = <ArrowDown className="h-5 w-5" />;
             statusTitle = t('seller.veryCompetitive');
             message = `${t('seller.onlyWord')} ${diffFromLowest.toFixed(1)}% ${t('seller.aboveLowest')}`;
         } else if (diffFromLowest <= 15) {
-            bgColor = 'bg-yellow-500';
-            textColor = 'text-yellow-700 dark:text-yellow-300';
-            bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
-            borderColor = 'border-yellow-200 dark:border-yellow-800';
+            bgColor = 'bg-warning';
+            textColor = 'text-warning';
+            bgLight = 'bg-warning/10';
+            borderColor = 'border-warning/20';
             icon = <AlertTriangle className="h-5 w-5" />;
             statusTitle = t('seller.competitive');
             message = `${diffFromLowest.toFixed(1)}% ${t('seller.higherThanLowest')}`;
         } else {
-            bgColor = 'bg-red-500';
-            textColor = 'text-red-700 dark:text-red-300';
-            bgLight = 'bg-red-50 dark:bg-red-900/20';
-            borderColor = 'border-red-200 dark:border-red-800';
+            bgColor = 'bg-destructive';
+            textColor = 'text-destructive';
+            bgLight = 'bg-destructive/10';
+            borderColor = 'border-destructive/20';
             icon = <ArrowUp className="h-5 w-5" />;
             statusTitle = t('seller.highPrice');
             message = `${diffFromLowest.toFixed(1)}% ${t('seller.higherThanLowest')}`;
         }
 
         return (
-            <div className={`${bgLight} ${borderColor} border rounded-xl p-5 mb-6 shadow-sm`}>
+            <div className={`${bgLight} ${borderColor} border rounded-xl p-5 mb-6`}>
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full ${bgColor} bg-opacity-20`}>
+                        <div className={`p-2 rounded-full ${bgLight} ${textColor}`}>
                             {icon}
                         </div>
                         <div>
@@ -690,7 +690,7 @@ export default function SellerDashboard() {
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">#{myPosition}</div>
+                        <div className="text-2xl font-bold text-foreground tabular-nums">#{myPosition}</div>
                         <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">{t('seller.rank')}</div>
                     </div>
                 </div>
@@ -699,17 +699,17 @@ export default function SellerDashboard() {
                 <div className="relative mt-8 mb-2 px-2">
                     {/* Labels */}
                     <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
-                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                        <span className="flex items-center gap-1 text-success">
                             {t('seller.bestPriceLabel')}
                         </span>
-                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                        <span className="flex items-center gap-1 text-destructive">
                             {t('seller.highestPriceLabel')}
                         </span>
                     </div>
 
                     {/* The Track */}
-                    <div className="h-3 w-full rounded-full relative bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-yellow-400 to-red-500 opacity-80"></div>
+                    <div className="h-3 w-full rounded-full relative bg-muted overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-success via-warning to-destructive opacity-80"></div>
                     </div>
 
                     {/* The Marker */}
@@ -718,27 +718,27 @@ export default function SellerDashboard() {
                         style={{ left: `${Math.max(0, Math.min(100, positionPercent))}%` }}
                     >
                         <div className="relative -ml-4 mt-3"> {/* Center the marker */}
-                            <div className={`w-8 h-8 ${bgColor} rounded-full border-4 border-white dark:border-gray-900 shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform`}>
+                            <div className={`w-8 h-8 ${bgColor} rounded-full border-4 border-background shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform`}>
                                 <div className="w-2 h-2 bg-white rounded-full" />
                             </div>
 
                             {/* Tooltip-like label */}
-                            <div className={`absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-bold shadow-lg flex flex-col items-center ${isLowest ? 'bg-emerald-600' : ''}`}>
+                            <div className={`absolute -top-12 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs font-bold shadow-lg flex flex-col items-center tabular-nums ${isLowest ? 'bg-success' : ''}`}>
                                 <span>YOU</span>
                                 <span className="text-[10px] font-normal opacity-90">₹{myBid.toFixed(0)}</span>
-                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" style={{ borderTopColor: isLowest ? '#059669' : '#111827' }}></div>
+                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" style={{ borderTopColor: isLowest ? 'var(--success)' : '#111827' }}></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700/50 text-sm">
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border text-sm">
                     <span className="text-muted-foreground font-medium">
                         <Users className="h-4 w-4 inline mr-1.5 mb-0.5" />
                         {competitorCount} {competitorCount === 1 ? t('seller.otherSeller') : t('seller.otherSellers')}
                     </span>
                     {!isLowest && (
-                        <span className={`${textColor} font-medium flex items-center`}>
+                        <span className={`${textColor} font-medium flex items-center tabular-nums`}>
                             {t('seller.reduceByApprox')} {((myBid - lowestBid) / myBid * 100).toFixed(1)}% {t('seller.toMatchBest')}
                         </span>
                     )}
@@ -747,15 +747,15 @@ export default function SellerDashboard() {
         );
     };
 
-    const getStatusColor = (status: string) => {
-        const colors: Record<string, string> = {
-            pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-200',
-            accepted: 'bg-blue-500/10 text-blue-600 border-blue-200',
-            rejected: 'bg-red-500/10 text-red-600 border-red-200',
-            completed: 'bg-green-500/10 text-green-600 border-green-200',
-            cancelled: 'bg-gray-500/10 text-gray-600 border-gray-200',
+    const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" => {
+        const variants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"> = {
+            pending: 'warning',
+            accepted: 'success',
+            rejected: 'destructive',
+            completed: 'success',
+            cancelled: 'secondary',
         };
-        return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-200';
+        return variants[status] || 'secondary';
     };
 
     const handlePlaceBid = (order: Order) => {
@@ -1003,7 +1003,7 @@ export default function SellerDashboard() {
             <DashboardLayout role="seller">
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
                         <p className="mt-4 text-muted-foreground">{t("seller.loadingDashboard")}</p>
                     </div>
                 </div>
@@ -1026,10 +1026,10 @@ export default function SellerDashboard() {
                 <div className="relative z-10 space-y-8">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground">
                                 {t("common.welcome")}, {user.name}
                             </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">{t("seller.pageTitle")}</p>
+                            <p className="text-muted-foreground mt-1 text-sm">{t("seller.pageTitle")}</p>
                         </div>
                         <Button
                             variant="outline"
@@ -1042,70 +1042,74 @@ export default function SellerDashboard() {
                         </Button>
                     </div>
 
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.totalOrders")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                        <Package className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{newOrders.length}</div>
+                                        <div className="text-sm text-muted-foreground">{t("seller.stats_ordersAvailable")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{newOrders.length}</div>
-                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_ordersAvailable")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-green-200 dark:border-green-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.pendingBids")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center group-hover:scale-110 transition-transform relative">
-                                    <Activity className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                    <div className="absolute w-2 h-2 bg-green-500 rounded-full animate-pulse top-0 right-0"></div>
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
+                                        <Activity className="h-5 w-5 text-info" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{liveOrders.length}</div>
+                                        <div className="text-sm text-muted-foreground">{t("seller.stats_activeBidsPlaced")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{liveOrders.length}</div>
-                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_activeBidsPlaced")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.pendingBids")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <TrendingUp className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                                        <TrendingUp className="h-5 w-5 text-warning" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.pendingBids}</div>
+                                        <div className="text-sm text-muted-foreground">{t("seller.stats_awaitingResponse")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.pendingBids}</div>
-                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_awaitingResponse")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.acceptedBids")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Users className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                                        <Users className="h-5 w-5 text-success" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.acceptedBids}</div>
+                                        <div className="text-sm text-muted-foreground">{t("seller.stats_confirmedOrders")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.acceptedBids}</div>
-                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_confirmedOrders")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("seller.stats.potentialRevenue")}</CardTitle>
-                                <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <IndianRupee className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                                        <IndianRupee className="h-5 w-5 text-success" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">₹{Number(stats.potentialRevenue).toFixed(2)}</div>
+                                        <div className="text-sm text-muted-foreground">{t("seller.stats_fromAcceptedBids")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">₹{Number(stats.potentialRevenue).toFixed(2)}</div>
-                                <p className="text-xs text-gray-500 mt-1">{t("seller.stats_fromAcceptedBids")}</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -1115,10 +1119,10 @@ export default function SellerDashboard() {
                         <div className="flex flex-col gap-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Package className="h-5 w-5 text-emerald-600" />
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.buyerOrders")}</h2>
-                                    <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} {t("seller.newBadge")}</Badge>
-                                    <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300">{liveOrders.length} {t("seller.liveBadge")}</Badge>
+                                    <Package className="h-5 w-5 text-muted-foreground" />
+                                    <h2 className="text-xl font-semibold text-foreground">{t("seller.buyerOrders")}</h2>
+                                    <Badge variant="info" className="ml-2">{newOrders.length} {t("seller.newBadge")}</Badge>
+                                    <Badge variant="success">{liveOrders.length} {t("seller.liveBadge")}</Badge>
                                 </div>
                                 <Button
                                     variant="ghost"
@@ -1136,7 +1140,7 @@ export default function SellerDashboard() {
                                 {/* Search Bar */}
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Search className="h-5 w-5 text-gray-400" />
+                                        <Search className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <Input
                                         type="text"
@@ -1205,12 +1209,12 @@ export default function SellerDashboard() {
                             {/* New Requests Section */}
                             {newOrders.length === 0 ? (
                                 orders.length === 0 ? (
-                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <Card className="p-12 text-center">
                                         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                                 <p className="text-muted-foreground">{t("seller.noOrders")}</p>
                                     </Card>
                                 ) : (
-                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <Card className="p-12 text-center">
                                         <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                         <p className="text-muted-foreground">{t("seller.noOrdersFiltered")}</p>
                                         <Button
@@ -1224,24 +1228,24 @@ export default function SellerDashboard() {
                                 )
                             ) : newOrders.length > 0 ? (
                                 <>
-                                    <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                                        <Package className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                        <h3 className="text-lg font-bold text-blue-700 dark:text-blue-400">{t("seller.newRequests")}</h3>
-                                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">{newOrders.length} {t("seller.available")}</Badge>
+                                    <div className="flex items-center gap-3 px-4 py-2 bg-info/10 rounded-lg border border-info/20">
+                                        <Package className="h-5 w-5 text-info" />
+                                        <h3 className="text-lg font-bold text-info">{t("seller.newRequests")}</h3>
+                                        <Badge variant="info">{newOrders.length} {t("seller.available")}</Badge>
                                     </div>
 
                                     {(showAllOrders ? newOrders : newOrders.slice(0, 5)).map((order) => (
-                                        <Card key={order.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 group">
+                                        <Card key={order.id} className="group">
                                             <CardHeader>
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center group-hover:scale-105 transition-transform">
-                                                            <ShoppingCart className="h-6 w-6 text-emerald-600" />
+                                                        <div className="h-12 w-12 rounded-lg bg-info/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                                            <ShoppingCart className="h-6 w-6 text-info" />
                                                         </div>
                                                         <div>
                                                             <CardTitle className="flex items-center gap-2">
                                                                 {localizedProductName(order.item?.name) || 'Unknown Item'}
-                                                                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{localizedProductMeta(order.item?.category)}</Badge>
+                                                                <Badge variant="secondary" className="bg-muted text-muted-foreground">{localizedProductMeta(order.item?.category)}</Badge>
                                                             </CardTitle>
                                                             <CardDescription>
                                                                 {t("seller.enquiryNumber")}: {order.id}
@@ -1281,7 +1285,6 @@ export default function SellerDashboard() {
                                                                 }))}
                                                             />
                                                             <Button
-                                                                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20"
                                                                 onClick={() => handleInlineBidSubmit(order)}
                                                                 disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
                                                             >
@@ -1294,35 +1297,35 @@ export default function SellerDashboard() {
                                             </CardHeader>
                                             <CardContent className="space-y-4">
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.product")}</Label>
                                                         <p className="text-sm font-bold truncate" title={localizedProductName(order.item?.name)}>{localizedProductName(order.item?.name) || 'N/A'}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.hsnCode")}</Label>
                                                         <p className="text-sm font-medium">{order.item?.specifications?.hsnCode || 'N/A'}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.quality")}</Label>
                                                         <p className="text-sm font-medium capitalize">{localizedProductMeta(order.item?.condition) || 'N/A'}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.size")}</Label>
                                                         <p className="text-sm font-medium">{localizedProductMeta(order.item?.size) || 'N/A'}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
-                                                        <p className="text-sm font-bold">{order.quantity} units</p>
+                                                        <p className="text-sm font-bold tabular-nums">{order.quantity} units</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.expectedDelivery")}</Label>
                                                         <p className="text-sm font-medium">{new Date(new Date(order.createdAt).setDate(new Date(order.createdAt).getDate() + 7)).toLocaleDateString()}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.pincode")}</Label>
-                                                        <p className="text-sm font-medium">{order.shippingAddress?.match(/\d{6}/)?.[0] || 'N/A'}</p>
+                                                        <p className="text-sm font-medium tabular-nums">{order.shippingAddress?.match(/\d{6}/)?.[0] || 'N/A'}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted/50 rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.bidRunningTill")}</Label>
                                                         <div className="flex items-center gap-2">
                                                             <ClockTimer
@@ -1341,7 +1344,7 @@ export default function SellerDashboard() {
                                     {newOrders.length > 5 && (
                                         <Button
                                             variant="outline"
-                                            className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                            className="w-full"
                                             onClick={() => setShowAllOrders(!showAllOrders)}
                                         >
                                             {showAllOrders ? (
@@ -1366,8 +1369,8 @@ export default function SellerDashboard() {
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5 text-emerald-600" />
-                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.myBids")}</h2>
+                                <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                                <h2 className="text-xl font-semibold text-foreground">{t("seller.myBids")}</h2>
                                 <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} {t("seller.bidCount")}</Badge>
                             </div>
                             <Button
@@ -1386,7 +1389,7 @@ export default function SellerDashboard() {
                             {/* Search Bar */}
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Search className="h-5 w-5 text-gray-400" />
+                                    <Search className="h-5 w-5 text-muted-foreground" />
                                 </div>
                                 <Input
                                     type="text"
@@ -1453,12 +1456,12 @@ export default function SellerDashboard() {
                         <div className="grid gap-6">
                             {filteredAndSortedBids.length === 0 ? (
                                 bids.length === 0 ? (
-                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <Card className="p-12 text-center">
                                         <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                         <p className="text-muted-foreground">{t("seller.noBidsYet")}</p>
                                     </Card>
                                 ) : (
-                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <Card className="p-12 text-center">
                                         <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                         <p className="text-muted-foreground">{t("seller.noBidsFiltered")}</p>
                                         <Button
@@ -1475,18 +1478,18 @@ export default function SellerDashboard() {
                                     {(showAllBids ? filteredAndSortedBids : filteredAndSortedBids.slice(0, 5)).map((bid) => {
                                         const order = orders.find(o => o.id === bid.orderId);
                                         return (
-                                            <Card key={bid.id} className="shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                            <Card key={bid.id}>
                                                 <CardHeader>
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                                                                <ShoppingCart className="h-6 w-6 text-emerald-600" />
+                                                            <div className="h-12 w-12 rounded-lg bg-success/10 flex items-center justify-center">
+                                                                <ShoppingCart className="h-6 w-6 text-success" />
                                                             </div>
                                                             <div>
                                                                 <CardTitle className="flex items-center gap-2">
                                                                     {localizedProductName(order?.item?.name) || 'Unknown Item'}
                                                                     {order?.item?.category && (
-                                                                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{localizedProductMeta(order.item.category)}</Badge>
+                                                                        <Badge variant="secondary" className="bg-muted text-muted-foreground">{localizedProductMeta(order.item.category)}</Badge>
                                                                     )}
                                                                 </CardTitle>
                                                                 <CardDescription>
@@ -1494,7 +1497,7 @@ export default function SellerDashboard() {
                                                                 </CardDescription>
                                                             </div>
                                                         </div>
-                                                        <Badge variant="outline" className={getStatusColor(bid.status)}>{t(`status.${bid.status}`)}</Badge>
+                                                        <Badge variant={getStatusVariant(bid.status)}>{t(`status.${bid.status}`)}</Badge>
                                                     </div>
                                                 </CardHeader>
                                                 <CardContent className="space-y-4">
@@ -1506,8 +1509,8 @@ export default function SellerDashboard() {
                                                             onClick={() => openEditBidDialog(bid)}
                                                             disabled={bid.status !== 'pending'}
                                                             className={`${bid.status === 'pending'
-                                                                ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30 border-0'
-                                                                : 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                                                ? 'bg-warning text-warning-foreground hover:bg-warning/90'
+                                                                : 'bg-muted text-muted-foreground cursor-not-allowed'
                                                                 }`}
                                                         >
                                                             <TrendingUp className="mr-2 h-4 w-4" />
@@ -1517,43 +1520,43 @@ export default function SellerDashboard() {
 
                                                     {/* Product Info */}
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
-                                                            <p className="text-lg font-bold">{order?.quantity || 'N/A'} {t("seller.units")}</p>
+                                                            <p className="text-lg font-bold tabular-nums">{order?.quantity || 'N/A'} {t("seller.units")}</p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.size")}</Label>
                                                             <p className="text-lg font-medium">{localizedProductMeta(order?.item?.size) || 'N/A'}</p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.qualityCondition")}</Label>
                                                             <p className="text-lg font-medium capitalize">{localizedProductMeta(order?.item?.condition) || 'N/A'}</p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.orderBudget")}</Label>
-                                                            <p className="text-lg font-medium text-gray-600">₹{Number(order?.totalPrice || 0).toFixed(2)}</p>
+                                                            <p className="text-lg font-medium text-muted-foreground tabular-nums">₹{Number(order?.totalPrice || 0).toFixed(2)}</p>
                                                         </div>
                                                     </div>
 
                                                     {/* Bid Info */}
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                            <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t("seller.bidAmount")}</Label>
-                                                            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">₹{Number(bid.bidAmount).toFixed(2)}</p>
+                                                        <div className="p-3 bg-success/10 rounded-lg border border-success/20">
+                                                            <Label className="text-xs text-success uppercase tracking-wider">{t("seller.bidAmount")}</Label>
+                                                            <p className="text-xl font-bold text-success tabular-nums">₹{Number(bid.bidAmount).toFixed(2)}</p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.estimatedDelivery")}</Label>
                                                             <p className="font-medium flex items-center gap-1">
                                                                 <Calendar className="h-4 w-4" />
                                                                 {new Date(bid.estimatedDelivery).toLocaleDateString()}
                                                             </p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.bidStatus")}</Label>
                                                             <p className="font-medium capitalize">{t(`status.${bid.status}`)}</p>
                                                         </div>
-                                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
-                                                            <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">{t("buyer.timeRemaining")}</Label>
+                                                        <div className="p-3 bg-warning/10 rounded-lg border border-warning/20">
+                                                            <Label className="text-xs text-warning uppercase tracking-wider">{t("buyer.timeRemaining")}</Label>
                                                             <ClockTimer
                                                                 endTime={order ? calculateBidEndTime(order) : new Date()}
                                                                 size={18}
@@ -1564,7 +1567,7 @@ export default function SellerDashboard() {
 
                                                     {/* Shipping Address */}
                                                     {order?.shippingAddress && (
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("buyer.deliveryAddress")}</Label>
                                                             <p className="font-medium mt-1">{order.shippingAddress}</p>
                                                         </div>
@@ -1572,16 +1575,16 @@ export default function SellerDashboard() {
 
                                                     {/* Customer Notes */}
                                                     {order?.notes && (
-                                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                            <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t("common.notes")}</Label>
+                                                        <div className="p-3 bg-info/10 rounded-lg border border-info/20">
+                                                            <Label className="text-xs text-info uppercase tracking-wider">{t("common.notes")}</Label>
                                                             <p className="font-medium mt-1 italic">"{order.notes}"</p>
                                                         </div>
                                                     )}
 
                                                     {/* Your Message */}
                                                     {bid.message && (
-                                                        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                            <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t("seller.message")}</Label>
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
+                                                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("seller.message")}</Label>
                                                             <p className="font-medium mt-1">"{bid.message}"</p>
                                                         </div>
                                                     )}
@@ -1592,7 +1595,7 @@ export default function SellerDashboard() {
                                     {filteredAndSortedBids.length > 5 && (
                                         <Button
                                             variant="outline"
-                                            className="w-full border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                            className="w-full"
                                             onClick={() => setShowAllBids(!showAllBids)}
                                         >
                                             {showAllBids ? (
@@ -1616,16 +1619,16 @@ export default function SellerDashboard() {
                     {/* Analytics Section */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2">
-                            <BarChart3 className="h-5 w-5 text-emerald-600" />
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("seller.analyticsOverview")}</h2>
+                            <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                            <h2 className="text-xl font-semibold text-foreground">{t("seller.analyticsOverview")}</h2>
                         </div>
 
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                             {/* Bid Status Pie Chart */}
-                            <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                            <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
-                                        <PieChart className="h-5 w-5 text-emerald-600" />
+                                    <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                                        <PieChart className="h-5 w-5 text-muted-foreground" />
                                         {t("seller.bidStatusDistribution")}
                                     </CardTitle>
                                     <CardDescription>{t("seller.bidOutcomesOverview")}</CardDescription>
@@ -1662,26 +1665,26 @@ export default function SellerDashboard() {
                                     )}
                                     <div className="flex justify-center gap-4 mt-4">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                                            <div className="h-3 w-3 rounded-full bg-warning" />
                                             <span className="text-xs text-muted-foreground">{t("status.pending")} ({stats.pendingBids})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-green-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.accepted")} ({stats.acceptedBids})</span>
+                                            <div className="h-3 w-3 rounded-full bg-success" />
+                                            <span className="text-xs text-muted-foreground">{t("status.accepted")} ({stats.acceptedBids})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-red-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.rejected")} ({stats.rejectedBids})</span>
+                                            <div className="h-3 w-3 rounded-full bg-destructive" />
+                                            <span className="text-xs text-muted-foreground">{t("status.rejected")} ({stats.rejectedBids})</span>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
                             {/* Success Rate Card */}
-                            <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                            <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
-                                        <TrendingUp className="h-5 w-5 text-emerald-600" />
+                                    <CardTitle className="flex items-center gap-2 text-lg text-foreground">
+                                        <TrendingUp className="h-5 w-5 text-muted-foreground" />
                                         {t("seller.performanceMetrics")}
                                     </CardTitle>
                                     <CardDescription>{t("seller.overallSuccessRate")}</CardDescription>
@@ -1690,50 +1693,50 @@ export default function SellerDashboard() {
                                     <div className="flex flex-col items-center">
                                         <div className="relative h-32 w-32">
                                             <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
-                                                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="text-gray-200 dark:text-gray-700" />
-                                                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" strokeDasharray={`${successRate * 2.51} 251`} className="text-emerald-500" strokeLinecap="round" />
+                                                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
+                                                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" strokeDasharray={`${successRate * 2.51} 251`} className="text-success" strokeLinecap="round" />
                                             </svg>
                                             <div className="absolute inset-0 flex items-center justify-center">
-                                                <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{successRate}%</span>
+                                                <span className="text-3xl font-bold text-foreground tabular-nums">{successRate}%</span>
                                             </div>
                                         </div>
                                         <p className="text-sm text-muted-foreground mt-2">{t("seller.bidSuccessRate")}</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
-                                            <p className="text-2xl font-bold text-emerald-600">{bids.length}</p>
+                                        <div className="text-center p-3 bg-success/10 rounded-lg">
+                                            <p className="text-2xl font-bold text-success tabular-nums">{bids.length}</p>
                                             <p className="text-xs text-muted-foreground">{t("seller.totalBids")}</p>
                                         </div>
-                                        <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                            <p className="text-2xl font-bold text-blue-600">₹{Number(stats.totalBidValue || 0).toFixed(0)}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{t("seller.totalValue")}</p>
+                                        <div className="text-center p-3 bg-info/10 rounded-lg">
+                                            <p className="text-2xl font-bold text-info tabular-nums">₹{Number(stats.totalBidValue || 0).toFixed(0)}</p>
+                                            <p className="text-xs text-muted-foreground">{t("seller.totalValue")}</p>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
                             {/* Revenue Summary */}
-                            <Card className="border border-emerald-200 dark:border-emerald-800 shadow-sm bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                            <Card className="bg-primary text-primary-foreground border-transparent">
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-white">
+                                    <CardTitle className="flex items-center gap-2 text-lg text-primary-foreground">
                                         <IndianRupee className="h-5 w-5" />
                                         {t("seller.revenueSummary")}
                                     </CardTitle>
-                                    <CardDescription className="text-emerald-100">{t("seller.earningsOverview")}</CardDescription>
+                                    <CardDescription className="text-primary-foreground/80">{t("seller.earningsOverview")}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-3">
-                                        <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-emerald-100">{t("seller.totalPotential")}</span>
-                                            <span className="text-xl font-bold">₹{Number(stats.totalBidValue).toFixed(2)}</span>
+                                        <div className="flex justify-between items-center p-3 bg-white/15 rounded-lg">
+                                            <span className="text-primary-foreground/80">{t("seller.totalPotential")}</span>
+                                            <span className="text-xl font-bold tabular-nums">₹{Number(stats.totalBidValue).toFixed(2)}</span>
                                         </div>
-                                        <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-emerald-100">{t("seller.confirmedRevenue")}</span>
-                                            <span className="text-xl font-bold">₹{Number(stats.potentialRevenue).toFixed(2)}</span>
+                                        <div className="flex justify-between items-center p-3 bg-white/15 rounded-lg">
+                                            <span className="text-primary-foreground/80">{t("seller.confirmedRevenue")}</span>
+                                            <span className="text-xl font-bold tabular-nums">₹{Number(stats.potentialRevenue).toFixed(2)}</span>
                                         </div>
-                                        <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-emerald-100">{t("seller.avgBidValue")}</span>
-                                            <span className="text-xl font-bold">
+                                        <div className="flex justify-between items-center p-3 bg-white/15 rounded-lg">
+                                            <span className="text-primary-foreground/80">{t("seller.avgBidValue")}</span>
+                                            <span className="text-xl font-bold tabular-nums">
                                                 ${bids.length > 0 ? (Number(stats.totalBidValue) / bids.length).toFixed(2) : '0.00'}
                                             </span>
                                         </div>
@@ -1744,10 +1747,10 @@ export default function SellerDashboard() {
 
                         {/* Full Width Charts */}
                         <div className="grid gap-6 lg:grid-cols-2">
-                            <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
-                                        <Activity className="h-5 w-5 text-emerald-600" />
+                                        <Activity className="h-5 w-5 text-muted-foreground" />
                                         {t("seller.monthlyRevenueTrends")}
                                     </CardTitle>
                                     <CardDescription>{t("seller.earningsOverTime")}</CardDescription>
@@ -1775,21 +1778,21 @@ export default function SellerDashboard() {
                                     </ChartContainer>
                                     <div className="flex justify-center gap-6 mt-4">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-emerald-500" />
+                                            <div className="h-3 w-3 rounded-full bg-success" />
                                             <span className="text-xs text-muted-foreground">{t("seller.acceptedRevenue")}</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-blue-500" />
+                                            <div className="h-3 w-3 rounded-full bg-info" />
                                             <span className="text-xs text-muted-foreground">{t("seller.totalBidValueLabel")}</span>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
-                            <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
-                                        <BarChart3 className="h-5 w-5 text-emerald-600" />
+                                        <BarChart3 className="h-5 w-5 text-muted-foreground" />
                                         {t("seller.last7DaysActivity")}
                                     </CardTitle>
                                     <CardDescription>{t("seller.recentBiddingActivity")}</CardDescription>
@@ -1807,7 +1810,7 @@ export default function SellerDashboard() {
                                                             <div className="bg-background border rounded-lg p-2 shadow-lg">
                                                                 <p className="text-sm font-medium">{payload[0].payload.day}</p>
                                                                 <p className="text-xs text-muted-foreground">{t('seller.bidsLabel')} {payload[0].payload.bids}</p>
-                                                                <p className="text-xs text-emerald-600">{t('seller.valueLabel')} ₹{payload[0].payload.value.toFixed(2)}</p>
+                                                                <p className="text-xs text-success">{t('seller.valueLabel')} ₹{payload[0].payload.value.toFixed(2)}</p>
                                                             </div>
                                                         );
                                                     }
@@ -1824,8 +1827,8 @@ export default function SellerDashboard() {
                         {/* Market Price Chart & Today's Prices */}
                         <div className="space-y-4 mt-6">
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5 text-green-600" />
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("cardamom.pageTitle")}</h3>
+                                <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                                <h3 className="text-lg font-semibold text-foreground">{t("cardamom.pageTitle")}</h3>
                                 {cardamomStats && (
                                     <span className="text-xs text-muted-foreground ml-2">
                                         {t("cardamom.lastUpdatedPrefix")} {new Date(cardamomStats.lastUpdated).toLocaleDateString('en-IN')}
@@ -1834,10 +1837,10 @@ export default function SellerDashboard() {
                             </div>
                             <div className="grid gap-6 lg:grid-cols-2">
                                 {/* Price History Chart */}
-                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2 text-lg">
-                                            <BarChart3 className="h-5 w-5 text-green-600" />
+                                            <BarChart3 className="h-5 w-5 text-muted-foreground" />
                                             {t("cardamom.priceHistoryTitle")}
                                         </CardTitle>
                                         <CardDescription>{t("cardamom.priceHistoryDesc")}</CardDescription>
@@ -1846,7 +1849,7 @@ export default function SellerDashboard() {
                                         {cardamomPriceChartData.length > 0 ? (
                                             <ChartContainer config={{ price: { label: t('cardamom.modalPriceLabel'), color: '#16a34a' } }} className="h-[250px] w-full">
                                                 <LineChart data={cardamomPriceChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                                                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                                                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
                                                     <ChartTooltip content={({ active, payload }) => {
@@ -1854,7 +1857,7 @@ export default function SellerDashboard() {
                                                             return (
                                                                 <div className="bg-background border rounded-lg p-2 shadow-lg">
                                                                     <p className="text-sm font-medium">{payload[0].payload.date}</p>
-                                                                    <p className="text-xs text-green-600">₹{payload[0].value}{t("common.perKg")}</p>
+                                                                    <p className="text-xs text-success tabular-nums">₹{payload[0].value}{t("common.perKg")}</p>
                                                                 </div>
                                                             );
                                                         }
@@ -1876,10 +1879,10 @@ export default function SellerDashboard() {
                                 </Card>
 
                                 {/* Today's Prices */}
-                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2 text-lg">
-                                            <Calendar className="h-5 w-5 text-green-600" />
+                                            <Calendar className="h-5 w-5 text-muted-foreground" />
                                             {t("cardamom.todaysPrices")}
                                         </CardTitle>
                                         <CardDescription>
@@ -1893,36 +1896,36 @@ export default function SellerDashboard() {
                                             <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                                                 {cardamomStats && (
                                                     <div className="grid grid-cols-3 gap-2 mb-3">
-                                                        <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                                        <div className="text-center p-2 bg-success/10 rounded-lg">
                                                             <p className="text-xs text-muted-foreground">{t("cardamom.minPrice")}</p>
-                                                            <p className="text-sm font-bold text-green-700 dark:text-green-400">₹{cardamomStats.minPrice}</p>
+                                                            <p className="text-sm font-bold text-success tabular-nums">₹{cardamomStats.minPrice}</p>
                                                         </div>
-                                                        <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                        <div className="text-center p-2 bg-info/10 rounded-lg">
                                                             <p className="text-xs text-muted-foreground">{t("cardamom.avgPrice")}</p>
-                                                            <p className="text-sm font-bold text-blue-700 dark:text-blue-400">₹{Math.round(cardamomStats.avgPrice)}</p>
+                                                            <p className="text-sm font-bold text-info tabular-nums">₹{Math.round(cardamomStats.avgPrice)}</p>
                                                         </div>
-                                                        <div className="text-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                                                        <div className="text-center p-2 bg-warning/10 rounded-lg">
                                                             <p className="text-xs text-muted-foreground">{t("cardamom.maxPrice")}</p>
-                                                            <p className="text-sm font-bold text-orange-700 dark:text-orange-400">₹{cardamomStats.maxPrice}</p>
+                                                            <p className="text-sm font-bold text-warning tabular-nums">₹{cardamomStats.maxPrice}</p>
                                                         </div>
                                                     </div>
                                                 )}
                                                 {todayCardamomPrices.slice(0, 8).map((p, i) => (
-                                                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{p.variety}</p>
+                                                            <p className="text-sm font-medium text-foreground truncate">{p.variety}</p>
                                                             <p className="text-xs text-muted-foreground truncate">{p.market}{p.state ? `, ${p.state}` : ''}</p>
                                                         </div>
                                                         <div className="text-right ml-3 flex-shrink-0">
-                                                            <p className="text-sm font-bold text-green-600">₹{p.modalPrice}<span className="text-xs font-normal text-muted-foreground">{t("common.perKg")}</span></p>
+                                                            <p className="text-sm font-bold text-success tabular-nums">₹{p.modalPrice}<span className="text-xs font-normal text-muted-foreground">{t("common.perKg")}</span></p>
                                                             {p.minPrice && p.maxPrice && (
-                                                                <p className="text-xs text-muted-foreground">₹{p.minPrice}–₹{p.maxPrice}</p>
+                                                                <p className="text-xs text-muted-foreground tabular-nums">₹{p.minPrice}–₹{p.maxPrice}</p>
                                                             )}
                                                         </div>
                                                     </div>
                                                 ))}
                                                 {todayCardamomPrices.length > 8 && (
-                                                    <p className="text-xs text-center text-muted-foreground pt-1">+{todayCardamomPrices.length - 8} more — <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.viewAll")}</a></p>
+                                                    <p className="text-xs text-center text-muted-foreground pt-1">+{todayCardamomPrices.length - 8} more — <a href="/dashboard/cardamom-prices" className="text-primary hover:underline">{t("cardamom.viewAll")}</a></p>
                                                 )}
                                             </div>
                                         ) : (
@@ -1931,7 +1934,7 @@ export default function SellerDashboard() {
                                                     <Calendar className="h-12 w-12 mx-auto mb-2 opacity-30" />
                                                     <p className="text-sm">{t("cardamom.noPricesToday")}</p>
                                                     <p className="text-xs mt-1">
-                                                        <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.refreshMarketData")}</a>
+                                                        <a href="/dashboard/cardamom-prices" className="text-primary hover:underline">{t("cardamom.refreshMarketData")}</a>
                                                     </p>
                                                 </div>
                                             </div>
@@ -2009,7 +2012,6 @@ export default function SellerDashboard() {
                                     {t("common.cancel")}
                                 </Button>
                                 <Button
-                                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/20"
                                     onClick={editingBid ? updateExistingBid : submitBid}
                                     disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
                                 >

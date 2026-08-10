@@ -75,18 +75,18 @@ export default function AdminDashboard() {
         totalRevenue: orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.totalPrice, 0),
     };
 
-    const getStatusColor = (status: string) => {
-        const colors: Record<string, string> = {
-            pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-200',
-            accepted: 'bg-blue-500/10 text-blue-600 border-blue-200',
-            rejected: 'bg-red-500/10 text-red-600 border-red-200',
-            completed: 'bg-green-500/10 text-green-600 border-green-200',
-            cancelled: 'bg-gray-500/10 text-gray-600 border-gray-200',
-            active: 'bg-green-500/10 text-green-600 border-green-200',
-            sold: 'bg-blue-500/10 text-blue-600 border-blue-200',
-            inactive: 'bg-gray-500/10 text-gray-600 border-gray-200',
+    const getStatusVariant = (status: string): 'success' | 'warning' | 'destructive' | 'secondary' => {
+        const variants: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
+            pending: 'warning',
+            accepted: 'success',
+            rejected: 'destructive',
+            completed: 'success',
+            cancelled: 'destructive',
+            active: 'success',
+            sold: 'secondary',
+            inactive: 'secondary',
         };
-        return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-200';
+        return variants[status] || 'secondary';
     };
 
     const fetchData = useCallback(async () => {
@@ -301,7 +301,7 @@ export default function AdminDashboard() {
             <DashboardLayout role="admin">
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-rose-600 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
                         <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
                     </div>
                 </div>
@@ -325,24 +325,20 @@ export default function AdminDashboard() {
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                            <h1 className="text-2xl font-bold text-foreground tracking-tight">
                                 {t("admin.pageTitle")}
                             </h1>
-                            <p className="text-muted-foreground mt-1">Complete control over marketplace operations</p>
+                            <p className="text-muted-foreground mt-1 text-sm">Complete control over marketplace operations</p>
                         </div>
                         <div className="flex gap-3">
                             <Button
                                 variant="outline"
-                                className="border-rose-200 dark:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all hover:scale-105"
                                 onClick={() => setIsAddSellerDialogOpen(true)}
                             >
-                                <UserPlus className="mr-2 h-4 w-4 text-rose-600" />
+                                <UserPlus className="mr-2 h-4 w-4" />
                                 {t("admin.addSeller")}
                             </Button>
-                            <Button
-                                className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20 transition-all hover:scale-105"
-                                onClick={() => setIsAddItemDialogOpen(true)}
-                            >
+                            <Button onClick={() => setIsAddItemDialogOpen(true)}>
                                 <Plus className="mr-2 h-4 w-4" />
                                 {t("admin.addItem")}
                             </Button>
@@ -350,85 +346,93 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Stats Cards */}
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalItems")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Package className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                        <Package className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalItems}</div>
+                                        <div className="text-sm text-muted-foreground">{t("admin.stats.totalItems")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalItems}</div>
-                                <p className="text-xs text-muted-foreground mt-1">{stats.activeItems} active items</p>
+                                <p className="text-xs text-muted-foreground mt-3">{stats.activeItems} active items</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalOrders")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <ShoppingCart className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center shrink-0">
+                                        <ShoppingCart className="h-5 w-5 text-info" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalOrders}</div>
+                                        <div className="text-sm text-muted-foreground">{t("admin.stats.totalOrders")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalOrders}</div>
-                                <p className="text-xs text-muted-foreground mt-1">{stats.pendingOrders} pending</p>
+                                <p className="text-xs text-muted-foreground mt-3">{stats.pendingOrders} pending</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalRevenue")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
+                                        <TrendingUp className="h-5 w-5 text-success" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">${stats.totalRevenue.toFixed(2)}</div>
+                                        <div className="text-sm text-muted-foreground">{t("admin.stats.totalRevenue")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">${stats.totalRevenue.toFixed(2)}</div>
-                                <p className="text-xs text-muted-foreground mt-1">From completed orders</p>
+                                <p className="text-xs text-muted-foreground mt-3">From completed orders</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-xl transition-all duration-300 group">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("admin.stats.totalUsers")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Users className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-accent flex items-center justify-center shrink-0">
+                                        <Users className="h-5 w-5 text-accent-foreground" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalUsers}</div>
+                                        <div className="text-sm text-muted-foreground">{t("admin.stats.totalUsers")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalUsers}</div>
-                                <p className="text-xs text-muted-foreground mt-1">Registered users</p>
+                                <p className="text-xs text-muted-foreground mt-3">Registered users</p>
                             </CardContent>
                         </Card>
                     </div>
 
                     {/* Main Content */}
                     <Tabs defaultValue="items" className="space-y-6">
-                        <TabsList className="bg-white dark:bg-gray-900 p-1 border border-gray-200 dark:border-gray-800 rounded-xl">
-                            <TabsTrigger value="items" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("admin.manageItems")}</TabsTrigger>
-                            <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("admin.manageOrders")}</TabsTrigger>
-                            <TabsTrigger value="bids" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("buyer.totalBids")}</TabsTrigger>
-                            <TabsTrigger value="users" className="rounded-lg data-[state=active]:bg-rose-100 data-[state=active]:text-rose-700">{t("admin.manageUsers")}</TabsTrigger>
+                        <TabsList className="bg-card p-1 border border-border rounded-xl">
+                            <TabsTrigger value="items" className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">{t("admin.manageItems")}</TabsTrigger>
+                            <TabsTrigger value="orders" className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">{t("admin.manageOrders")}</TabsTrigger>
+                            <TabsTrigger value="bids" className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">{t("buyer.totalBids")}</TabsTrigger>
+                            <TabsTrigger value="users" className="rounded-lg data-[state=active]:bg-primary/10 data-[state=active]:text-primary">{t("admin.manageUsers")}</TabsTrigger>
                         </TabsList>
 
                         {/* Items Tab */}
                         <TabsContent value="items" className="space-y-6">
                             <div className="grid gap-6">
                                 {items.map((item) => (
-                                    <Card key={item.id} className="shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 group">
+                                    <Card key={item.id} className="group">
                                         <CardHeader>
                                             <div className="flex items-center justify-between">
                                                 <div className="flex-1">
                                                     <CardTitle className="flex items-center gap-2">
                                                         {item.name}
-                                                        <Badge variant="outline" className={getStatusColor(item.status)}>{item.status}</Badge>
+                                                        <Badge variant={getStatusVariant(item.status)}>{item.status}</Badge>
                                                     </CardTitle>
                                                     <CardDescription>{item.description}</CardDescription>
                                                 </div>
                                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Button variant="outline" size="icon" onClick={() => openEditDialog(item)} className="hover:bg-gray-100 dark:hover:bg-gray-800">
+                                                    <Button variant="outline" size="icon" onClick={() => openEditDialog(item)}>
                                                         <Edit className="h-4 w-4" />
                                                     </Button>
                                                     <AlertDialog>
@@ -446,7 +450,7 @@ export default function AdminDashboard() {
                                                             </AlertDialogHeader>
                                                             <AlertDialogFooter>
                                                                 <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                                                                <AlertDialogAction onClick={() => handleDeleteItem(item.id)} className="bg-red-600 hover:bg-red-700">
+                                                                <AlertDialogAction onClick={() => handleDeleteItem(item.id)} className="bg-destructive text-white hover:bg-destructive/90">
                                                                     {t("common.delete")}
                                                                 </AlertDialogAction>
                                                             </AlertDialogFooter>
@@ -457,33 +461,33 @@ export default function AdminDashboard() {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                                <div className="p-3 bg-rose-50 dark:bg-rose-900/10 rounded-lg border border-rose-100 dark:border-rose-900/20">
-                                                    <Label className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider">{t("common.price")}</Label>
-                                                    <p className="text-lg font-bold text-rose-600 dark:text-rose-400">${item.price}</p>
+                                                <div className="p-3 bg-muted/50 rounded-lg">
+                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.price")}</Label>
+                                                    <p className="text-lg font-bold text-foreground tabular-nums">${item.price}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Size</Label>
                                                     <p className="font-medium">{item.size}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.category")}</Label>
                                                     <p className="font-medium">{item.category}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Condition</Label>
                                                     <p className="font-medium capitalize">{item.condition}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Stock</Label>
-                                                    <p className="font-medium">{item.quantity} units</p>
+                                                    <p className="font-medium tabular-nums">{item.quantity} units</p>
                                                 </div>
                                             </div>
                                             {item.specifications && Object.keys(item.specifications).length > 0 && (
                                                 <div className="mt-4">
-                                                    <Label className="font-semibold mb-2 block text-sm uppercase tracking-wider text-gray-500">Specifications</Label>
+                                                    <Label className="font-semibold mb-2 block text-sm uppercase tracking-wider text-muted-foreground">Specifications</Label>
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                                         {Object.entries(item.specifications).map(([key, value]) => (
-                                                            <div key={key} className="bg-white dark:bg-gray-950 p-2 rounded border border-gray-100 dark:border-gray-800 text-sm">
+                                                            <div key={key} className="bg-background p-2 rounded border border-border text-sm">
                                                                 <p className="text-muted-foreground text-xs">{key}</p>
                                                                 <p className="font-medium">{value}</p>
                                                             </div>
@@ -501,13 +505,13 @@ export default function AdminDashboard() {
                         <TabsContent value="orders" className="space-y-6">
                             <div className="grid gap-6">
                                 {orders.map((order) => (
-                                    <Card key={order.id} className="shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 group">
+                                    <Card key={order.id} className="group">
                                         <CardHeader>
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <CardTitle className="flex items-center gap-2">
                                                         Order #{order.id}
-                                                        <Badge variant="outline" className={getStatusColor(order.status)}>{order.status}</Badge>
+                                                        <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
                                                     </CardTitle>
                                                     <CardDescription>
                                                         {order.item?.name} • Buyer: {order.buyer?.name}
@@ -528,7 +532,7 @@ export default function AdminDashboard() {
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-red-600 hover:bg-red-700">
+                                                            <AlertDialogAction onClick={() => handleDeleteOrder(order.id)} className="bg-destructive text-white hover:bg-destructive/90">
                                                                 Delete
                                                             </AlertDialogAction>
                                                         </AlertDialogFooter>
@@ -538,29 +542,29 @@ export default function AdminDashboard() {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
-                                                    <p className="font-medium">{order.quantity} units</p>
+                                                    <p className="font-medium tabular-nums">{order.quantity} units</p>
                                                 </div>
-                                                <div className="p-3 bg-rose-50 dark:bg-rose-900/10 rounded-lg border border-rose-100 dark:border-rose-900/20">
-                                                    <Label className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider">Total Price</Label>
-                                                    <p className="font-bold text-rose-600 dark:text-rose-400">${Number(order.totalPrice).toFixed(2)}</p>
+                                                <div className="p-3 bg-muted/50 rounded-lg">
+                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Total Price</Label>
+                                                    <p className="font-bold text-foreground tabular-nums">${Number(order.totalPrice).toFixed(2)}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Created</Label>
                                                     <p className="font-medium">{new Date(order.createdAt).toLocaleDateString()}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Updated</Label>
                                                     <p className="font-medium">{new Date(order.updatedAt).toLocaleDateString()}</p>
                                                 </div>
                                             </div>
-                                            <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                            <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border">
                                                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Shipping Address</Label>
                                                 <p className="font-medium">{order.shippingAddress}</p>
                                             </div>
                                             {order.notes && (
-                                                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                <div className="mt-2 p-3 bg-muted/50 rounded-lg border border-border">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Notes</Label>
                                                     <p className="font-medium">{order.notes}</p>
                                                 </div>
@@ -575,13 +579,13 @@ export default function AdminDashboard() {
                         <TabsContent value="bids" className="space-y-6">
                             <div className="grid gap-6">
                                 {bids.map((bid) => (
-                                    <Card key={bid.id} className="shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <Card key={bid.id}>
                                         <CardHeader>
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <CardTitle className="flex items-center gap-2">
                                                         Bid #{bid.id}
-                                                        <Badge variant="outline" className={getStatusColor(bid.status)}>{bid.status}</Badge>
+                                                        <Badge variant={getStatusVariant(bid.status)}>{bid.status}</Badge>
                                                     </CardTitle>
                                                     <CardDescription>
                                                         Order #{bid.orderId} • Seller: {bid.seller?.name}
@@ -591,21 +595,21 @@ export default function AdminDashboard() {
                                         </CardHeader>
                                         <CardContent>
                                             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                <div className="p-3 bg-rose-50 dark:bg-rose-900/10 rounded-lg border border-rose-100 dark:border-rose-900/20">
-                                                    <Label className="text-xs text-rose-600 dark:text-rose-400 uppercase tracking-wider">Bid Amount</Label>
-                                                    <p className="text-lg font-bold text-rose-600 dark:text-rose-400">${Number(bid.bidAmount).toFixed(2)}</p>
+                                                <div className="p-3 bg-muted/50 rounded-lg">
+                                                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Bid Amount</Label>
+                                                    <p className="text-lg font-bold text-foreground tabular-nums">${Number(bid.bidAmount).toFixed(2)}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Estimated Delivery</Label>
                                                     <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                 </div>
-                                                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-3 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Created</Label>
                                                     <p className="font-medium">{new Date(bid.createdAt).toLocaleDateString()}</p>
                                                 </div>
                                             </div>
                                             {bid.message && (
-                                                <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Message</Label>
                                                     <p className="font-medium mt-1">"{bid.message}"</p>
                                                 </div>
@@ -620,10 +624,10 @@ export default function AdminDashboard() {
                         <TabsContent value="users" className="space-y-6">
                             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                                 {users.map((user) => (
-                                    <Card key={user.id} className="shadow-md hover:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 group">
+                                    <Card key={user.id}>
                                         <CardHeader>
                                             <div className="flex items-center gap-4">
-                                                <div className="h-14 w-14 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-rose-500/20 group-hover:scale-110 transition-transform">
+                                                <div className="h-14 w-14 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-xl">
                                                     {user.name.charAt(0)}
                                                 </div>
                                                 <div>
@@ -633,20 +637,20 @@ export default function AdminDashboard() {
                                             </div>
                                         </CardHeader>
                                         <CardContent className="space-y-3">
-                                            <div className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                            <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
                                                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Role</Label>
                                                 <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
                                                     {user.role}
                                                 </Badge>
                                             </div>
                                             {user.phone && (
-                                                <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-2 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Phone</Label>
                                                     <p className="font-medium text-sm">{user.phone}</p>
                                                 </div>
                                             )}
                                             {user.whatsappNumber && (
-                                                <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-2 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">WhatsApp</Label>
                                                     <p className="font-medium text-sm">{user.whatsappNumber}</p>
                                                     <p className="text-xs text-muted-foreground mt-1">
@@ -655,12 +659,12 @@ export default function AdminDashboard() {
                                                 </div>
                                             )}
                                             {user.address && (
-                                                <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                <div className="p-2 bg-muted/50 rounded-lg">
                                                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Address</Label>
                                                     <p className="font-medium text-sm truncate">{user.address}</p>
                                                 </div>
                                             )}
-                                            <div className="p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                            <div className="p-2 bg-muted/50 rounded-lg">
                                                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Joined</Label>
                                                 <p className="font-medium text-sm">{new Date(user.createdAt).toLocaleDateString()}</p>
                                             </div>
@@ -800,10 +804,7 @@ export default function AdminDashboard() {
                                 <Button variant="outline" onClick={() => { setIsAddItemDialogOpen(false); resetItemForm(); }}>
                                     Cancel
                                 </Button>
-                                <Button
-                                    className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20"
-                                    onClick={handleAddItem}
-                                >
+                                <Button onClick={handleAddItem}>
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Item
                                 </Button>
@@ -816,7 +817,7 @@ export default function AdminDashboard() {
                         <DialogContent className="max-w-md">
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
-                                    <UserPlus className="h-5 w-5 text-rose-600" />
+                                    <UserPlus className="h-5 w-5 text-primary" />
                                     Add New Seller
                                 </DialogTitle>
                                 <DialogDescription>
@@ -902,13 +903,12 @@ export default function AdminDashboard() {
                                     Cancel
                                 </Button>
                                 <Button
-                                    className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20"
                                     onClick={handleAddSeller}
                                     disabled={isCreatingSeller}
                                 >
                                     {isCreatingSeller ? (
                                         <div className="flex items-center gap-2">
-                                            <div className="h-4 w-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                                            <div className="h-4 w-4 border-2 border-primary-foreground/50 border-t-primary-foreground rounded-full animate-spin" />
                                             Creating...
                                         </div>
                                     ) : (
@@ -1045,10 +1045,7 @@ export default function AdminDashboard() {
                                 <Button variant="outline" onClick={() => { setIsEditItemDialogOpen(false); resetItemForm(); }}>
                                     Cancel
                                 </Button>
-                                <Button
-                                    className="bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white shadow-lg shadow-rose-500/20"
-                                    onClick={handleEditItem}
-                                >
+                                <Button onClick={handleEditItem}>
                                     <Edit className="mr-2 h-4 w-4" />
                                     Update Item
                                 </Button>

@@ -91,13 +91,13 @@ export default function CreateRFQPage() {
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to RFQs
         </Link>
-        <h1 className="text-2xl font-bold text-foreground">Create New RFQ</h1>
-        <p className="text-muted-foreground mt-1">Fill in the details for your Request for Quote</p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Create New RFQ</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Fill in the details for your Request for Quote</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>RFQ Details</CardTitle>
+          <CardTitle className="text-lg font-semibold">RFQ Details</CardTitle>
           <CardDescription>Provide product information and requirements</CardDescription>
         </CardHeader>
         <CardContent>
@@ -184,7 +184,7 @@ export default function CreateRFQPage() {
 
             <div className="flex gap-3 pt-4">
               <Link href="/dashboard" className="flex-1">
-                <Button type="button" variant="outline" className="w-full bg-transparent">
+                <Button type="button" variant="outline" className="w-full">
                   Cancel
                 </Button>
               </Link>

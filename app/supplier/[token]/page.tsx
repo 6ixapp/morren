@@ -43,6 +43,13 @@ import {
   Edit,
 } from "lucide-react"
 
+const rfqStatusConfig: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning"> = {
+  DRAFT: "secondary",
+  OPEN: "warning",
+  CLOSED: "outline",
+  AWARDED: "success",
+}
+
 export default function SupplierPortalPage() {
   const params = useParams()
   const token = params.token as string
@@ -283,10 +290,10 @@ export default function SupplierPortalPage() {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div>
-                <CardTitle className="text-xl">{rfq.productName}</CardTitle>
-                <CardDescription>Request for Quote</CardDescription>
+                <CardTitle className="text-2xl font-bold tracking-tight">{rfq.productName}</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground">Request for Quote</CardDescription>
               </div>
-              <Badge variant={isAwarded ? "default" : "secondary"}>{rfq.status}</Badge>
+              <Badge variant={rfqStatusConfig[rfq.status] ?? "outline"}>{rfq.status}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -297,7 +304,7 @@ export default function SupplierPortalPage() {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Quantity</div>
-                  <div className="font-medium text-foreground">
+                  <div className="font-medium text-foreground tabular-nums">
                     {rfq.quantity} {rfq.unit}
                   </div>
                 </div>
@@ -343,7 +350,7 @@ export default function SupplierPortalPage() {
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">Current Lowest Bid</div>
-                    <div className="text-xl font-bold text-foreground">
+                    <div className="text-xl font-bold text-foreground tabular-nums">
                       ₹{lowestQuote.pricePerUnit.toLocaleString()}/unit
                     </div>
                   </div>
@@ -376,16 +383,16 @@ export default function SupplierPortalPage() {
                   {isLowestBidder ? (
                     <>
                       <div className="font-medium text-foreground">You are the lowest bidder right now!</div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground tabular-nums">
                         Your quote: ₹{myQuote.pricePerUnit.toLocaleString()}/unit
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="font-medium text-foreground">
+                      <div className="font-medium text-foreground tabular-nums">
                         You are {myDiff?.toFixed(1)}% above the lowest bid
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground tabular-nums">
                         Your quote: ₹{myQuote.pricePerUnit.toLocaleString()}/unit • Lowest: ₹
                         {lowestQuote?.pricePerUnit.toLocaleString()}/unit
                       </div>
@@ -445,7 +452,7 @@ export default function SupplierPortalPage() {
                       readOnly
                       className="bg-muted"
                     />
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground tabular-nums">
                       {rfq.quantity} {rfq.unit} × ₹{formData.pricePerUnit || 0}
                     </p>
                   </div>
@@ -526,19 +533,19 @@ export default function SupplierPortalPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <div className="text-sm text-muted-foreground">Price per Unit</div>
-                  <div className="text-lg font-bold text-foreground">₹{myQuote.pricePerUnit.toLocaleString()}</div>
+                  <div className="text-lg font-bold text-foreground tabular-nums">₹{myQuote.pricePerUnit.toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Total Price</div>
-                  <div className="text-lg font-bold text-foreground">₹{myQuote.totalPrice.toLocaleString()}</div>
+                  <div className="text-lg font-bold text-foreground tabular-nums">₹{myQuote.totalPrice.toLocaleString()}</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Delivery</div>
-                  <div className="font-medium text-foreground">{myQuote.deliveryDays} days</div>
+                  <div className="font-medium text-foreground tabular-nums">{myQuote.deliveryDays} days</div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Validity</div>
-                  <div className="font-medium text-foreground">{myQuote.validityDays} days</div>
+                  <div className="font-medium text-foreground tabular-nums">{myQuote.validityDays} days</div>
                 </div>
               </div>
               {myQuote.notes && (

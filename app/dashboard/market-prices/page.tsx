@@ -173,8 +173,8 @@ export default function MarketPricesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Market Prices</h1>
-          <p className="text-muted-foreground mt-1">Track and analyze market price trends</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Market Prices</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Track and analyze market price trends</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -257,33 +257,34 @@ export default function MarketPricesPage() {
           <CardContent>
             <ResponsiveContainer width="100%" height={400}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#e5e7eb"} />
-                <XAxis dataKey="date" stroke={isDark ? "#9ca3af" : "#6b7280"} />
-                <YAxis stroke={isDark ? "#9ca3af" : "#6b7280"} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" stroke="var(--muted-foreground)" />
+                <YAxis stroke="var(--muted-foreground)" />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: isDark ? "#1f2937" : "#ffffff",
-                    border: `1px solid ${isDark ? "#374151" : "#e5e7eb"}`,
+                    backgroundColor: "var(--popover)",
+                    border: "1px solid var(--border)",
                     borderRadius: "8px",
+                    color: "var(--popover-foreground)",
                   }}
                 />
                 <Legend />
                 <Line
                   type="monotone"
                   dataKey="price"
-                  stroke="#3b82f6"
+                  stroke="var(--chart-1)"
                   strokeWidth={2}
                   name="Market Price (₹)"
-                  dot={{ fill: "#3b82f6", r: 4 }}
+                  dot={{ fill: "var(--chart-1)", r: 4 }}
                 />
                 {rfqQuotes.length > 0 && (
                   <Line
                     type="monotone"
                     dataKey="quotePrice"
-                    stroke="#10b981"
+                    stroke="var(--chart-2)"
                     strokeWidth={2}
                     name="RFQ Quotes (₹)"
-                    dot={{ fill: "#10b981", r: 4 }}
+                    dot={{ fill: "var(--chart-2)", r: 4 }}
                   />
                 )}
               </LineChart>
@@ -315,7 +316,7 @@ export default function MarketPricesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead>Price (₹)</TableHead>
+                    <TableHead className="text-right">Price (₹)</TableHead>
                     <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -325,8 +326,8 @@ export default function MarketPricesPage() {
                     .map((price) => (
                       <TableRow key={price.id}>
                         <TableCell className="font-medium">{price.productName}</TableCell>
-                        <TableCell>
-                          <span className="font-bold text-primary">₹{price.price.toLocaleString()}</span>
+                        <TableCell className="text-right">
+                          <span className="font-bold text-foreground tabular-nums">₹{price.price.toLocaleString()}</span>
                         </TableCell>
                         <TableCell>{format(new Date(price.date), "MMM dd, yyyy")}</TableCell>
                       </TableRow>

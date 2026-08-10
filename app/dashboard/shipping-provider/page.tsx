@@ -334,9 +334,9 @@ export default function ShippingProviderDashboard() {
         const accepted = bids.filter(b => b.status === 'accepted').length;
         const rejected = bids.filter(b => b.status === 'rejected').length;
         return [
-            { name: 'Pending', value: pending, fill: '#eab308' },
-            { name: 'Accepted', value: accepted, fill: '#22c55e' },
-            { name: 'Rejected', value: rejected, fill: '#ef4444' },
+            { name: 'Pending', value: pending, fill: '#d97706' },
+            { name: 'Accepted', value: accepted, fill: '#149e61' },
+            { name: 'Rejected', value: rejected, fill: '#d92d20' },
         ].filter(item => item.value > 0);
     }, [bids]);
 
@@ -460,19 +460,19 @@ export default function ShippingProviderDashboard() {
 
         if (isOnlyBidder) {
             return (
-                <div className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 border rounded-xl p-6 mb-6 shadow-sm">
+                <div className="bg-info/10 border-info/30 border rounded-xl p-6 mb-6">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 text-blue-700 dark:text-blue-300 font-bold text-lg">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-full">
+                        <div className="flex items-center gap-3 text-info font-bold text-lg">
+                            <div className="p-2 bg-info/15 rounded-full">
                                 <Trophy className="h-6 w-6" />
                             </div>
                             <span>You're the only shipping bidder!</span>
                         </div>
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 px-3 py-1 text-sm">
+                        <Badge variant="info" className="px-3 py-1 text-sm">
                             Leading
                         </Badge>
                     </div>
-                    <p className="text-blue-600 dark:text-blue-400 mt-3 ml-14">
+                    <p className="text-info/90 mt-3 ml-14">
                         Your shipping bid is currently the only offer for this order.
                     </p>
                 </div>
@@ -483,53 +483,53 @@ export default function ShippingProviderDashboard() {
         const bidRange = highestBid - lowestBid;
         const positionPercent = bidRange > 0 ? ((myBid - lowestBid) / bidRange) * 100 : 0;
 
-        let bgColor = 'bg-yellow-500';
-        let textColor = 'text-yellow-700 dark:text-yellow-300';
-        let bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
-        let borderColor = 'border-yellow-200 dark:border-yellow-800';
+        let bgColor = 'bg-warning';
+        let textColor = 'text-warning';
+        let bgLight = 'bg-warning/10';
+        let borderColor = 'border-warning/30';
         let icon = <Minus className="h-5 w-5" />;
         let message = '';
         let statusTitle = '';
 
         if (isLowest) {
-            bgColor = 'bg-green-500';
-            textColor = 'text-green-700 dark:text-green-300';
-            bgLight = 'bg-green-50 dark:bg-green-900/20';
-            borderColor = 'border-green-200 dark:border-green-800';
+            bgColor = 'bg-success';
+            textColor = 'text-success';
+            bgLight = 'bg-success/10';
+            borderColor = 'border-success/30';
             icon = <Trophy className="h-5 w-5" />;
             statusTitle = "Best Shipping Price!";
             message = "You have the lowest shipping bid";
         } else if (diffFromLowest <= 5) {
-            bgColor = 'bg-green-400';
-            textColor = 'text-green-700 dark:text-green-300';
-            bgLight = 'bg-green-50 dark:bg-green-900/20';
-            borderColor = 'border-green-200 dark:border-green-800';
+            bgColor = 'bg-success';
+            textColor = 'text-success';
+            bgLight = 'bg-success/10';
+            borderColor = 'border-success/30';
             icon = <ArrowDown className="h-5 w-5" />;
             statusTitle = "Very Competitive";
             message = `Only ${diffFromLowest.toFixed(1)}% above lowest`;
         } else if (diffFromLowest <= 15) {
-            bgColor = 'bg-yellow-500';
-            textColor = 'text-yellow-700 dark:text-yellow-300';
-            bgLight = 'bg-yellow-50 dark:bg-yellow-900/20';
-            borderColor = 'border-yellow-200 dark:border-yellow-800';
+            bgColor = 'bg-warning';
+            textColor = 'text-warning';
+            bgLight = 'bg-warning/10';
+            borderColor = 'border-warning/30';
             icon = <AlertTriangle className="h-5 w-5" />;
             statusTitle = "Competitive";
             message = `${diffFromLowest.toFixed(1)}% higher than lowest`;
         } else {
-            bgColor = 'bg-red-500';
-            textColor = 'text-red-700 dark:text-red-300';
-            bgLight = 'bg-red-50 dark:bg-red-900/20';
-            borderColor = 'border-red-200 dark:border-red-800';
+            bgColor = 'bg-destructive';
+            textColor = 'text-destructive';
+            bgLight = 'bg-destructive/10';
+            borderColor = 'border-destructive/30';
             icon = <ArrowUp className="h-5 w-5" />;
             statusTitle = "High Price";
             message = `${diffFromLowest.toFixed(1)}% higher than lowest`;
         }
 
         return (
-            <div className={`${bgLight} ${borderColor} border rounded-xl p-5 mb-6 shadow-sm`}>
+            <div className={`${bgLight} ${borderColor} border rounded-xl p-5 mb-6`}>
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full ${bgColor} bg-opacity-20`}>
+                        <div className={`p-2 rounded-full ${bgLight}`}>
                             {icon}
                         </div>
                         <div>
@@ -538,23 +538,23 @@ export default function ShippingProviderDashboard() {
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">#{myPosition}</div>
+                        <div className="text-2xl font-bold text-foreground tabular-nums">#{myPosition}</div>
                         <div className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Rank</div>
                     </div>
                 </div>
 
                 <div className="relative mt-8 mb-2 px-2">
                     <div className="flex justify-between text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
-                        <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                        <span className="flex items-center gap-1 text-success tabular-nums">
                             Best Price (${lowestBid.toFixed(0)})
                         </span>
-                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400">
+                        <span className="flex items-center gap-1 text-destructive tabular-nums">
                             Highest (${highestBid.toFixed(0)})
                         </span>
                     </div>
 
-                    <div className="h-3 w-full rounded-full relative bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-yellow-400 to-red-500 opacity-80"></div>
+                    <div className="h-3 w-full rounded-full relative bg-muted overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-success via-warning to-destructive opacity-80"></div>
                     </div>
 
                     <div
@@ -562,20 +562,20 @@ export default function ShippingProviderDashboard() {
                         style={{ left: `calc(${Math.max(0, Math.min(100, positionPercent))}% - 1rem)` }}
                     >
                         <div className="relative mt-3">
-                            <div className={`w-8 h-8 ${bgColor} rounded-full border-4 border-white dark:border-gray-900 shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform`}>
+                            <div className={`w-8 h-8 ${bgColor} rounded-full border-4 border-card shadow-xl flex items-center justify-center transform hover:scale-110 transition-transform`}>
                                 <div className="w-2 h-2 bg-white rounded-full" />
                             </div>
 
-                            <div className={`absolute -top-14 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-lg flex flex-col items-center ${isLowest ? 'bg-green-600' : 'bg-gray-900'}`}>
+                            <div className={`absolute -top-14 left-1/2 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-bold shadow-lg flex flex-col items-center ${isLowest ? 'bg-success text-success-foreground' : 'bg-foreground text-background'}`}>
                                 <span>YOU</span>
-                                <span className="text-[10px] font-normal opacity-90">${myBid.toFixed(0)}</span>
-                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent" style={{ borderTopColor: isLowest ? '#16a34a' : '#111827' }}></div>
+                                <span className="text-[10px] font-normal opacity-90 tabular-nums">${myBid.toFixed(0)}</span>
+                                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent" style={{ borderTopColor: isLowest ? 'var(--success)' : 'var(--foreground)' }}></div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200 dark:border-gray-700/50 text-sm">
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-border text-sm">
                     <span className="text-muted-foreground font-medium">
                         <Users className="h-4 w-4 inline mr-1.5 mb-0.5" />
                         {competitorCount} other provider{competitorCount !== 1 ? 's' : ''}
@@ -590,15 +590,15 @@ export default function ShippingProviderDashboard() {
         );
     };
 
-    const getStatusColor = (status: string) => {
-        const colors: Record<string, string> = {
-            pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-200',
-            accepted: 'bg-blue-500/10 text-blue-600 border-blue-200',
-            rejected: 'bg-red-500/10 text-red-600 border-red-200',
-            completed: 'bg-green-500/10 text-green-600 border-green-200',
-            cancelled: 'bg-gray-500/10 text-gray-600 border-gray-200',
+    const getStatusVariant = (status: string): 'success' | 'warning' | 'destructive' | 'secondary' => {
+        const variants: Record<string, 'success' | 'warning' | 'destructive' | 'secondary'> = {
+            pending: 'warning',
+            accepted: 'success',
+            rejected: 'destructive',
+            completed: 'success',
+            cancelled: 'destructive',
         };
-        return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-200';
+        return variants[status] || 'secondary';
     };
 
     const handlePlaceBid = (order: Order) => {
@@ -858,7 +858,7 @@ export default function ShippingProviderDashboard() {
             <DashboardLayout role="shipping_provider">
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
                         <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
                     </div>
                 </div>
@@ -879,12 +879,12 @@ export default function ShippingProviderDashboard() {
                 </div>
 
                 <div className="relative z-10 space-y-8">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground">
                                 {t("common.welcome")}, {user.name}
                             </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">{t("shipping.pageTitle")}</p>
+                            <p className="text-muted-foreground mt-1 text-sm">{t("shipping.pageTitle")}</p>
                         </div>
                         <Button
                             variant="outline"
@@ -898,55 +898,55 @@ export default function ShippingProviderDashboard() {
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.totalOrders")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("shipping.stats.totalOrders")}</CardTitle>
+                                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                    <Package className="h-5 w-5 text-primary" />
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalOrders}</div>
-                                <p className="text-xs text-gray-500 mt-1">Orders available for shipping</p>
+                                <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalOrders}</div>
+                                <p className="text-xs text-muted-foreground mt-1">Orders available for shipping</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.pendingBids")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <TrendingUp className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("shipping.stats.pendingBids")}</CardTitle>
+                                <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                                    <TrendingUp className="h-5 w-5 text-warning" />
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.pendingBids}</div>
-                                <p className="text-xs text-gray-500 mt-1">Awaiting response</p>
+                                <div className="text-2xl font-bold text-foreground tabular-nums">{stats.pendingBids}</div>
+                                <p className="text-xs text-muted-foreground mt-1">Awaiting response</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.acceptedBids")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Users className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("shipping.stats.acceptedBids")}</CardTitle>
+                                <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                                    <Users className="h-5 w-5 text-success" />
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.acceptedBids}</div>
-                                <p className="text-xs text-gray-500 mt-1">Confirmed orders</p>
+                                <div className="text-2xl font-bold text-foreground tabular-nums">{stats.acceptedBids}</div>
+                                <p className="text-xs text-muted-foreground mt-1">Confirmed orders</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300 group">
+                        <Card>
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("shipping.stats.potentialRevenue")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                <CardTitle className="text-sm font-medium text-muted-foreground">{t("shipping.stats.potentialRevenue")}</CardTitle>
+                                <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
+                                    <DollarSign className="h-5 w-5 text-info" />
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">${stats.potentialRevenue.toFixed(2)}</div>
-                                <p className="text-xs text-gray-500 mt-1">From accepted bids</p>
+                                <div className="text-2xl font-bold text-foreground tabular-nums">${stats.potentialRevenue.toFixed(2)}</div>
+                                <p className="text-xs text-muted-foreground mt-1">From accepted bids</p>
                             </CardContent>
                         </Card>
                     </div>
@@ -956,8 +956,8 @@ export default function ShippingProviderDashboard() {
                         <div className="flex flex-col gap-4">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <Truck className="h-5 w-5 text-blue-600" />
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("shipping.availableOrders")}</h2>
+                                    <Truck className="h-5 w-5 text-primary" />
+                                    <h2 className="text-xl font-semibold text-foreground">{t("shipping.availableOrders")}</h2>
                                     <Badge variant="secondary" className="ml-2">{filteredAndSortedOrders.length} orders</Badge>
                                 </div>
                                 <Button
@@ -974,7 +974,7 @@ export default function ShippingProviderDashboard() {
                             <div className="space-y-4">
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Search className="h-5 w-5 text-gray-400" />
+                                        <Search className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <Input
                                         type="text"
@@ -1031,12 +1031,12 @@ export default function ShippingProviderDashboard() {
                         <div className="grid gap-6">
                             {filteredAndSortedOrders.length === 0 ? (
                                 orders.length === 0 ? (
-                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <Card className="p-12 text-center">
                                         <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                         <p className="text-muted-foreground">No orders available at the moment.</p>
                                     </Card>
                                 ) : (
-                                    <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                    <Card className="p-12 text-center">
                                         <Truck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                         <p className="text-muted-foreground">No orders found matching your filters.</p>
                                         <Button
@@ -1056,19 +1056,19 @@ export default function ShippingProviderDashboard() {
                                         const isBidExpired = new Date() > bidEndTime;
 
                                         return (
-                                            <Card key={order.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 group">
+                                            <Card key={order.id} className="hover:shadow-md transition-shadow duration-300 group">
                                                 <CardHeader>
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center gap-4">
-                                                            <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-105 transition-transform">
-                                                                <Truck className="h-6 w-6 text-blue-600" />
+                                                            <div className="h-12 w-12 rounded-lg bg-info/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                                                <Truck className="h-6 w-6 text-info" />
                                                             </div>
                                                             <div>
                                                                 <CardTitle className="flex items-center gap-2">
                                                                     {order.item?.name || 'Unknown Item'}
-                                                                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">{order.item?.category}</Badge>
+                                                                    <Badge variant="secondary">{order.item?.category}</Badge>
                                                                     {isBidExpired && (
-                                                                        <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">Expired</Badge>
+                                                                        <Badge variant="destructive">Expired</Badge>
                                                                     )}
                                                                 </CardTitle>
                                                                 <CardDescription>
@@ -1110,7 +1110,6 @@ export default function ShippingProviderDashboard() {
                                                                     }))}
                                                                 />
                                                                 <Button
-                                                                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/20"
                                                                     onClick={() => handleInlineBidSubmit(order)}
                                                                     disabled={!inlineBidForms[order.id]?.bidAmount || !inlineBidForms[order.id]?.estimatedDelivery || submittingBid}
                                                                 >
@@ -1120,12 +1119,12 @@ export default function ShippingProviderDashboard() {
                                                             </div>
                                                         )}
                                                         {hasMyBid && (
-                                                            <Badge className="bg-green-100 text-green-700 border-green-200 px-4 py-2">
+                                                            <Badge variant="success" className="px-4 py-2">
                                                                 ✓ Bid Placed
                                                             </Badge>
                                                         )}
                                                         {isBidExpired && !hasMyBid && (
-                                                            <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300 px-4 py-2">
+                                                            <Badge variant="secondary" className="px-4 py-2">
                                                                 Bidding Closed
                                                             </Badge>
                                                         )}
@@ -1133,24 +1132,24 @@ export default function ShippingProviderDashboard() {
                                                 </CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Product</Label>
                                                             <p className="text-sm font-bold truncate" title={order.item?.name}>{order.item?.name || 'N/A'}</p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantity</Label>
-                                                            <p className="text-sm font-bold">{order.quantity} units</p>
+                                                            <p className="text-sm font-bold tabular-nums">{order.quantity} units</p>
                                                         </div>
-                                                        <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                            <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Pickup Address</Label>
+                                                        <div className="p-3 bg-info/10 rounded-lg border border-info/20">
+                                                            <Label className="text-xs text-info uppercase tracking-wider">Pickup Address</Label>
                                                             <p className="text-sm font-medium">{sellerBids[order.id]?.pickupAddress?.split(',')[0] || 'N/A'}</p>
                                                         </div>
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                        <div className="p-3 bg-muted/50 rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Delivery To</Label>
                                                             <p className="text-sm font-medium">{order.shippingAddress?.split(',')[0] || 'N/A'}</p>
                                                         </div>
-                                                        <div className="p-3 bg-orange-50 dark:bg-orange-900/10 rounded-lg border border-orange-100 dark:border-orange-900/20">
-                                                            <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider">Bid Ends In</Label>
+                                                        <div className="p-3 bg-warning/10 rounded-lg border border-warning/20">
+                                                            <Label className="text-xs text-warning uppercase tracking-wider">Bid Ends In</Label>
                                                             <ClockTimer
                                                                 endTime={calculateBidEndTime(order)}
                                                                 size={18}
@@ -1162,13 +1161,13 @@ export default function ShippingProviderDashboard() {
                                                     {/* Full addresses section */}
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         {sellerBids[order.id]?.pickupAddress && (
-                                                            <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-900/20">
-                                                                <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">Full Pickup Address (Collect From)</Label>
+                                                            <div className="p-3 bg-info/10 rounded-lg border border-info/20">
+                                                                <Label className="text-xs text-info uppercase tracking-wider">Full Pickup Address (Collect From)</Label>
                                                                 <p className="font-medium mt-1">{sellerBids[order.id].pickupAddress}</p>
                                                             </div>
                                                         )}
                                                         {order.shippingAddress && (
-                                                            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                            <div className="p-3 bg-muted/50 rounded-lg border border-border">
                                                                 <Label className="text-xs text-muted-foreground uppercase tracking-wider">Full Delivery Address (Deliver To)</Label>
                                                                 <p className="font-medium mt-1">{order.shippingAddress}</p>
                                                             </div>
@@ -1181,7 +1180,7 @@ export default function ShippingProviderDashboard() {
                                     {filteredAndSortedOrders.length > 5 && (
                                         <Button
                                             variant="outline"
-                                            className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                            className="w-full"
                                             onClick={() => setShowAllOrders(!showAllOrders)}
                                         >
                                             {showAllOrders ? (
@@ -1208,8 +1207,8 @@ export default function ShippingProviderDashboard() {
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5 text-blue-600" />
-                                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("shipping.myBids")}</h2>
+                                <TrendingUp className="h-5 w-5 text-primary" />
+                                <h2 className="text-xl font-semibold text-foreground">{t("shipping.myBids")}</h2>
                                 <Badge variant="secondary" className="ml-2">{filteredAndSortedBids.length} bids</Badge>
                             </div>
                             <Button
@@ -1226,7 +1225,7 @@ export default function ShippingProviderDashboard() {
                         <div className="space-y-4">
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Search className="h-5 w-5 text-gray-400" />
+                                    <Search className="h-5 w-5 text-muted-foreground" />
                                 </div>
                                 <Input
                                     type="text"
@@ -1283,12 +1282,12 @@ export default function ShippingProviderDashboard() {
                     <div className="grid gap-6">
                         {filteredAndSortedBids.length === 0 ? (
                             bids.length === 0 ? (
-                                <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <Card className="p-12 text-center">
                                     <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                     <p className="text-muted-foreground">You haven't placed any shipping bids yet.</p>
                                 </Card>
                             ) : (
-                                <Card className="p-12 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <Card className="p-12 text-center">
                                     <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                                     <p className="text-muted-foreground">No bids found matching your filters.</p>
                                     <Button
@@ -1308,21 +1307,18 @@ export default function ShippingProviderDashboard() {
                                     const isBidExpired = new Date() > bidEndTime;
 
                                     return (
-                                        <Card key={bid.id} className="shadow-md hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-blue-50/30 dark:from-gray-900 dark:to-blue-900/10 border-2 border-blue-100 dark:border-blue-900/50 group overflow-hidden relative">
-                                            {/* Decorative gradient overlay */}
-                                            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-cyan-400/10 rounded-full blur-3xl -z-0 group-hover:scale-150 transition-transform duration-500"></div>
-
+                                        <Card key={bid.id} className="hover:shadow-md transition-shadow duration-300 group overflow-hidden relative">
                                             <CardHeader className="relative z-10">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg shadow-blue-500/30">
-                                                            <Truck className="h-7 w-7 text-white" />
+                                                        <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                                                            <Truck className="h-7 w-7 text-primary" />
                                                         </div>
                                                         <div>
                                                             <CardTitle className="flex items-center gap-2 text-lg">
                                                                 {order?.item?.name || 'Unknown Item'}
                                                                 {order?.item?.category && (
-                                                                    <Badge variant="secondary" className="bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-700 hover:from-blue-200 hover:to-cyan-200 border-blue-200">{order.item.category}</Badge>
+                                                                    <Badge variant="secondary">{order.item.category}</Badge>
                                                                 )}
                                                             </CardTitle>
                                                             <CardDescription className="text-sm mt-1">
@@ -1331,12 +1327,12 @@ export default function ShippingProviderDashboard() {
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-col items-end gap-2">
-                                                        <Badge variant="outline" className={`${getStatusColor(bid.status)} font-semibold text-sm px-4 py-1.5 shadow-sm`}>
+                                                        <Badge variant={getStatusVariant(bid.status)} className="font-semibold text-sm px-4 py-1.5">
                                                             {bid.status === 'pending' ? '⏳ Pending' : bid.status === 'accepted' ? '✓ Accepted' : '✗ Rejected'}
                                                         </Badge>
                                                         {!isBidExpired && bid.status === 'pending' && (
                                                             <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                                                <span className="w-2 h-2 bg-success rounded-full animate-pulse"></span>
                                                                 Active
                                                             </span>
                                                         )}
@@ -1352,7 +1348,6 @@ export default function ShippingProviderDashboard() {
                                                             variant="outline"
                                                             size="sm"
                                                             onClick={() => openEditBidDialog(bid)}
-                                                            className="bg-gradient-to-r from-orange-50 to-amber-50 text-orange-600 border-2 border-orange-300 hover:from-orange-100 hover:to-amber-100 hover:border-orange-400 hover:shadow-lg hover:shadow-orange-200/50 dark:from-orange-900/20 dark:to-amber-900/20 dark:text-orange-400 dark:border-orange-700 dark:hover:border-orange-600 transition-all duration-300 font-semibold"
                                                         >
                                                             <TrendingUp className="mr-2 h-4 w-4" />
                                                             Update Bid
@@ -1361,31 +1356,31 @@ export default function ShippingProviderDashboard() {
                                                 )}
 
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <div className="p-4 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-md transition-all duration-300 group/card">
-                                                        <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                                                    <div className="p-4 bg-muted/50 rounded-xl border border-border">
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold flex items-center gap-1">
                                                             <DollarSign className="h-3 w-3" />
                                                             Your Shipping Bid
                                                         </Label>
-                                                        <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-2 group-hover/card:scale-105 transition-transform">${Number(bid.bidAmount).toFixed(2)}</p>
+                                                        <p className="text-2xl font-bold text-foreground mt-2 tabular-nums">${Number(bid.bidAmount).toFixed(2)}</p>
                                                     </div>
-                                                    <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                        <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                                                    <div className="p-4 bg-muted/50 rounded-xl border border-border">
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold flex items-center gap-1">
                                                             <Calendar className="h-3 w-3" />
                                                             Delivery Date
                                                         </Label>
-                                                        <p className="font-bold text-purple-600 dark:text-purple-400 mt-2 text-sm">
+                                                        <p className="font-bold text-foreground mt-2 text-sm">
                                                             {new Date(bid.estimatedDelivery).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                         </p>
                                                     </div>
-                                                    <div className="p-4 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                        <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider font-bold flex items-center gap-1">
+                                                    <div className="p-4 bg-muted/50 rounded-xl border border-border">
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold flex items-center gap-1">
                                                             <Activity className="h-3 w-3" />
                                                             Bid Status
                                                         </Label>
-                                                        <p className="font-bold capitalize mt-2 text-emerald-600 dark:text-emerald-400">{bid.status}</p>
+                                                        <p className={`font-bold capitalize mt-2 ${bid.status === 'accepted' ? 'text-success' : bid.status === 'rejected' ? 'text-destructive' : 'text-warning'}`}>{bid.status}</p>
                                                     </div>
-                                                    <div className="p-4 bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border-2 border-orange-200 dark:border-orange-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                        <Label className="text-xs text-orange-600 dark:text-orange-400 uppercase tracking-wider font-bold">Time Remaining</Label>
+                                                    <div className="p-4 bg-warning/10 rounded-xl border border-warning/20">
+                                                        <Label className="text-xs text-warning uppercase tracking-wider font-bold">Time Remaining</Label>
                                                         <ClockTimer
                                                             endTime={bidEndTime}
                                                             size={20}
@@ -1395,34 +1390,34 @@ export default function ShippingProviderDashboard() {
                                                 </div>
 
                                                 {order?.shippingAddress && (
-                                                    <div className="p-4 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-900/30 dark:to-gray-900/30 rounded-xl border-2 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                        <Label className="text-xs text-slate-700 dark:text-slate-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                    <div className="p-4 bg-muted/50 rounded-xl border border-border">
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider font-bold flex items-center gap-1.5">
                                                             <Package className="h-3.5 w-3.5" />
                                                             Shipping Destination
                                                         </Label>
-                                                        <p className="font-semibold mt-2 text-slate-700 dark:text-slate-300 leading-relaxed">{order.shippingAddress}</p>
+                                                        <p className="font-semibold mt-2 text-foreground leading-relaxed">{order.shippingAddress}</p>
                                                     </div>
                                                 )}
 
                                                 {/* Pickup Address from Seller's Bid */}
                                                 {sellerBids[bid.orderId]?.pickupAddress && (
-                                                    <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-xl border-2 border-orange-200 dark:border-orange-800 shadow-sm hover:shadow-md transition-all duration-300">
-                                                        <Label className="text-xs text-orange-700 dark:text-orange-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                    <div className="p-4 bg-info/10 rounded-xl border border-info/20">
+                                                        <Label className="text-xs text-info uppercase tracking-wider font-bold flex items-center gap-1.5">
                                                             <Truck className="h-3.5 w-3.5" />
                                                             Pickup Address (Seller's Location)
                                                         </Label>
-                                                        <p className="font-semibold mt-2 text-orange-700 dark:text-orange-300 leading-relaxed">{sellerBids[bid.orderId].pickupAddress}</p>
-                                                        <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Collect goods from this address</p>
+                                                        <p className="font-semibold mt-2 text-info leading-relaxed">{sellerBids[bid.orderId].pickupAddress}</p>
+                                                        <p className="text-xs text-info/80 mt-1">Collect goods from this address</p>
                                                     </div>
                                                 )}
 
                                                 {bid.message && (
-                                                    <div className="p-4 bg-gradient-to-br from-blue-50 via-indigo-50 to-violet-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-violet-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800 shadow-sm hover:shadow-lg hover:shadow-blue-200/50 dark:hover:shadow-blue-900/30 transition-all duration-300">
-                                                        <Label className="text-xs text-blue-700 dark:text-blue-300 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                    <div className="p-4 bg-accent rounded-xl border border-border">
+                                                        <Label className="text-xs text-accent-foreground uppercase tracking-wider font-bold flex items-center gap-1.5">
                                                             <Send className="h-3.5 w-3.5" />
                                                             Your Note to Buyer
                                                         </Label>
-                                                        <p className="font-medium mt-2 text-blue-700 dark:text-blue-300 italic leading-relaxed">"{bid.message}"</p>
+                                                        <p className="font-medium mt-2 text-accent-foreground italic leading-relaxed">"{bid.message}"</p>
                                                     </div>
                                                 )}
                                             </CardContent>
@@ -1432,7 +1427,7 @@ export default function ShippingProviderDashboard() {
                                 {filteredAndSortedBids.length > 5 && (
                                     <Button
                                         variant="outline"
-                                        className="w-full border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                                        className="w-full"
                                         onClick={() => setShowAllBids(!showAllBids)}
                                     >
                                         {showAllBids ? (
@@ -1456,10 +1451,10 @@ export default function ShippingProviderDashboard() {
                 {/* Analytics Dashboard Section */}
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {/* Bid Status Distribution */}
-                    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                    <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                                <PieChart className="h-5 w-5 text-blue-600" />
+                            <CardTitle className="flex items-center gap-2 text-foreground">
+                                <PieChart className="h-5 w-5 text-primary" />
                                 Bid Status Distribution
                             </CardTitle>
                             <CardDescription>Overview of your shipping bid statuses</CardDescription>
@@ -1467,9 +1462,9 @@ export default function ShippingProviderDashboard() {
                         <CardContent>
                             {bidStatusData.length > 0 ? (
                                 <ChartContainer config={{
-                                    pending: { label: 'Pending', color: '#eab308' },
-                                    accepted: { label: 'Accepted', color: '#22c55e' },
-                                    rejected: { label: 'Rejected', color: '#ef4444' },
+                                    pending: { label: 'Pending', color: '#d97706' },
+                                    accepted: { label: 'Accepted', color: '#149e61' },
+                                    rejected: { label: 'Rejected', color: '#d92d20' },
                                 }}>
                                     <ResponsiveContainer width="100%" height={250}>
                                         <RechartsPieChart>
@@ -1503,10 +1498,10 @@ export default function ShippingProviderDashboard() {
                     </Card>
 
                     {/* Monthly Revenue Trend */}
-                    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-2">
+                    <Card className="lg:col-span-2">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                                <Activity className="h-5 w-5 text-emerald-600" />
+                            <CardTitle className="flex items-center gap-2 text-foreground">
+                                <Activity className="h-5 w-5 text-success" />
                                 Monthly Revenue Trend
                             </CardTitle>
                             <CardDescription>Shipping revenue and total bid values over the year</CardDescription>
@@ -1514,27 +1509,27 @@ export default function ShippingProviderDashboard() {
                         <CardContent>
                             {monthlyRevenueData.some(d => d.revenue > 0 || d.bids > 0) ? (
                                 <ChartContainer config={{
-                                    revenue: { label: 'Revenue', color: '#10b981' },
-                                    bids: { label: 'Total Bids', color: '#3b82f6' },
+                                    revenue: { label: 'Revenue', color: '#149e61' },
+                                    bids: { label: 'Total Bids', color: '#7132f5' },
                                 }}>
                                     <ResponsiveContainer width="100%" height={250}>
                                         <AreaChart data={monthlyRevenueData}>
                                             <defs>
                                                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
-                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="#149e61" stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor="#149e61" stopOpacity={0} />
                                                 </linearGradient>
                                                 <linearGradient id="colorBids" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                                                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                                                    <stop offset="5%" stopColor="#7132f5" stopOpacity={0.8} />
+                                                    <stop offset="95%" stopColor="#7132f5" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                                             <XAxis dataKey="month" className="text-xs" />
                                             <YAxis className="text-xs" />
                                             <ChartTooltip content={<ChartTooltipContent />} />
-                                            <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" />
-                                            <Area type="monotone" dataKey="bids" stroke="#3b82f6" fillOpacity={1} fill="url(#colorBids)" />
+                                            <Area type="monotone" dataKey="revenue" stroke="#149e61" fillOpacity={1} fill="url(#colorRevenue)" />
+                                            <Area type="monotone" dataKey="bids" stroke="#7132f5" fillOpacity={1} fill="url(#colorBids)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </ChartContainer>
@@ -1550,10 +1545,10 @@ export default function ShippingProviderDashboard() {
                     </Card>
 
                     {/* Recent Bid Activity (Last 7 Days) */}
-                    <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 lg:col-span-3">
+                    <Card className="lg:col-span-3">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                                <BarChart3 className="h-5 w-5 text-blue-600" />
+                            <CardTitle className="flex items-center gap-2 text-foreground">
+                                <BarChart3 className="h-5 w-5 text-primary" />
                                 Recent Bid Activity (Last 7 Days)
                             </CardTitle>
                             <CardDescription>Daily breakdown of your shipping bid performance</CardDescription>
@@ -1561,9 +1556,9 @@ export default function ShippingProviderDashboard() {
                         <CardContent>
                             {recentBidActivity.some(d => d.bids > 0) ? (
                                 <ChartContainer config={{
-                                    accepted: { label: 'Accepted', color: '#22c55e' },
-                                    pending: { label: 'Pending', color: '#eab308' },
-                                    rejected: { label: 'Rejected', color: '#ef4444' },
+                                    accepted: { label: 'Accepted', color: '#149e61' },
+                                    pending: { label: 'Pending', color: '#d97706' },
+                                    rejected: { label: 'Rejected', color: '#d92d20' },
                                 }}>
                                     <ResponsiveContainer width="100%" height={300}>
                                         <BarChart data={recentBidActivity}>
@@ -1571,9 +1566,9 @@ export default function ShippingProviderDashboard() {
                                             <XAxis dataKey="day" />
                                             <YAxis />
                                             <ChartTooltip content={<ChartTooltipContent />} />
-                                            <Bar dataKey="accepted" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} />
-                                            <Bar dataKey="pending" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
-                                            <Bar dataKey="rejected" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="accepted" stackId="a" fill="#149e61" radius={[0, 0, 0, 0]} />
+                                            <Bar dataKey="pending" stackId="a" fill="#d97706" radius={[0, 0, 0, 0]} />
+                                            <Bar dataKey="rejected" stackId="a" fill="#d92d20" radius={[4, 4, 0, 0]} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </ChartContainer>
@@ -1648,7 +1643,6 @@ export default function ShippingProviderDashboard() {
                                 {t("common.cancel")}
                             </Button>
                             <Button
-                                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/20"
                                 onClick={editingBid ? updateExistingBid : submitBid}
                                 disabled={submittingBid || !bidForm.bidAmount || !bidForm.estimatedDelivery}
                             >

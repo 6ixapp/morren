@@ -17,12 +17,12 @@ import { useRouter } from "next/navigation"
 
 const statusConfig: Record<
   string,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: React.ElementType }
+  { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning"; icon: React.ElementType }
 > = {
   DRAFT: { label: "Draft", variant: "secondary", icon: FileText },
-  OPEN: { label: "Open", variant: "default", icon: Clock },
+  OPEN: { label: "Open", variant: "warning", icon: Clock },
   CLOSED: { label: "Closed", variant: "outline", icon: CheckCircle2 },
-  AWARDED: { label: "Awarded", variant: "default", icon: Award },
+  AWARDED: { label: "Awarded", variant: "success", icon: Award },
 }
 
 export default function DashboardPage() {
@@ -82,8 +82,8 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("rfq.pageTitle")}</h1>
-          <p className="text-muted-foreground mt-1">{t("rfq.manageQuotes")}</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">{t("rfq.pageTitle")}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{t("rfq.manageQuotes")}</p>
         </div>
         <Link href="/dashboard/rfq/new">
           <Button>
@@ -211,7 +211,7 @@ export default function DashboardPage() {
                         </TableCell>
                         <TableCell>
                           {lowestQuote ? (
-                            <span className="font-medium text-success">
+                            <span className="font-semibold text-success tabular-nums">
                               ₹{lowestQuote.pricePerUnit.toLocaleString()}/unit
                             </span>
                           ) : (

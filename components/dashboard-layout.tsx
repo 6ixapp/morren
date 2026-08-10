@@ -83,67 +83,57 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
 
     const currentNavItems = navItems[role];
 
-    const getRoleColor = () => {
-        switch (role) {
-            case "buyer": return "text-purple-600";
-            case "seller": return "text-emerald-600";
-            case "shipping_provider": return "text-blue-600";
-            case "admin": return "text-rose-600";
-            default: return "text-gray-600";
-        }
-    };
-
-    const getRoleGradient = () => {
-        switch (role) {
-            case "buyer": return "from-purple-600 to-blue-600";
-            case "seller": return "from-emerald-600 to-teal-600";
-            case "shipping_provider": return "from-blue-600 to-cyan-600";
-            case "admin": return "from-rose-600 to-orange-600";
-            default: return "from-gray-600 to-gray-800";
-        }
-    };
+    const roleLabel = {
+        buyer: t("layout.buyerDashboard"),
+        seller: t("layout.sellerDashboard"),
+        shipping_provider: t("layout.shippingDashboard"),
+        admin: t("layout.adminDashboard"),
+    }[role];
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+        <div className="min-h-screen bg-background flex flex-col">
             {/* Navbar */}
-            <header className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-50">
+            <header className="bg-card border-b border-border sticky top-0 z-50">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         {/* Logo and Desktop Nav */}
                         <div className="flex">
-                            <div className="flex-shrink-0 flex items-center">
-                                <img 
-                                    src="https://5.imimg.com/data5/SELLER/Logo/2023/1/CD/NH/CF/46836456/12569-comp-image-90x90.png" 
-                                    alt="Logo" 
-                                    className="h-14 w-14 rounded-lg mr-3 object-contain"
+                            <div className="flex-shrink-0 flex items-center gap-2.5">
+                                <img
+                                    src="https://5.imimg.com/data5/SELLER/Logo/2023/1/CD/NH/CF/46836456/12569-comp-image-90x90.png"
+                                    alt="Logo"
+                                    className="h-9 w-9 rounded-lg object-contain ring-1 ring-border"
                                 />
-                                <span className="font-bold text-xl tracking-tight hidden md:block">
-                                    {role === 'buyer' && t("layout.buyerDashboard")}
-                                    {role === 'seller' && t("layout.sellerDashboard")}
-                                    {role === 'shipping_provider' && t("layout.shippingDashboard")}
-                                    {role === 'admin' && t("layout.adminDashboard")}
-                                </span>
+                                <div className="hidden md:flex flex-col leading-tight">
+                                    <span className="font-semibold text-[15px] tracking-tight text-foreground">
+                                        {roleLabel}
+                                    </span>
+                                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                                        Morren
+                                    </span>
+                                </div>
                             </div>
 
                             {/* Desktop Navigation */}
-                            <div className="hidden md:ml-8 md:flex md:space-x-4 items-center">
-                                {currentNavItems.map((item) => (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        className={cn(
-                                            "inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                                            pathname === item.href || (pathname === item.href.split('?')[0] && !item.href.includes('?'))
-                                                ? `bg-gray-100 dark:bg-gray-800 ${getRoleColor()}`
-                                                : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                                        )}
-                                    >
-                                        <item.icon className={cn("h-4 w-4 mr-2",
-                                            pathname === item.href ? getRoleColor() : "text-gray-400 group-hover:text-gray-500"
-                                        )} />
-                                        {item.label}
-                                    </Link>
-                                ))}
+                            <div className="hidden md:ml-8 md:flex md:space-x-1 items-center">
+                                {currentNavItems.map((item) => {
+                                    const isActive = pathname === item.href || (pathname === item.href.split('?')[0] && !item.href.includes('?'));
+                                    return (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            className={cn(
+                                                "inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                                                isActive
+                                                    ? "bg-accent text-accent-foreground"
+                                                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                            )}
+                                        >
+                                            <item.icon className="h-4 w-4 mr-2" />
+                                            {item.label}
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -154,12 +144,12 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
 
                             {/* Language Switcher */}
                             <LanguageSwitcher />
-                            
+
                             {/* User Dropdown */}
                             <div className="hidden md:flex items-center ml-2">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                                        <Button variant="ghost" className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-full hover:bg-muted">
                                             <Avatar className="h-8 w-8">
                                                 <AvatarImage src={user?.avatar} />
                                                 <AvatarFallback>{user?.name?.charAt(0)?.toUpperCase() || role[0].toUpperCase()}</AvatarFallback>
@@ -191,7 +181,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                             <span>{t("common.settings")}</span>
                                         </DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={handleLogout}>
+                                        <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={handleLogout}>
                                             <LogOut className="mr-2 h-4 w-4" />
                                             <span>{t("common.signOut")}</span>
                                         </DropdownMenuItem>
@@ -205,7 +195,7 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                                    className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+                                    className="inline-flex items-center justify-center p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                 >
                                     <span className="sr-only">Open main menu</span>
                                     {isMobileMenuOpen ? (
@@ -221,26 +211,29 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
 
                 {/* Mobile Menu */}
                 {isMobileMenuOpen && (
-                    <div className="md:hidden border-t border-gray-200 dark:border-gray-800">
+                    <div className="md:hidden border-t border-border">
                         <div className="pt-2 pb-3 space-y-1 px-2">
-                            {currentNavItems.map((item) => (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    className={cn(
-                                        "flex items-center px-3 py-2 rounded-md text-base font-medium",
-                                        pathname === item.href
-                                            ? `bg-gray-100 dark:bg-gray-800 ${getRoleColor()}`
-                                            : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
-                                    )}
-                                    onClick={() => setIsMobileMenuOpen(false)}
-                                >
-                                    <item.icon className="h-5 w-5 mr-3" />
-                                    {item.label}
-                                </Link>
-                            ))}
+                            {currentNavItems.map((item) => {
+                                const isActive = pathname === item.href;
+                                return (
+                                    <Link
+                                        key={item.href}
+                                        href={item.href}
+                                        className={cn(
+                                            "flex items-center px-3 py-2 rounded-md text-base font-medium",
+                                            isActive
+                                                ? "bg-accent text-accent-foreground"
+                                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                        )}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                    >
+                                        <item.icon className="h-5 w-5 mr-3" />
+                                        {item.label}
+                                    </Link>
+                                );
+                            })}
                         </div>
-                        <div className="pt-4 pb-4 border-t border-gray-200 dark:border-gray-800">
+                        <div className="pt-4 pb-4 border-t border-border">
                             <div className="flex items-center px-4">
                                 <div className="flex-shrink-0">
                                     <Avatar className="h-10 w-10">
@@ -249,14 +242,14 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                     </Avatar>
                                 </div>
                                 <div className="ml-3">
-                                    <div className="text-base font-medium text-gray-800 dark:text-gray-200">{user?.name || 'User'}</div>
-                                    <div className="text-sm font-medium text-gray-500">{user?.email}</div>
+                                    <div className="text-base font-medium text-foreground">{user?.name || 'User'}</div>
+                                    <div className="text-sm font-medium text-muted-foreground">{user?.email}</div>
                                 </div>
                             </div>
                             <div className="mt-3 px-2 space-y-1">
                                 <Button
                                     variant="ghost"
-                                    className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                                     onClick={handleLogout}
                                 >
                                     <LogOut className="mr-2 h-5 w-5" />

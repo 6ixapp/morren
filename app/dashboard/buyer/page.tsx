@@ -1969,15 +1969,15 @@ function BuyerDashboardContent() {
         totalItems: items.length,
     };
 
-    const getStatusColor = (status: string) => {
-        const colors: Record<string, string> = {
-            pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-200',
-            accepted: 'bg-blue-500/10 text-blue-600 border-blue-200',
-            rejected: 'bg-red-500/10 text-red-600 border-red-200',
-            completed: 'bg-green-500/10 text-green-600 border-green-200',
-            cancelled: 'bg-gray-500/10 text-gray-600 border-gray-200',
+    const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" => {
+        const variants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info"> = {
+            pending: 'warning',
+            accepted: 'success',
+            rejected: 'destructive',
+            completed: 'success',
+            cancelled: 'destructive',
         };
-        return colors[status] || 'bg-gray-500/10 text-gray-600 border-gray-200';
+        return variants[status] || 'secondary';
     };
 
     // ============================================================================
@@ -2114,7 +2114,7 @@ function BuyerDashboardContent() {
             <DashboardLayout role="buyer">
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
                         <p className="mt-4 text-muted-foreground">Loading dashboard...</p>
                     </div>
                 </div>
@@ -2139,71 +2139,75 @@ function BuyerDashboardContent() {
                     {/* Header */}
                     <div className="flex items-center justify-between flex-wrap gap-4">
                         <div>
-                            <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+                            <h1 className="text-2xl font-bold tracking-tight text-foreground">
                                 {t("common.welcome")}, {user.name}
                             </h1>
-                            <p className="text-gray-600 dark:text-gray-400 mt-1">{t("buyer.pageTitle")}</p>
+                            <p className="text-muted-foreground mt-1 text-sm">{t("buyer.pageTitle")}</p>
                         </div>
                     </div>
 
                     {/* Stats Cards */}
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.totalOrders")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                                    <ShoppingCart className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                        <ShoppingCart className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.totalOrders}</div>
+                                        <div className="text-sm text-muted-foreground">{t("buyer.stats.totalOrders")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.totalOrders}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.allTimeOrdersPlaced")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.acceptedBids")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-success/10 flex items-center justify-center">
+                                        <Check className="h-5 w-5 text-success" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.confirmedOrders}</div>
+                                        <div className="text-sm text-muted-foreground">{t("buyer.stats.acceptedBids")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.confirmedOrders}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.ordersAcceptedBySellers")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.activeOrders")}</CardTitle>
-                                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                                    <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-info/10 flex items-center justify-center">
+                                        <Clock className="h-5 w-5 text-info" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.deliveryPending}</div>
+                                        <div className="text-sm text-muted-foreground">{t("buyer.stats.activeOrders")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.deliveryPending}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.awaitingDelivery")}</p>
                             </CardContent>
                         </Card>
 
-                        <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900 hover:shadow-md transition-all duration-300">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">{t("buyer.stats.pendingBids")}</CardTitle>
-                                <div className="h-12 w-12 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                                    <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                        <Card>
+                            <CardContent className="p-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                                        <TrendingUp className="h-5 w-5 text-warning" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold text-foreground tabular-nums">{stats.activeBids}</div>
+                                        <div className="text-sm text-muted-foreground">{t("buyer.stats.pendingBids")}</div>
+                                    </div>
                                 </div>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.activeBids}</div>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{t("buyer.stats.bidsAwaitingResponse")}</p>
                             </CardContent>
                         </Card>
                     </div>
 
                     {/* Place Bid helper text (replaces previous button) */}
                     <div className="flex justify-start mb-6">
-                        <h2 className="text-4xl font-bold text-purple-700 dark:text-purple-300 tracking-tight">
+                        <h2 className="text-2xl font-bold text-foreground tracking-tight">
                             {t("buyer.createOrder")}
                         </h2>
                     </div>
@@ -2214,7 +2218,7 @@ function BuyerDashboardContent() {
                         {(currentTab === 'items' || !currentTab) && (
                             <div className="space-y-6">
                                 {/* Category Filter and Search */}
-                                <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                                <Card>
                                     <CardContent className="p-6">
                                         <div className="space-y-4">
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2286,7 +2290,7 @@ function BuyerDashboardContent() {
                                             {/* Continue Button */}
                                             <div className="flex justify-end pt-2">
                                                 <Button
-                                                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8"
+                                                    className="px-8"
                                                     onClick={() => setIsPlaceBidDialogOpen(true)}
                                                     disabled={!bidForm.productName || !bidForm.quantity}
                                                 >
@@ -2300,10 +2304,10 @@ function BuyerDashboardContent() {
 
                                 {/* My Bids (below the search/filter card, above Live Bids) */}
                                 {myBidOrders.length > 0 && (
-                                    <Card className="border border-dashed border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-900/10">
+                                    <Card className="border-dashed bg-primary/5">
                                         <CardContent className="p-4 space-y-4">
                                             <div className="flex items-center justify-between">
-                                                <p className="text-sm font-semibold text-purple-800 dark:text-purple-200">{t("layout.myBids")}</p>
+                                                <p className="text-sm font-semibold text-primary">{t("layout.myBids")}</p>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-muted-foreground">
                                                         {t("common.viewAll")}: {Math.min(myBidsShowAll ? filteredAndSortedMyBids.length : 10, filteredAndSortedMyBids.length)} / {filteredAndSortedMyBids.length}
@@ -2325,7 +2329,7 @@ function BuyerDashboardContent() {
                                                 {/* Search Bar */}
                                                 <div className="relative">
                                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                        <Search className="h-4 w-4 text-gray-400" />
+                                                        <Search className="h-4 w-4 text-muted-foreground" />
                                                     </div>
                                                     <Input
                                                         type="text"
@@ -2404,7 +2408,7 @@ function BuyerDashboardContent() {
                                                         return (
                                                             <div
                                                                 key={order.id}
-                                                                className="flex flex-col gap-2 rounded-md bg-background px-4 py-4 border border-dashed border-purple-200 dark:border-purple-700"
+                                                                className="flex flex-col gap-2 rounded-md bg-background px-4 py-4 border border-dashed border-primary/30"
                                                             >
                                                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                                                                     <div className="flex items-start gap-2 text-sm md:text-base">
@@ -2416,7 +2420,7 @@ function BuyerDashboardContent() {
                                                                             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs md:text-sm text-muted-foreground">
                                                                                 <span>{t("seller.hsnCode")}: <span className="font-medium text-foreground">{hsnCode}</span></span>
                                                                                 <span>{t("seller.quality")}: <span className="font-medium text-foreground">{localizedProductMeta(quality)}</span></span>
-                                                                                <span>{t("common.quantity")}: <span className="font-medium text-foreground">{order.quantity}</span></span>
+                                                                                <span>{t("common.quantity")}: <span className="font-medium text-foreground tabular-nums">{order.quantity}</span></span>
                                                                                 <span>{t("seller.size")}: <span className="font-medium text-foreground">{localizedProductMeta(size)}</span></span>
                                                                                 <span>{t("seller.expectedDelivery")}: <span className="font-medium text-foreground">{expectedDelivery}</span></span>
                                                                                 <span>{t("seller.pincode")}: <span className="font-medium text-foreground">{pincode}</span></span>
@@ -2510,30 +2514,30 @@ function BuyerDashboardContent() {
 
                                                                 {/* Bid Statistics and Price Comparison Bar */}
                                                                 {totalBids > 0 && (
-                                                                    <div className="mt-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                                                    <div className="mt-3 p-3 bg-success/10 rounded-lg border border-success/20">
                                                                         <div className="flex items-center justify-between mb-2">
                                                                             <div className="flex items-center gap-4 text-xs">
                                                                                 <div className="flex items-center gap-1">
-                                                                                    <Users className="h-3 w-3 text-green-600 dark:text-green-400" />
-                                                                                    <span className="font-semibold text-green-700 dark:text-green-300">{uniqueSellers} Supplier{uniqueSellers !== 1 ? 's' : ''}</span>
+                                                                                    <Users className="h-3 w-3 text-success" />
+                                                                                    <span className="font-semibold text-success">{uniqueSellers} Supplier{uniqueSellers !== 1 ? 's' : ''}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center gap-1">
-                                                                                    <Trophy className="h-3 w-3 text-green-600 dark:text-green-400" />
-                                                                                    <span className="font-semibold text-green-700 dark:text-green-300">{totalBids} Bid{totalBids !== 1 ? 's' : ''}</span>
+                                                                                    <Trophy className="h-3 w-3 text-success" />
+                                                                                    <span className="font-semibold text-success">{totalBids} Bid{totalBids !== 1 ? 's' : ''}</span>
                                                                                 </div>
                                                                             </div>
-                                                                            <div className="text-xs font-medium text-green-700 dark:text-green-300">
+                                                                            <div className="text-xs font-medium text-success">
                                                                                 Price Range
                                                                             </div>
                                                                         </div>
 
                                                                         {/* Visual Price Bar */}
-                                                                        <div className="relative h-6 bg-white dark:bg-gray-800 rounded-full overflow-hidden border border-green-300 dark:border-green-700 mb-2">
+                                                                        <div className="relative h-6 bg-background rounded-full overflow-hidden border border-success/30 mb-2">
                                                                             <div
-                                                                                className="absolute h-full bg-gradient-to-r from-green-400 to-emerald-500 dark:from-green-600 dark:to-emerald-700 rounded-full"
+                                                                                className="absolute h-full bg-success rounded-full"
                                                                                 style={{ width: '100%' }}
                                                                             />
-                                                                            <div className="absolute inset-0 flex items-center justify-between px-3 text-xs font-bold text-white">
+                                                                            <div className="absolute inset-0 flex items-center justify-between px-3 text-xs font-bold text-success-foreground tabular-nums">
                                                                                 <span>₹{lowestBid?.toFixed(0)}</span>
                                                                                 <span>₹{highestBid?.toFixed(0)}</span>
                                                                             </div>
@@ -2542,15 +2546,15 @@ function BuyerDashboardContent() {
                                                                         {/* Price Labels */}
                                                                         <div className="flex items-center justify-between text-xs">
                                                                             <div className="flex items-center gap-1">
-                                                                                <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                                                                <span className="font-medium text-green-700 dark:text-green-300">Lowest: ₹{lowestBid?.toFixed(2)}</span>
+                                                                                <div className="w-2 h-2 rounded-full bg-success"></div>
+                                                                                <span className="font-medium text-success tabular-nums">Lowest: ₹{lowestBid?.toFixed(2)}</span>
                                                                             </div>
                                                                             <div className="flex items-center gap-1">
-                                                                                <div className="w-2 h-2 rounded-full bg-emerald-600"></div>
-                                                                                <span className="font-medium text-emerald-700 dark:text-emerald-300">Highest: ₹{highestBid?.toFixed(2)}</span>
+                                                                                <div className="w-2 h-2 rounded-full bg-success"></div>
+                                                                                <span className="font-medium text-success tabular-nums">Highest: ₹{highestBid?.toFixed(2)}</span>
                                                                             </div>
                                                                             {lowestBid && highestBid && lowestBid !== highestBid && (
-                                                                                <span className="text-muted-foreground">
+                                                                                <span className="text-muted-foreground tabular-nums">
                                                                                     Savings: ₹{(highestBid - lowestBid).toFixed(2)} ({(((highestBid - lowestBid) / highestBid) * 100).toFixed(1)}%)
                                                                                 </span>
                                                                             )}
@@ -2560,7 +2564,7 @@ function BuyerDashboardContent() {
 
                                                                 {/* No Bids Message */}
                                                                 {totalBids === 0 && (
-                                                                    <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 text-center">
+                                                                    <div className="mt-3 p-3 bg-muted rounded-lg border border-border text-center">
                                                                 <p className="text-xs text-muted-foreground">{t("buyer.noOrders")}</p>
                                                                     </div>
                                                                 )}
@@ -2599,11 +2603,11 @@ function BuyerDashboardContent() {
                                     <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
                                         {filteredItems.map((item) => (
                                             <CardContainer key={item.id} className="inter-var w-full">
-                                                <CardBody className="bg-white dark:bg-gray-950 relative group/card hover:shadow-lg dark:hover:shadow-2xl dark:hover:shadow-emerald-500/[0.1] border-gray-200 dark:border-white/[0.2] w-full h-auto rounded-xl p-6 border shadow-sm">
+                                                <CardBody className="bg-card relative group/card border-border w-full h-auto rounded-xl p-6 border shadow-whisper">
                                                     <div className="flex items-center justify-between mb-2">
                                                         <CardItem
                                                             translateZ="50"
-                                                            className="text-xl font-bold text-gray-900 dark:text-white"
+                                                            className="text-xl font-bold text-foreground"
                                                         >
                                                             {localizedProductName(item.name)}
                                                         </CardItem>
@@ -2616,13 +2620,13 @@ function BuyerDashboardContent() {
                                                     <CardItem
                                                         as="p"
                                                         translateZ="60"
-                                                        className="text-gray-600 dark:text-gray-300 text-sm max-w-sm mt-2 line-clamp-2"
+                                                        className="text-muted-foreground text-sm max-w-sm mt-2 line-clamp-2"
                                                     >
                                                         {item.description}
                                                     </CardItem>
                                                     <CardItem translateZ="100" className="w-full mt-4">
-                                                        <div className="flex items-center justify-center w-full h-40 bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl group-hover/card:shadow-xl">
-                                                            <Package className="h-16 w-16 text-purple-400" />
+                                                        <div className="flex items-center justify-center w-full h-40 bg-accent rounded-xl">
+                                                            <Package className="h-16 w-16 text-accent-foreground" />
                                                         </div>
                                                     </CardItem>
                                                     <div className="flex justify-between items-center mt-8">
@@ -2630,13 +2634,13 @@ function BuyerDashboardContent() {
                                                             translateZ={20}
                                                             className="px-4 py-2 rounded-xl text-xs font-normal"
                                                         >
-                                                            <span className="text-2xl font-bold text-purple-600">${item.price}</span>
-                                                            <span className="text-gray-500 ml-1">/ {item.size}</span>
+                                                            <span className="text-2xl font-bold text-primary tabular-nums">${item.price}</span>
+                                                            <span className="text-muted-foreground ml-1">/ {item.size}</span>
                                                         </CardItem>
                                                         <CardItem
                                                             translateZ={20}
                                                             as="button"
-                                                            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-colors"
+                                                            className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-colors"
                                                             onClick={() => {
                                                                 setSelectedItem(item);
                                                                 setIsItemDetailsDialogOpen(true);
@@ -2677,32 +2681,32 @@ function BuyerDashboardContent() {
                             <div className="space-y-4">
                                 <div className="grid gap-4">
                                     {orders.map((order) => (
-                                        <Card key={order.id} className="border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-900">
+                                        <Card key={order.id}>
                                             <CardHeader>
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                                                            <Package className="h-6 w-6 text-purple-600" />
+                                                        <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                            <Package className="h-6 w-6 text-primary" />
                                                         </div>
                                                         <div>
                                                             <CardTitle>{localizedProductName(order.item?.name) || 'Unknown Item'}</CardTitle>
                                                             <CardDescription>Order #{order.id.slice(0, 8)} • {new Date(order.createdAt).toLocaleDateString()}</CardDescription>
                                                         </div>
                                                     </div>
-                                                    <Badge variant="outline" className={getStatusColor(order.status)}>{order.status}</Badge>
+                                                    <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
                                                 </div>
                                             </CardHeader>
                                             <CardContent className="space-y-3">
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
-                                                        <p className="font-semibold">{order.quantity} units</p>
+                                                        <p className="font-semibold tabular-nums">{order.quantity} units</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.price")}</Label>
-                                                        <p className="font-semibold text-purple-600">${(order.totalPrice || 0).toFixed(2)}</p>
+                                                        <p className="font-semibold text-primary tabular-nums">${(order.totalPrice || 0).toFixed(2)}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.status")}</Label>
                                                         <div className="flex items-center gap-2">
                                                             <p className="font-semibold capitalize">{order.status}</p>
@@ -2728,7 +2732,7 @@ function BuyerDashboardContent() {
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                                                    <div className="p-3 bg-muted rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">Updated</Label>
                                                         <p className="font-semibold">{new Date(order.updatedAt).toLocaleDateString()}</p>
                                                     </div>
@@ -2745,39 +2749,39 @@ function BuyerDashboardContent() {
                             <div className="space-y-4">
                                 <div className="grid gap-4">
                                     {bids.map((bid) => (
-                                        <Card key={bid.id} className="border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-900 overflow-hidden relative">
-                                            <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-blue-500" />
+                                        <Card key={bid.id} className="overflow-hidden relative">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
                                             <CardHeader>
                                                 <div className="flex items-center justify-between">
                                                     <div>
-                                                        <CardTitle className="text-gray-900 dark:text-gray-100">Bid from Vendor #{bid.id.slice(0, 6).toUpperCase()}</CardTitle>
+                                                        <CardTitle>Bid from Vendor #{bid.id.slice(0, 6).toUpperCase()}</CardTitle>
                                                         <CardDescription>
                                                             Order #{bid.orderId.slice(0, 8)} • {new Date(bid.createdAt).toLocaleDateString()}
                                                         </CardDescription>
                                                     </div>
-                                                    <Badge variant="outline" className={getStatusColor(bid.status)}>{bid.status}</Badge>
+                                                    <Badge variant={getStatusVariant(bid.status)}>{bid.status}</Badge>
                                                 </div>
                                             </CardHeader>
                                             <CardContent className="space-y-3">
                                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
-                                                        <Label className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t("buyer.bidAmount")}</Label>
-                                                        <p className="text-xl font-bold text-purple-600">${Number(bid.bidAmount).toFixed(2)}</p>
+                                                    <div className="p-3 bg-muted rounded-lg">
+                                                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("buyer.bidAmount")}</Label>
+                                                        <p className="text-xl font-bold text-primary tabular-nums">${Number(bid.bidAmount).toFixed(2)}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                    <div className="p-3 bg-muted rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("buyer.estimatedDelivery")}</Label>
                                                         <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                    <div className="p-3 bg-muted rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.status")}</Label>
                                                         <p className="font-medium capitalize">{bid.status}</p>
                                                     </div>
                                                 </div>
                                             </CardContent>
                                             {bid.status === 'pending' && (
-                                                <CardFooter className="gap-3 bg-gray-50/50 dark:bg-gray-900/50 p-4">
+                                                <CardFooter className="gap-3 bg-muted/50 p-4">
                                                     <Button
-                                                        className="flex-1 bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
+                                                        className="flex-1 bg-success hover:bg-success/90 text-success-foreground"
                                                         onClick={() => handleAcceptBid(bid.id)}
                                                     >
                                                         <Check className="mr-2 h-4 w-4" />
@@ -2785,7 +2789,7 @@ function BuyerDashboardContent() {
                                                     </Button>
                                                     <Button
                                                         variant="destructive"
-                                                        className="flex-1 shadow-lg shadow-red-500/20"
+                                                        className="flex-1"
                                                         onClick={() => handleRejectBid(bid.id)}
                                                     >
                                                         <X className="mr-2 h-4 w-4" />
@@ -2802,7 +2806,7 @@ function BuyerDashboardContent() {
                                                 </CardFooter>
                                             )}
                                             {bid.status !== 'pending' && (
-                                                <CardFooter className="gap-3 bg-gray-50/50 dark:bg-gray-900/50 p-4">
+                                                <CardFooter className="gap-3 bg-muted/50 p-4">
                                                     <Button
                                                         variant="outline"
                                                         className="flex-1"
@@ -2825,8 +2829,8 @@ function BuyerDashboardContent() {
                         <div className="space-y-6 mt-8">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse" />
-                                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("buyer.sellerBids")}</h2>
+                                    <div className="h-3 w-3 bg-success rounded-full animate-pulse" />
+                                    <h2 className="text-xl font-semibold text-foreground">{t("buyer.sellerBids")}</h2>
                                     <Badge variant="secondary" className="ml-2">{filteredAndSortedLiveBids.length} active</Badge>
                                 </div>
                                 <Button
@@ -2845,7 +2849,7 @@ function BuyerDashboardContent() {
                                 {/* Search Bar */}
                                 <div className="relative">
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Search className="h-5 w-5 text-gray-400" />
+                                        <Search className="h-5 w-5 text-muted-foreground" />
                                     </div>
                                     <Input
                                         type="text"
@@ -2897,8 +2901,8 @@ function BuyerDashboardContent() {
 
                             <div className="grid gap-4">
                                 {filteredAndSortedLiveBids.length === 0 ? (
-                                    <Card className="p-8 text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
-                                        <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse mx-auto mb-4" />
+                                    <Card className="p-8 text-center">
+                                        <div className="h-3 w-3 bg-muted-foreground/40 rounded-full animate-pulse mx-auto mb-4" />
                                         <p className="text-muted-foreground">
                                             {bids.filter(b => b.status === 'pending').length === 0 ? t("buyer.noLiveBids") : t("buyer.noBidsMatchSearch")}
                                         </p>
@@ -2937,12 +2941,12 @@ function BuyerDashboardContent() {
                                             : null;
 
                                         return (
-                                            <Card key={bid.id} className="border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-gray-900 overflow-hidden relative">
-                                                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-blue-500" />
+                                            <Card key={bid.id} className="overflow-hidden relative">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
                                                 <CardHeader>
                                                     <div className="flex items-center justify-between">
                                                         <div>
-                                                            <CardTitle className="text-gray-900 dark:text-gray-100">
+                                                            <CardTitle>
                                                                 {order?.item?.name || `Order #${bid.orderId.slice(0, 8)}`}
                                                             </CardTitle>
                                                             <CardDescription>
@@ -2951,10 +2955,10 @@ function BuyerDashboardContent() {
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                                                                <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">Live</Badge>
+                                                                <div className="h-2 w-2 bg-success rounded-full animate-pulse" />
+                                                                <Badge variant="success">Live</Badge>
                                                             </div>
-                                                            <div className={`flex items-center gap-2 mt-1 px-3 py-1.5 rounded-full border shadow-sm backdrop-blur-md ${isExpired ? 'bg-red-500/10 border-red-500/20' : 'bg-orange-500/10 border-orange-500/20'}`}>
+                                                            <div className={`flex items-center gap-2 mt-1 px-3 py-1.5 rounded-full border ${isExpired ? 'bg-destructive/10 border-destructive/20' : 'bg-warning/10 border-warning/20'}`}>
                                                                 <ClockTimer
                                                                     endTime={order ? calculateBidEndTime(order) : new Date()}
                                                                     size={18}
@@ -2966,34 +2970,34 @@ function BuyerDashboardContent() {
                                                 </CardHeader>
                                                 <CardContent className="space-y-3">
                                                     <div className={`grid ${isInternational ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2'} gap-4`}>
-                                                        <div className="p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg border border-purple-100 dark:border-purple-900/20">
-                                                            <Label className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider">{t("buyer.sellerBidLabel")}</Label>
-                                                            <p className="text-xl font-bold text-purple-600">${Number(bid.bidAmount).toFixed(2)}</p>
-                                                            <p className="text-[10px] text-purple-500 dark:text-purple-400 mt-0.5">{t("buyer.exclusiveGST")}</p>
+                                                        <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                                                            <Label className="text-xs text-primary uppercase tracking-wider">{t("buyer.sellerBidLabel")}</Label>
+                                                            <p className="text-xl font-bold text-primary tabular-nums">${Number(bid.bidAmount).toFixed(2)}</p>
+                                                            <p className="text-[10px] text-primary/80 mt-0.5">{t("buyer.exclusiveGST")}</p>
                                                         </div>
                                                         {isInternational && (
                                                             <>
-                                                                <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t("buyer.shippingCostLabel")}</Label>
-                                                                    <p className="text-xl font-bold text-blue-600">
+                                                                <div className="p-3 bg-info/10 rounded-lg border border-info/20">
+                                                                    <Label className="text-xs text-info uppercase tracking-wider">{t("buyer.shippingCostLabel")}</Label>
+                                                                    <p className="text-xl font-bold text-info tabular-nums">
                                                                         {lowestShippingBid ? `$${Number(lowestShippingBid.bidAmount).toFixed(2)}` : t("buyer.noBidYet")}
                                                                     </p>
                                                                     {orderShippingBids.length > 1 && (
                                                                         <p className="text-xs text-muted-foreground mt-1">{orderShippingBids.length} {t("buyer.shippingBidsCount")}</p>
                                                                     )}
                                                                 </div>
-                                                                <div className="p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/20">
-                                                                    <Label className="text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{t("buyer.totalCostLabel")}</Label>
-                                                                    <p className="text-2xl font-bold text-emerald-600">${Number(totalCost).toFixed(2)}</p>
+                                                                <div className="p-3 bg-success/10 rounded-lg border border-success/20">
+                                                                    <Label className="text-xs text-success uppercase tracking-wider">{t("buyer.totalCostLabel")}</Label>
+                                                                    <p className="text-2xl font-bold text-success tabular-nums">${Number(totalCost).toFixed(2)}</p>
                                                                 </div>
                                                             </>
                                                         )}
-                                                        <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                        <div className="p-3 bg-muted rounded-lg">
                                                             <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("common.quantity")}</Label>
-                                                            <p className="font-medium">{order?.quantity || 'N/A'} {t("seller.units")}</p>
+                                                            <p className="font-medium tabular-nums">{order?.quantity || 'N/A'} {t("seller.units")}</p>
                                                         </div>
                                                     </div>
-                                                    <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-800">
+                                                    <div className="p-3 bg-muted rounded-lg">
                                                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">{t("buyer.estimatedDelivery")}</Label>
                                                         <p className="font-medium">{new Date(bid.estimatedDelivery).toLocaleDateString()}</p>
                                                     </div>
@@ -3002,17 +3006,17 @@ function BuyerDashboardContent() {
 
                                                     {/* Bid Comparison */}
                                                     {percentLowerThanHighest && allOrderBids.length > 1 && (
-                                                        <div className="p-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg border-2 border-green-200 dark:border-green-800 shadow-sm">
+                                                        <div className="p-3 bg-success/10 rounded-lg border border-success/20">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full">
-                                                                    <TrendingDown className="h-4 w-4 text-white" />
+                                                                <div className="flex items-center justify-center w-8 h-8 bg-success rounded-full">
+                                                                    <TrendingDown className="h-4 w-4 text-success-foreground" />
                                                                 </div>
                                                                 <div className="flex-1">
-                                                                    <Label className="text-xs text-green-700 dark:text-green-300 uppercase tracking-wider font-bold">{t("buyer.bestValueLabel")}</Label>
-                                                                    <p className="text-sm font-bold text-green-700 dark:text-green-300 mt-0.5">
+                                                                    <Label className="text-xs text-success uppercase tracking-wider font-bold">{t("buyer.bestValueLabel")}</Label>
+                                                                    <p className="text-sm font-bold text-success mt-0.5">
                                                                         {t("buyer.bestValueLabel")}: {percentLowerThanHighest}% lower
                                                                     </p>
-                                                                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                                                    <p className="text-xs text-success mt-1">
                                                                         {allOrderBids.length - 1} {allOrderBids.length - 1 > 1 ? t("seller.otherSellers") : t("seller.otherSeller")}
                                                                     </p>
                                                                 </div>
@@ -3024,8 +3028,8 @@ function BuyerDashboardContent() {
                                                     {order?.item?.specifications && (
                                                         <>
                                                             {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] !== 'India' && order.item.specifications['Incoterms'] && (
-                                                                <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/20">
-                                                                    <Label className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider">{t("buyer.internationalShipping")}</Label>
+                                                                <div className="p-3 bg-warning/10 rounded-lg border border-warning/20">
+                                                                    <Label className="text-xs text-warning uppercase tracking-wider">{t("buyer.internationalShipping")}</Label>
                                                                     <div className="mt-1 space-y-1">
                                                                         <div className="flex justify-between text-sm">
                                                                             <span className="text-muted-foreground">{t("buyer.destination")}:</span>
@@ -3033,14 +3037,14 @@ function BuyerDashboardContent() {
                                                                         </div>
                                                                         <div className="flex justify-between text-sm">
                                                                             <span className="text-muted-foreground">{t("buyer.incotermsLabel")}:</span>
-                                                                            <span className="font-medium text-amber-700 dark:text-amber-300">{order.item.specifications['Incoterms']}</span>
+                                                                            <span className="font-medium text-warning">{order.item.specifications['Incoterms']}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             )}
                                                             {order.item.specifications['Destination Country'] && order.item.specifications['Destination Country'] === 'India' && (
-                                                                <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
-                                                                    <Label className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider">{t("buyer.domesticShipping")}</Label>
+                                                                <div className="p-3 bg-info/10 rounded-lg border border-info/20">
+                                                                    <Label className="text-xs text-info uppercase tracking-wider">{t("buyer.domesticShipping")}</Label>
                                                                     <div className="mt-1">
                                                                         <div className="flex justify-between text-sm">
                                                                             <span className="text-muted-foreground">{t("buyer.destination")}:</span>
@@ -3052,9 +3056,9 @@ function BuyerDashboardContent() {
                                                         </>
                                                     )}
                                                 </CardContent>
-                                                <CardFooter className="gap-3 bg-gray-50/50 dark:bg-gray-900/50 p-4">
+                                                <CardFooter className="gap-3 bg-muted/50 p-4">
                                                     <Button
-                                                        className="w-32 rounded-lg bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-500/20"
+                                                        className="w-32 rounded-lg bg-success hover:bg-success/90 text-success-foreground"
                                                         onClick={() => handleAcceptBid(bid.id)}
                                                     >
                                                         <Check className="mr-2 h-4 w-4" />
@@ -3062,7 +3066,7 @@ function BuyerDashboardContent() {
                                                     </Button>
                                                     <Button
                                                         variant="destructive"
-                                                        className="w-32 rounded-lg shadow-lg shadow-red-500/20"
+                                                        className="w-32 rounded-lg"
                                                         onClick={() => handleRejectBid(bid.id)}
                                                     >
                                                         <X className="mr-2 h-4 w-4" />
@@ -3086,7 +3090,7 @@ function BuyerDashboardContent() {
                                     <div className="flex justify-center">
                                         <Button
                                             variant="outline"
-                                            className="w-full max-w-xs border-purple-200 dark:border-purple-800 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                                            className="w-full max-w-xs"
                                             onClick={() => setLiveBidsShowAll(!liveBidsShowAll)}
                                         >
                                             {liveBidsShowAll ? (
@@ -3110,16 +3114,16 @@ function BuyerDashboardContent() {
                     {/* Analytics Section */}
                     <div className="space-y-6 mt-12">
                         <div className="flex items-center gap-2">
-                            <BarChart3 className="h-5 w-5 text-purple-600" />
-                            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{t("buyer.analytics")}</h2>
+                            <BarChart3 className="h-5 w-5 text-primary" />
+                            <h2 className="text-xl font-semibold text-foreground">{t("buyer.analytics")}</h2>
                         </div>
 
                         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                             {/* Order Status Pie Chart */}
-                            <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                            <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
-                                        <PieChart className="h-5 w-5 text-purple-600" />
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <PieChart className="h-5 w-5 text-primary" />
                                         {t("buyer.orderStatusDistribution")}
                                     </CardTitle>
                                     <CardDescription>{t("buyer.ordersOverview")}</CardDescription>
@@ -3156,26 +3160,26 @@ function BuyerDashboardContent() {
                                     )}
                                     <div className="flex justify-center gap-4 mt-4 flex-wrap">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-yellow-500" />
+                                            <div className="h-3 w-3 rounded-full bg-warning" />
                                             <span className="text-xs text-muted-foreground">{t("status.pending")} ({buyerStats.pendingOrders})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-green-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.completed")} ({buyerStats.completedOrders})</span>
+                                            <div className="h-3 w-3 rounded-full bg-success" />
+                                            <span className="text-xs text-muted-foreground">{t("status.completed")} ({buyerStats.completedOrders})</span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-red-500" />
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">{t("status.cancelled")} ({buyerStats.cancelledOrders})</span>
+                                            <div className="h-3 w-3 rounded-full bg-destructive" />
+                                            <span className="text-xs text-muted-foreground">{t("status.cancelled")} ({buyerStats.cancelledOrders})</span>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
                             {/* Procurement Metrics */}
-                            <Card className="border border-gray-200 dark:border-gray-800 shadow-sm bg-white dark:bg-gray-900">
+                            <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-gray-900 dark:text-gray-100">
-                                        <TrendingUp className="h-5 w-5 text-purple-600" />
+                                    <CardTitle className="flex items-center gap-2 text-lg">
+                                        <TrendingUp className="h-5 w-5 text-primary" />
                                         {t("buyer.procurementMetrics")}
                                     </CardTitle>
                                     <CardDescription>{t("buyer.purchasingActivity")}</CardDescription>
@@ -3184,57 +3188,57 @@ function BuyerDashboardContent() {
                                     <div className="flex flex-col items-center">
                                         <div className="relative h-32 w-32">
                                             <svg className="h-32 w-32 -rotate-90" viewBox="0 0 100 100">
-                                                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="text-gray-200 dark:text-gray-700" />
+                                                <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="text-muted" />
                                                 <circle
                                                     cx="50" cy="50" r="40"
                                                     stroke="currentColor" strokeWidth="8" fill="none"
                                                     strokeDasharray={`${Math.min((buyerStats.totalBidsReceived / Math.max(buyerStats.activeBidRequests, 1)) * 2.51, 251)} 251`}
-                                                    className="text-purple-500"
+                                                    className="text-primary"
                                                     strokeLinecap="round"
                                                 />
                                             </svg>
                                             <div className="absolute inset-0 flex items-center justify-center flex-col">
-                                                <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{buyerStats.totalBidsReceived}</span>
+                                                <span className="text-3xl font-bold text-foreground tabular-nums">{buyerStats.totalBidsReceived}</span>
                                                 <span className="text-xs text-muted-foreground">{t("seller.bidCount")}</span>
                                             </div>
                                         </div>
                                         <p className="text-sm text-muted-foreground mt-2">{t("buyer.totalBidsReceived")}</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                                            <p className="text-2xl font-bold text-purple-600">{buyerStats.activeBidRequests}</p>
+                                        <div className="text-center p-3 bg-primary/10 rounded-lg">
+                                            <p className="text-2xl font-bold text-primary tabular-nums">{buyerStats.activeBidRequests}</p>
                                             <p className="text-xs text-muted-foreground">{t("buyer.activeRequests")}</p>
                                         </div>
-                                        <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                                            <p className="text-2xl font-bold text-blue-600">{buyerStats.totalOrders}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{t("buyer.stats.totalOrders")}</p>
+                                        <div className="text-center p-3 bg-info/10 rounded-lg">
+                                            <p className="text-2xl font-bold text-info tabular-nums">{buyerStats.totalOrders}</p>
+                                            <p className="text-xs text-muted-foreground">{t("buyer.stats.totalOrders")}</p>
                                         </div>
                                     </div>
                                 </CardContent>
                             </Card>
 
                             {/* Cost Savings Summary */}
-                            <Card className="border border-green-200 dark:border-green-800 shadow-sm bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+                            <Card className="bg-success text-success-foreground border-transparent">
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg text-white">
+                                    <CardTitle className="flex items-center gap-2 text-lg text-success-foreground">
                                         <DollarSign className="h-5 w-5" />
                                         {t("buyer.costSavingsSummary")}
                                     </CardTitle>
-                                    <CardDescription className="text-green-100">{t("buyer.procurementSavings")}</CardDescription>
+                                    <CardDescription className="text-success-foreground/80">{t("buyer.procurementSavings")}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-green-100">{t("buyer.stats.totalSpent")}</span>
-                                            <span className="text-xl font-bold">₹{Number(buyerStats.totalSpent).toFixed(2)}</span>
+                                            <span className="text-success-foreground/80">{t("buyer.stats.totalSpent")}</span>
+                                            <span className="text-xl font-bold tabular-nums">₹{Number(buyerStats.totalSpent).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-green-100">{t("buyer.potentialSavings")}</span>
-                                            <span className="text-xl font-bold">₹{Number(savings.totalSavings).toFixed(2)}</span>
+                                            <span className="text-success-foreground/80">{t("buyer.potentialSavings")}</span>
+                                            <span className="text-xl font-bold tabular-nums">₹{Number(savings.totalSavings).toFixed(2)}</span>
                                         </div>
                                         <div className="flex justify-between items-center p-3 bg-white/20 rounded-lg">
-                                            <span className="text-green-100">{t("buyer.savingsRate")}</span>
-                                            <span className="text-xl font-bold">
+                                            <span className="text-success-foreground/80">{t("buyer.savingsRate")}</span>
+                                            <span className="text-xl font-bold tabular-nums">
                                                 {savings.savingsPercent.toFixed(1)}%
                                             </span>
                                         </div>
@@ -3246,10 +3250,10 @@ function BuyerDashboardContent() {
                         {/* Full Width Charts */}
                         <div className="grid gap-6 lg:grid-cols-2">
                             {/* Monthly Spending Trends */}
-                            <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
-                                        <Activity className="h-5 w-5 text-purple-600" />
+                                        <Activity className="h-5 w-5 text-primary" />
                                         {t("buyer.monthlySpendingTrends")}
                                     </CardTitle>
                                     <CardDescription>{t("buyer.spendingOverTime")}</CardDescription>
@@ -3263,7 +3267,7 @@ function BuyerDashboardContent() {
                                                     <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.1} />
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                                             <XAxis dataKey="month" className="text-xs" />
                                             <YAxis className="text-xs" />
                                             <ChartTooltip content={<ChartTooltipContent />} />
@@ -3274,10 +3278,10 @@ function BuyerDashboardContent() {
                             </Card>
 
                             {/* Bid Activity Timeline */}
-                            <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                            <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2 text-lg">
-                                        <Trophy className="h-5 w-5 text-purple-600" />
+                                        <Trophy className="h-5 w-5 text-primary" />
                                         {t("buyer.bidActivityTimeline")}
                                     </CardTitle>
                                     <CardDescription>{t("buyer.bidsPerMonth")}</CardDescription>
@@ -3285,7 +3289,7 @@ function BuyerDashboardContent() {
                                 <CardContent>
                                     <ChartContainer config={spendingChartConfig} className="h-[250px] w-full">
                                         <LineChart data={bidActivityData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                                             <XAxis dataKey="month" className="text-xs" />
                                             <YAxis className="text-xs" />
                                             <ChartTooltip content={<ChartTooltipContent />} />
@@ -3299,8 +3303,8 @@ function BuyerDashboardContent() {
                         {/* Market Price Chart & Today's Prices */}
                         <div className="space-y-4 mt-6">
                             <div className="flex items-center gap-2">
-                                <TrendingUp className="h-5 w-5 text-green-600" />
-                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t("cardamom.pageTitle")}</h3>
+                                <TrendingUp className="h-5 w-5 text-success" />
+                                <h3 className="text-lg font-semibold text-foreground">{t("cardamom.pageTitle")}</h3>
                                 {cardamomStats && (
                                     <span className="text-xs text-muted-foreground ml-2">
                                         {t("cardamom.lastUpdatedPrefix")} {new Date(cardamomStats.lastUpdated).toLocaleDateString('en-IN')}
@@ -3309,10 +3313,10 @@ function BuyerDashboardContent() {
                             </div>
                             <div className="grid gap-6 lg:grid-cols-2">
                                 {/* Price History Chart */}
-                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2 text-lg">
-                                            <BarChart3 className="h-5 w-5 text-green-600" />
+                                            <BarChart3 className="h-5 w-5 text-success" />
                                             {t("cardamom.priceHistoryTitle")}
                                         </CardTitle>
                                         <CardDescription>{t("cardamom.priceHistoryDesc")}</CardDescription>
@@ -3327,15 +3331,15 @@ function BuyerDashboardContent() {
                                                             <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
                                                         </linearGradient>
                                                     </defs>
-                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                                                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                                                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v}`} />
                                                     <ChartTooltip content={({ active, payload }) => {
                                                         if (active && payload && payload.length) {
                                                             return (
-                                                                <div className="bg-background border rounded-lg p-2 shadow-lg">
+                                                                <div className="bg-popover border border-border rounded-lg p-2 shadow-micro">
                                                                     <p className="text-sm font-medium">{payload[0].payload.date}</p>
-                                                                    <p className="text-xs text-green-600">₹{payload[0].value}{t("common.perKg")}</p>
+                                                                    <p className="text-xs text-success tabular-nums">₹{payload[0].value}{t("common.perKg")}</p>
                                                                 </div>
                                                             );
                                                         }
@@ -3357,10 +3361,10 @@ function BuyerDashboardContent() {
                                 </Card>
 
                                 {/* Today's Prices */}
-                                <Card className="shadow-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
+                                <Card>
                                     <CardHeader>
                                         <CardTitle className="flex items-center gap-2 text-lg">
-                                            <Calendar className="h-5 w-5 text-green-600" />
+                                            <Calendar className="h-5 w-5 text-success" />
                                             {t("cardamom.todaysPrices")}
                                         </CardTitle>
                                         <CardDescription>
@@ -3374,36 +3378,36 @@ function BuyerDashboardContent() {
                                             <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
                                                 {cardamomStats && (
                                                     <div className="grid grid-cols-3 gap-2 mb-3">
-                                                        <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                                        <div className="text-center p-2 bg-success/10 rounded-lg">
                                                             <p className="text-xs text-muted-foreground">{t("cardamom.minPrice")}</p>
-                                                            <p className="text-sm font-bold text-green-700 dark:text-green-400">₹{cardamomStats.minPrice}</p>
+                                                            <p className="text-sm font-bold text-success tabular-nums">₹{cardamomStats.minPrice}</p>
                                                         </div>
-                                                        <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                        <div className="text-center p-2 bg-info/10 rounded-lg">
                                                             <p className="text-xs text-muted-foreground">{t("cardamom.avgPrice")}</p>
-                                                            <p className="text-sm font-bold text-blue-700 dark:text-blue-400">₹{Math.round(cardamomStats.avgPrice)}</p>
+                                                            <p className="text-sm font-bold text-info tabular-nums">₹{Math.round(cardamomStats.avgPrice)}</p>
                                                         </div>
-                                                        <div className="text-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                                                        <div className="text-center p-2 bg-warning/10 rounded-lg">
                                                             <p className="text-xs text-muted-foreground">{t("cardamom.maxPrice")}</p>
-                                                            <p className="text-sm font-bold text-orange-700 dark:text-orange-400">₹{cardamomStats.maxPrice}</p>
+                                                            <p className="text-sm font-bold text-warning tabular-nums">₹{cardamomStats.maxPrice}</p>
                                                         </div>
                                                     </div>
                                                 )}
                                                 {todayCardamomPrices.slice(0, 8).map((p, i) => (
-                                                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                                                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50 transition-colors">
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{p.variety}</p>
+                                                            <p className="text-sm font-medium text-foreground truncate">{p.variety}</p>
                                                             <p className="text-xs text-muted-foreground truncate">{p.market}{p.state ? `, ${p.state}` : ''}</p>
                                                         </div>
                                                         <div className="text-right ml-3 flex-shrink-0">
-                                                            <p className="text-sm font-bold text-green-600">₹{p.modalPrice}<span className="text-xs font-normal text-muted-foreground">{t("common.perKg")}</span></p>
+                                                            <p className="text-sm font-bold text-success tabular-nums">₹{p.modalPrice}<span className="text-xs font-normal text-muted-foreground">{t("common.perKg")}</span></p>
                                                             {p.minPrice && p.maxPrice && (
-                                                                <p className="text-xs text-muted-foreground">₹{p.minPrice}–₹{p.maxPrice}</p>
+                                                                <p className="text-xs text-muted-foreground tabular-nums">₹{p.minPrice}–₹{p.maxPrice}</p>
                                                             )}
                                                         </div>
                                                     </div>
                                                 ))}
                                                 {todayCardamomPrices.length > 8 && (
-                                                    <p className="text-xs text-center text-muted-foreground pt-1">+{todayCardamomPrices.length - 8} more — <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.viewAll")}</a></p>
+                                                    <p className="text-xs text-center text-muted-foreground pt-1">+{todayCardamomPrices.length - 8} more — <a href="/dashboard/cardamom-prices" className="text-primary hover:underline">{t("cardamom.viewAll")}</a></p>
                                                 )}
                                             </div>
                                         ) : (
@@ -3412,7 +3416,7 @@ function BuyerDashboardContent() {
                                                     <Calendar className="h-12 w-12 mx-auto mb-2 opacity-30" />
                                                     <p className="text-sm">{t("cardamom.noPricesToday")}</p>
                                                     <p className="text-xs mt-1">
-                                                        <a href="/dashboard/cardamom-prices" className="text-green-600 hover:underline">{t("cardamom.refreshMarketData")}</a>
+                                                        <a href="/dashboard/cardamom-prices" className="text-primary hover:underline">{t("cardamom.refreshMarketData")}</a>
                                                     </p>
                                                 </div>
                                             </div>
@@ -3463,9 +3467,9 @@ function BuyerDashboardContent() {
                                     />
                                 </div>
                                 {selectedItem && orderForm.quantity && (
-                                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div className="p-3 bg-muted rounded-lg">
                                         <Label>{t("common.price")}</Label>
-                                        <p className="text-2xl font-bold text-purple-600">
+                                        <p className="text-2xl font-bold text-primary tabular-nums">
                                             ${(selectedItem.price * parseInt(orderForm.quantity)).toFixed(2)}
                                         </p>
                                     </div>
@@ -3482,7 +3486,6 @@ function BuyerDashboardContent() {
                                 <Button
                                     onClick={handlePlaceOrder}
                                     disabled={!orderForm.quantity || !orderForm.shippingAddress || placingOrder}
-                                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 >
                                     {placingOrder ? t("common.loading") : t("buyer.placeOrder")}
                                 </Button>
@@ -3498,8 +3501,8 @@ function BuyerDashboardContent() {
                                 <DialogDescription>{selectedItem?.description}</DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
-                                <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 rounded-lg">
-                                    <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                                <div className="relative h-64 bg-muted rounded-lg">
+                                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
                                         <Package className="h-32 w-32" />
                                     </div>
                                 </div>
@@ -3507,7 +3510,7 @@ function BuyerDashboardContent() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <Label className="text-muted-foreground">{t("common.price")}</Label>
-                                        <p className="text-2xl font-bold text-purple-600">${selectedItem?.price}</p>
+                                        <p className="text-2xl font-bold text-primary tabular-nums">${selectedItem?.price}</p>
                                     </div>
                                     <div>
                                         <Label className="text-muted-foreground">{t("seller.size")}</Label>
@@ -3563,7 +3566,7 @@ function BuyerDashboardContent() {
                                     Place Order
                                 </Button>
                                 <Button
-                                    className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                                    className="flex-1"
                                     onClick={() => {
                                         setIsItemDetailsDialogOpen(false);
                                         setBidForm({
@@ -3622,35 +3625,35 @@ function BuyerDashboardContent() {
                             <div className="flex flex-wrap gap-2 mb-4">
                                 <Badge
                                     variant={selectedCategory === 'all' ? 'default' : 'outline'}
-                                    className="cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
                                     onClick={() => setSelectedCategory('all')}
                                 >
                                     All ({ALL_PRODUCTS.length})
                                 </Badge>
                                 <Badge
                                     variant={selectedCategory === 'Spices' ? 'default' : 'outline'}
-                                    className="cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
                                     onClick={() => setSelectedCategory('Spices')}
                                 >
                                     🌶️ Spices ({PRODUCT_CATALOG.spices.length})
                                 </Badge>
                                 <Badge
                                     variant={selectedCategory === 'Vegetables' ? 'default' : 'outline'}
-                                    className="cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
                                     onClick={() => setSelectedCategory('Vegetables')}
                                 >
                                     🥬 Vegetables ({PRODUCT_CATALOG.vegetables.length})
                                 </Badge>
                                 <Badge
                                     variant={selectedCategory === 'Pulses' ? 'default' : 'outline'}
-                                    className="cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
                                     onClick={() => setSelectedCategory('Pulses')}
                                 >
                                     🫘 Pulses ({PRODUCT_CATALOG.pulses.length})
                                 </Badge>
                                 <Badge
                                     variant={selectedCategory === 'Dry Fruits & Nuts' ? 'default' : 'outline'}
-                                    className="cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/30 transition-colors"
+                                    className="cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
                                     onClick={() => setSelectedCategory('Dry Fruits & Nuts')}
                                 >
                                     🥜 Dry Fruits ({PRODUCT_CATALOG.dry_fruits_and_nuts.length})
@@ -3669,18 +3672,18 @@ function BuyerDashboardContent() {
                                     {filteredCatalogProducts.map((product, index) => (
                                         <Card
                                             key={`${product.name}-${index}`}
-                                            className="hover:shadow-lg hover:border-purple-300 dark:hover:border-purple-700 transition-all duration-200 group"
+                                            className="hover:border-primary/40 transition-colors group"
                                         >
                                             <CardContent className="p-4">
                                                 <div className="flex-1">
-                                                    <h4 className="font-semibold text-sm group-hover:text-purple-600 transition-colors line-clamp-2">
+                                                    <h4 className="font-semibold text-sm group-hover:text-primary transition-colors line-clamp-2">
                                                         {localizedProductName(product.name)}
                                                     </h4>
                                                     <div className="flex flex-wrap items-center gap-1 mt-2">
                                                         <Badge variant="secondary" className="text-xs">
                                                             HSN: {product.hsn}
                                                         </Badge>
-                                                        <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
+                                                        <Badge variant="warning" className="text-xs">
                                                             {localizedProductMeta(product.variety)}
                                                         </Badge>
                                                     </div>
@@ -3691,7 +3694,7 @@ function BuyerDashboardContent() {
                                                 <div className="mt-3">
                                                     <Button
                                                         size="sm"
-                                                        className="w-full text-xs bg-purple-600 hover:bg-purple-700"
+                                                        className="w-full text-xs"
                                                         onClick={() => selectCatalogProductForBid(product)}
                                                     >
                                                         <Send className="h-3 w-3 mr-1" />
@@ -3771,16 +3774,16 @@ function BuyerDashboardContent() {
 
                             {/* HSN Badge if selected from catalog */}
                             {productForm.specifications['HSN Code'] && (
-                                <div className="flex flex-wrap items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
-                                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+                                <div className="flex flex-wrap items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                                    <Badge variant="secondary">
                                         HSN: {productForm.specifications['HSN Code']}
                                     </Badge>
                                     {productForm.specifications['Variety/Grade'] && (
-                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
+                                        <Badge variant="warning">
                                             {productForm.specifications['Variety/Grade']}
                                         </Badge>
                                     )}
-                                    <span className="text-sm text-purple-600 dark:text-purple-400">
+                                    <span className="text-sm text-primary">
                                         Selected from catalog
                                     </span>
                                 </div>
@@ -3914,7 +3917,7 @@ function BuyerDashboardContent() {
                                         {Object.entries(productForm.specifications).length > 0 && (
                                             <div className="space-y-1">
                                                 {Object.entries(productForm.specifications).map(([key, value]) => (
-                                                    <div key={key} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                                                    <div key={key} className="flex items-center justify-between p-2 bg-muted rounded">
                                                         <span className="text-sm"><strong>{key}:</strong> {value}</span>
                                                         <Button
                                                             type="button"
@@ -3938,7 +3941,6 @@ function BuyerDashboardContent() {
                                 </Button>
                                 <Button
                                     onClick={handleAddProduct}
-                                    className="bg-gradient-to-r from-purple-600 to-blue-600"
                                     disabled={addingProduct}
                                 >
                                     <Plus className="mr-2 h-4 w-4" />
@@ -3973,7 +3975,7 @@ function BuyerDashboardContent() {
                             setSelectedCatalogProduct(null);
                         }
                     }}>
-                        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white dark:bg-gray-950 border shadow-xl">
+                        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
                             <DialogHeader>
                                 <DialogTitle className="text-2xl">{t("buyer.placeBidRequestTitle")}</DialogTitle>
                                 <DialogDescription>
@@ -4096,8 +4098,8 @@ function BuyerDashboardContent() {
 
                                 {/* Bid Running Time - Single Input (Shipping auto-set to 1 day) */}
                                 <div className="space-y-4">
-                                    <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-lg border-2 border-purple-200 dark:border-purple-800">
-                                        <h3 className="font-semibold text-purple-700 dark:text-purple-300 mb-3 flex items-center gap-2">
+                                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                                        <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
                                             <Calendar className="h-4 w-4" />
                                             {t("buyer.biddingTimeline")}
                                         </h3>
@@ -4106,7 +4108,7 @@ function BuyerDashboardContent() {
                                         </p>
 
                                         <div>
-                                            <Label htmlFor="sellerBidRunningTime" className="text-purple-700 dark:text-purple-300 font-semibold">
+                                            <Label htmlFor="sellerBidRunningTime" className="text-primary font-semibold">
                                                 {t("buyer.sellerBidRunningTimeRequired")}
                                             </Label>
                                             <select
@@ -4119,7 +4121,7 @@ function BuyerDashboardContent() {
                                                         shippingBidRunningTime: '24' // Auto-set to 24 hours
                                                     });
                                                 }}
-                                                className="mt-1 w-full px-3 py-2 border border-purple-300 dark:border-purple-700 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-purple-500"
+                                                className="mt-1 w-full px-3 py-2 border border-primary/30 rounded-md bg-background text-foreground focus:ring-2 focus:ring-ring"
                                             >
                                                 <option value="">{t("buyer.selectDuration")}</option>
                                                 <option value="6">{t("buyer.sixHours")}</option>
@@ -4128,10 +4130,10 @@ function BuyerDashboardContent() {
                                                 <option value="48">{t("buyer.fortyEightHours")}</option>
                                                 <option value="72">{t("buyer.seventyTwoHours")}</option>
                                             </select>
-                                            <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                                            <p className="text-xs text-primary mt-1">
                                                 {t("buyer.sellerBidTimelineHint")}
                                             </p>
-                                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                                            <p className="text-xs text-info mt-2">
                                                 {t("buyer.shippingBidAutoHint")}
                                             </p>
                                         </div>
@@ -4276,9 +4278,9 @@ function BuyerDashboardContent() {
 
                                 {/* Summary Card */}
                                 {bidForm.productName && bidForm.quantity && (
-                                    <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+                                    <Card className="bg-primary/5 border-primary/20">
                                         <CardContent className="p-4">
-                                            <h4 className="font-semibold text-purple-700 dark:text-purple-300 mb-2">{t("buyer.bidRequestSummary")}</h4>
+                                            <h4 className="font-semibold text-primary mb-2">{t("buyer.bidRequestSummary")}</h4>
                                             <div className="grid grid-cols-2 gap-2 text-sm">
                                                 <div>
                                                     <span className="text-muted-foreground">{t("seller.product")}:</span>
@@ -4295,7 +4297,7 @@ function BuyerDashboardContent() {
                                                 {bidForm.country !== 'India' && bidForm.incoterms && (
                                                     <div>
                                                         <span className="text-muted-foreground">{t("buyer.incotermsRequired").replace(' *','')}:</span>
-                                                        <p className="font-medium text-amber-600">{bidForm.incoterms} - {INCOTERMS.find(i => i.code === bidForm.incoterms)?.name}</p>
+                                                        <p className="font-medium text-warning">{bidForm.incoterms} - {INCOTERMS.find(i => i.code === bidForm.incoterms)?.name}</p>
                                                     </div>
                                                 )}
                                                 {bidForm.quality && (
@@ -4313,13 +4315,13 @@ function BuyerDashboardContent() {
                                                 {bidForm.sellerBidRunningTime && (
                                                     <div>
                                                         <span className="text-muted-foreground">{t("buyer.sellerBidTime")}:</span>
-                                                        <p className="font-medium text-purple-600">{bidForm.sellerBidRunningTime} {t("buyer.hourUnit")}</p>
+                                                        <p className="font-medium text-primary">{bidForm.sellerBidRunningTime} {t("buyer.hourUnit")}</p>
                                                     </div>
                                                 )}
                                                 {bidForm.shippingBidRunningTime && (
                                                     <div>
                                                         <span className="text-muted-foreground">{t("buyer.shippingBidTime")}:</span>
-                                                        <p className="font-medium text-blue-600">{bidForm.shippingBidRunningTime} {t("buyer.hourUnit")}</p>
+                                                        <p className="font-medium text-info">{bidForm.shippingBidRunningTime} {t("buyer.hourUnit")}</p>
                                                     </div>
                                                 )}
                                             </div>
@@ -4346,7 +4348,6 @@ function BuyerDashboardContent() {
                                         (bidForm.country === 'India' && (!bidForm.pincode || !bidForm.state || bidForm.pincode.length !== 6)) ||
                                         (bidForm.country !== 'India' && !bidForm.incoterms)
                                     }
-                                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 >
                                     <ShoppingCart className="mr-2 h-4 w-4" />
                                     {placingBidRequest ? t("buyer.placingRequest") : t("buyer.placeBidRequestTitle")}
@@ -4633,7 +4634,6 @@ function BuyerDashboardContent() {
                                 <Button
                                     onClick={handleAddToList}
                                     disabled={addingToList || !addToListForm.productName || !addToListForm.quantity}
-                                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                                 >
                                     <List className="mr-2 h-4 w-4" />
                                     {addingToList ? "Adding..." : "Add Item"}
@@ -4653,7 +4653,7 @@ export default function BuyerDashboardPage() {
             <DashboardLayout role="buyer">
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
                         <p className="mt-4 text-muted-foreground">Loading buyer dashboard...</p>
                     </div>
                 </div>
