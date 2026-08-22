@@ -107,7 +107,6 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                                     height={36}
                                     className="h-9 w-9 rounded-lg object-contain ring-1 ring-border"
                                 />
-                                />
                                 <div className="hidden md:flex flex-col leading-tight">
                                     <span className="font-semibold text-[15px] tracking-tight text-foreground">
                                         {roleLabel}
