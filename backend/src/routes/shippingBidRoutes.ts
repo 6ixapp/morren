@@ -3,6 +3,7 @@ import {
   getShippingBids,
   getShippingBidById,
   getShippingBidsByOrder,
+  getShippingBidsByOrders,
   getShippingBidsByProvider,
   createShippingBid,
   updateShippingBid,
@@ -14,6 +15,7 @@ const router = Router();
 
 router.get('/', authenticate, authorize('admin'), getShippingBids);
 router.get('/order/:orderId', authenticate, getShippingBidsByOrder);
+router.get('/orders', authenticate, getShippingBidsByOrders);
 router.get('/provider/:providerId', authenticate, getShippingBidsByProvider);
 router.get('/:id', authenticate, getShippingBidById);
 router.post('/', authenticate, authorize('shipping_provider', 'admin'), createShippingBid);

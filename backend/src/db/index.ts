@@ -20,7 +20,14 @@ export const query = async <T extends QueryResultRow = any>(text: string, params
   try {
     const res = await pool.query<T>(text, params);
     const duration = Date.now() - start;
-    console.log('Executed query', { text, duration, rows: res.rowCount });
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (!isProduction || duration >= 250) {
+      console.log('Executed query', {
+        duration,
+        rows: res.rowCount,
+        ...(isProduction ? {} : { text }),
+      });
+    }
     return res;
   } catch (error) {
     console.error('Database query error:', error);

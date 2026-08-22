@@ -189,7 +189,7 @@ export function HistoricalPriceChart({ isDark }: { isDark: boolean }) {
                 borderRadius: "8px",
                 color: "var(--popover-foreground)",
               }}
-              formatter={(val: number) => [`₹${val.toLocaleString("en-IN", { maximumFractionDigits: 0 })}/kg`, "Price"]}
+              formatter={(val: number | undefined) => [`₹${(val ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}/kg`, "Price"]}
             />
             <Area
               type="monotone"
@@ -258,9 +258,9 @@ export function YearComparisonChart({ isDark }: { isDark: boolean }) {
                 borderRadius: "8px",
                 color: "var(--popover-foreground)",
               }}
-              formatter={(val: number, name: string) => [
-                `₹${val.toLocaleString("en-IN", { maximumFractionDigits: 0 })}/kg`,
-                name.replace("y", ""),
+              formatter={(val: number | undefined, name: string | undefined) => [
+                `₹${(val ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}/kg`,
+                (name ?? "").replace("y", ""),
               ]}
             />
             {years.map((yr) => (

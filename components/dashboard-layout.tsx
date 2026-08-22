@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
@@ -99,10 +100,13 @@ export function DashboardLayout({ children, role }: DashboardLayoutProps) {
                         {/* Logo and Desktop Nav */}
                         <div className="flex">
                             <div className="flex-shrink-0 flex items-center gap-2.5">
-                                <img
+                                <Image
                                     src="https://5.imimg.com/data5/SELLER/Logo/2023/1/CD/NH/CF/46836456/12569-comp-image-90x90.png"
                                     alt="Logo"
+                                    width={36}
+                                    height={36}
                                     className="h-9 w-9 rounded-lg object-contain ring-1 ring-border"
+                                />
                                 />
                                 <div className="hidden md:flex flex-col leading-tight">
                                     <span className="font-semibold text-[15px] tracking-tight text-foreground">

@@ -3,6 +3,7 @@ import {
   getBids,
   getBidById,
   getBidsByOrder,
+  getBidsByOrders,
   getBidsBySeller,
   createBid,
   updateBid,
@@ -14,6 +15,7 @@ const router = Router();
 
 router.get('/', authenticate, authorize('admin'), getBids);
 router.get('/order/:orderId', authenticate, getBidsByOrder);
+router.get('/orders', authenticate, getBidsByOrders);
 router.get('/seller/:sellerId', authenticate, getBidsBySeller);
 router.get('/:id', authenticate, getBidById);
 router.post('/', authenticate, authorize('seller', 'admin'), createBid);

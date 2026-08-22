@@ -14,7 +14,7 @@ import { Order, ShippingBid } from '@/lib/types';
 import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
-import { getOrdersForShipping, getShippingBidsByProvider, createShippingBid, updateShippingBid, getShippingBidsByOrder, getBidsByOrder } from '@/lib/api-client';
+import { getOrdersForShipping, getShippingBidsByProvider, createShippingBid, updateShippingBid, getShippingBidsByOrders, getBidsByOrders } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
@@ -97,32 +97,26 @@ export default function ShippingProviderDashboard() {
             setOrders(ordersData || []);
             setBids(bidsData || []);
 
-            // Fetch all shipping bids for each order to compare
+            // Fetch all bids for the visible orders in two batch requests.
             const orderBidsMap: Record<string, ShippingBid[]> = {};
             const sellerBidsMap: Record<string, any> = {};
             if (ordersData && ordersData.length > 0) {
-                await Promise.all(
-                    ordersData.map(async (order) => {
-                        try {
-                            const orderBids = await getShippingBidsByOrder(order.id, false);
-                            console.log(`Order ${order.id.slice(0, 8)} has ${orderBids.length} shipping bids`);
-                            orderBidsMap[order.id] = orderBids || [];
-
-                            // Fetch accepted seller bid for this order to get pickup address
-                            if (order.status === 'accepted') {
-                                const orderSellerBids = await getBidsByOrder(order.id, false);
-                                const acceptedSellerBid = orderSellerBids.find(b => b.status === 'accepted');
-                                if (acceptedSellerBid) {
-                                    sellerBidsMap[order.id] = acceptedSellerBid;
-                                    console.log(`Found accepted seller bid for order ${order.id.slice(0, 8)} with pickup address:`, acceptedSellerBid.pickupAddress);
-                                }
-                            }
-                        } catch (err) {
-                            console.error(`Error fetching bids for order ${order.id}:`, err);
-                            orderBidsMap[order.id] = [];
-                        }
-                    })
-                );
+                const orderIds = ordersData.map((order) => order.id);
+                const [allShippingBids, allSellerBids] = await Promise.all([
+                    getShippingBidsByOrders(orderIds, false),
+                    getBidsByOrders(orderIds, false),
+                ]);
+                for (const bid of allShippingBids) {
+                    (orderBidsMap[bid.orderId] ||= []).push(bid);
+                }
+                for (const order of ordersData) {
+                    if (order.status === 'accepted') {
+                        const acceptedSellerBid = allSellerBids.find(
+                            (bid) => bid.orderId === order.id && bid.status === 'accepted'
+                        );
+                        if (acceptedSellerBid) sellerBidsMap[order.id] = acceptedSellerBid;
+                    }
+                }
             }
             setAllOrderBids(orderBidsMap);
             setSellerBids(sellerBidsMap);

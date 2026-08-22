@@ -3,39 +3,45 @@ import crypto from 'crypto';
 import { query } from '../db';
 import { asyncHandler, AppError } from '../utils/errorHandler';
 import { keysToCamel, buildUpdateClause } from '../utils/dbHelpers';
+import { parsePagination } from '../utils/dbHelpers';
 import { RFQ, CreateRFQRequest, CreateQuoteRequest } from '../types';
 
 // GET /api/rfqs
 export const getRFQs = asyncHandler(async (req: Request, res: Response) => {
   const { buyerId } = req.query;
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
   let sqlQuery = `
     SELECT r.*,
-           json_agg(DISTINCT jsonb_build_object(
-             'id', si.id,
-             'rfqId', si.rfq_id,
-             'supplierId', si.supplier_id,
-             'status', si.status,
-             'inviteToken', si.invite_token,
-             'sentAt', si.sent_at,
-             'viewedAt', si.viewed_at,
-             'quotedAt', si.quoted_at
-           )) FILTER (WHERE si.id IS NOT NULL) as invites,
-           json_agg(DISTINCT jsonb_build_object(
-             'id', q.id,
-             'rfqId', q.rfq_id,
-             'supplierId', q.supplier_id,
-             'supplierName', q.supplier_name,
-             'pricePerUnit', q.price_per_unit,
-             'totalPrice', q.total_price,
-             'deliveryDays', q.delivery_days,
-             'validityDays', q.validity_days,
-             'notes', q.notes,
-             'submittedAt', q.submitted_at
-           )) FILTER (WHERE q.id IS NOT NULL) as quotes
+           COALESCE((
+             SELECT jsonb_agg(jsonb_build_object(
+               'id', si.id,
+               'rfqId', si.rfq_id,
+               'supplierId', si.supplier_id,
+               'status', si.status,
+               'inviteToken', si.invite_token,
+               'sentAt', si.sent_at,
+               'viewedAt', si.viewed_at,
+               'quotedAt', si.quoted_at
+             ) ORDER BY si.created_at)
+             FROM supplier_invites si WHERE si.rfq_id = r.id
+           ), '[]'::jsonb) as invites,
+           COALESCE((
+             SELECT jsonb_agg(jsonb_build_object(
+               'id', q.id,
+               'rfqId', q.rfq_id,
+               'supplierId', q.supplier_id,
+               'supplierName', q.supplier_name,
+               'pricePerUnit', q.price_per_unit,
+               'totalPrice', q.total_price,
+               'deliveryDays', q.delivery_days,
+               'validityDays', q.validity_days,
+               'notes', q.notes,
+               'submittedAt', q.submitted_at
+             ) ORDER BY q.submitted_at)
+             FROM quotes q WHERE q.rfq_id = r.id
+           ), '[]'::jsonb) as quotes
     FROM rfqs r
-    LEFT JOIN supplier_invites si ON r.id = si.rfq_id
-    LEFT JOIN quotes q ON r.id = q.rfq_id
   `;
 
   const params: any[] = [];
@@ -44,7 +50,8 @@ export const getRFQs = asyncHandler(async (req: Request, res: Response) => {
     params.push(buyerId);
   }
 
-  sqlQuery += ' GROUP BY r.id ORDER BY r.created_at DESC';
+  sqlQuery += ' ORDER BY r.created_at DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+  params.push(limit, offset);
 
   const result = await query(sqlQuery, params);
 
@@ -63,33 +70,37 @@ export const getRFQById = asyncHandler(async (req: Request, res: Response) => {
 
   const result = await query(
     `SELECT r.*,
-            json_agg(DISTINCT jsonb_build_object(
-              'id', si.id,
-              'rfqId', si.rfq_id,
-              'supplierId', si.supplier_id,
-              'status', si.status,
-              'inviteToken', si.invite_token,
-              'sentAt', si.sent_at,
-              'viewedAt', si.viewed_at,
-              'quotedAt', si.quoted_at
-            )) FILTER (WHERE si.id IS NOT NULL) as invites,
-            json_agg(DISTINCT jsonb_build_object(
-              'id', q.id,
-              'rfqId', q.rfq_id,
-              'supplierId', q.supplier_id,
-              'supplierName', q.supplier_name,
-              'pricePerUnit', q.price_per_unit,
-              'totalPrice', q.total_price,
-              'deliveryDays', q.delivery_days,
-              'validityDays', q.validity_days,
-              'notes', q.notes,
-              'submittedAt', q.submitted_at
-            )) FILTER (WHERE q.id IS NOT NULL) as quotes
+            COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'id', si.id,
+                'rfqId', si.rfq_id,
+                'supplierId', si.supplier_id,
+                'status', si.status,
+                'inviteToken', si.invite_token,
+                'sentAt', si.sent_at,
+                'viewedAt', si.viewed_at,
+                'quotedAt', si.quoted_at
+              ) ORDER BY si.created_at)
+              FROM supplier_invites si WHERE si.rfq_id = r.id
+            ), '[]'::jsonb) as invites,
+            COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'id', q.id,
+                'rfqId', q.rfq_id,
+                'supplierId', q.supplier_id,
+                'supplierName', q.supplier_name,
+                'pricePerUnit', q.price_per_unit,
+                'totalPrice', q.total_price,
+                'deliveryDays', q.delivery_days,
+                'validityDays', q.validity_days,
+                'notes', q.notes,
+                'submittedAt', q.submitted_at
+              ) ORDER BY q.submitted_at)
+              FROM quotes q WHERE q.rfq_id = r.id
+            ), '[]'::jsonb) as quotes
      FROM rfqs r
-     LEFT JOIN supplier_invites si ON r.id = si.rfq_id
-     LEFT JOIN quotes q ON r.id = q.rfq_id
      WHERE r.id = $1
-     GROUP BY r.id`,
+     `,
     [id]
   );
 

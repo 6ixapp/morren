@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useParams } from "next/navigation"
 import {
   getRFQByInviteToken,
@@ -63,6 +63,7 @@ export default function SupplierPortalPage() {
   const [submitting, setSubmitting] = useState(false)
   const [allowUpdate, setAllowUpdate] = useState(true)
   const [editMode, setEditMode] = useState(false)
+  const buyerProfileLoadedFor = useRef<string | null>(null)
 
   const [formData, setFormData] = useState({
     pricePerUnit: "",
@@ -81,14 +82,17 @@ export default function SupplierPortalPage() {
         setSupplier(data.supplier)
         setInvite(data.invite)
 
-        // Fetch buyer profile
-        try {
-          const profile = await getBuyerProfile(data.rfq.buyerId)
-          if (profile) {
-            setBuyerProfile(profile)
+        // Buyer profile is stable while this invite is open; fetch it once.
+        if (buyerProfileLoadedFor.current !== data.rfq.buyerId) {
+          try {
+            const profile = await getBuyerProfile(data.rfq.buyerId)
+            if (profile) {
+              setBuyerProfile(profile)
+              buyerProfileLoadedFor.current = data.rfq.buyerId
+            }
+          } catch (error) {
+            console.error('Error fetching buyer profile:', error)
           }
-        } catch (error) {
-          console.error('Error fetching buyer profile:', error)
         }
 
         // Mark as viewed if first time
@@ -122,8 +126,10 @@ export default function SupplierPortalPage() {
 
   useEffect(() => {
     loadData()
-    // Poll for updates every 5 seconds for live bidding view
-    const interval = setInterval(loadData, 5000)
+    // Poll only while visible and avoid creating unnecessary background traffic.
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') void loadData()
+    }, 15000)
     return () => clearInterval(interval)
   }, [loadData])
 

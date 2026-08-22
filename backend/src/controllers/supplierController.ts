@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
 import { query } from '../db';
 import { asyncHandler, AppError } from '../utils/errorHandler';
-import { keysToCamel } from '../utils/dbHelpers';
+import { keysToCamel, parsePagination } from '../utils/dbHelpers';
 import { Supplier, CreateSupplierRequest } from '../types';
 
 // GET /api/suppliers
 export const getSuppliers = asyncHandler(async (req: Request, res: Response) => {
-  const result = await query('SELECT * FROM suppliers ORDER BY name ASC');
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>, 500, 1000);
+  const result = await query(
+    'SELECT id, name, email, phone, contact_person, created_at, updated_at FROM suppliers ORDER BY name ASC LIMIT $1 OFFSET $2',
+    [limit, offset]
+  );
 
   const suppliers = result.rows.map((row) => keysToCamel(row)) as Supplier[];
 

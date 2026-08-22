@@ -47,6 +47,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 // Token management
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 
 if (typeof window !== 'undefined') {
   accessToken = localStorage.getItem('accessToken');
@@ -176,21 +177,29 @@ export async function signOut(): Promise<void> {
 export async function refreshAccessToken(): Promise<boolean> {
   if (!refreshToken) return false;
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
+  if (refreshInFlight) return refreshInFlight;
 
-    if (!response.ok) return false;
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
 
-    const data = await response.json();
-    setTokens(data.accessToken, data.refreshToken);
-    return true;
-  } catch {
-    return false;
-  }
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      setTokens(data.accessToken, data.refreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
 }
 
 export async function getCurrentUser(): Promise<User> {
@@ -334,6 +343,13 @@ export async function getBidsByOrder(orderId: string, maskSellerInfo?: boolean):
   return await apiCall<Bid[]>(`/api/bids/order/${orderId}${mask}`);
 }
 
+export async function getBidsByOrders(orderIds: string[], maskSellerInfo?: boolean): Promise<Bid[]> {
+  if (orderIds.length === 0) return [];
+  const params = new URLSearchParams({ orderIds: orderIds.join(',') });
+  if (maskSellerInfo) params.set('maskSellerInfo', 'true');
+  return await apiCall<Bid[]>(`/api/bids/orders?${params.toString()}`);
+}
+
 export async function getBidsBySeller(sellerId: string): Promise<Bid[]> {
   return await apiCall<Bid[]>(`/api/bids/seller/${sellerId}`);
 }
@@ -368,6 +384,13 @@ export async function getShippingBidById(id: string): Promise<ShippingBid> {
 export async function getShippingBidsByOrder(orderId: string, maskProviderInfo?: boolean): Promise<ShippingBid[]> {
   const mask = maskProviderInfo ? '?maskProviderInfo=true' : '';
   return await apiCall<ShippingBid[]>(`/api/shipping-bids/order/${orderId}${mask}`);
+}
+
+export async function getShippingBidsByOrders(orderIds: string[], maskProviderInfo?: boolean): Promise<ShippingBid[]> {
+  if (orderIds.length === 0) return [];
+  const params = new URLSearchParams({ orderIds: orderIds.join(',') });
+  if (maskProviderInfo) params.set('maskProviderInfo', 'true');
+  return await apiCall<ShippingBid[]>(`/api/shipping-bids/orders?${params.toString()}`);
 }
 
 export async function getShippingBidsByProvider(providerId: string): Promise<ShippingBid[]> {
@@ -537,12 +560,17 @@ export async function refreshCardamomPrices(): Promise<{
   });
 }
 
-export async function getLowestQuote(rfqId: string): Promise<Quote | null> {
-  try {
-    return await apiCall<Quote>(`/api/rfqs/${rfqId}/lowest-quote`);
-  } catch {
-    return null;
+export function getLowestQuote(quotes: Quote[]): Quote | null;
+export function getLowestQuote(rfqId: string): Promise<Quote | null>;
+export function getLowestQuote(rfqIdOrQuotes: string | Quote[]): Promise<Quote | null> | Quote | null {
+  if (Array.isArray(rfqIdOrQuotes)) {
+    return rfqIdOrQuotes.reduce<Quote | null>(
+      (lowest, quote) => (!lowest || quote.pricePerUnit < lowest.pricePerUnit ? quote : lowest),
+      null
+    );
   }
+
+  return apiCall<Quote>(`/api/rfqs/${rfqIdOrQuotes}/lowest-quote`).catch(() => null);
 }
 
 // Buyer Profile functions

@@ -9,6 +9,8 @@ import { asyncHandler, AppError } from '../utils/errorHandler';
 import { keysToCamel } from '../utils/dbHelpers';
 import { CardamomPrice } from '../types';
 import { fetchCardamomPricesWithRetry } from '../services/dataGovInService';
+import { deleteExpiredCardamomRecords, persistCardamomRecords } from '../services/cardamomPersistence';
+import { parsePagination } from '../utils/dbHelpers';
 
 /**
  * GET /api/cardamom-prices
@@ -17,6 +19,7 @@ import { fetchCardamomPricesWithRetry } from '../services/dataGovInService';
 export const getCardamomPrices = asyncHandler(
   async (req: Request, res: Response) => {
     const { variety, market, startDate, endDate } = req.query;
+    const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
     let sqlQuery = 'SELECT * FROM cardamom_prices WHERE 1=1';
     const params: any[] = [];
@@ -46,7 +49,8 @@ export const getCardamomPrices = asyncHandler(
       paramIndex++;
     }
 
-    sqlQuery += ' ORDER BY arrival_date DESC, market ASC';
+    sqlQuery += ' ORDER BY arrival_date DESC, market ASC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    params.push(limit, offset);
 
     const result = await query(sqlQuery, params);
     const prices = result.rows.map((row) => keysToCamel(row)) as CardamomPrice[];
@@ -141,79 +145,24 @@ export const refreshCardamomPrices = asyncHandler(
         });
       }
 
-      // Transform and insert into database
-      let insertedCount = 0;
-      const errors: string[] = [];
-
-      for (const record of records) {
-        try {
-          // Parse prices, handling potential null/undefined values
-          const minPrice = record.min_price
-            ? parseFloat(record.min_price)
-            : null;
-          const maxPrice = record.max_price
-            ? parseFloat(record.max_price)
-            : null;
-          const modalPrice = parseFloat(record.modal_price);
-
-          // Skip if modal price is invalid
-          if (isNaN(modalPrice)) {
-            errors.push(
-              `Invalid modal_price for ${record.market} ${record.variety}`
-            );
-            continue;
-          }
-
-          await query(
-            `INSERT INTO cardamom_prices
-             (state, district, market, variety, min_price, max_price, modal_price, arrival_date, source)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             ON CONFLICT (market, variety, arrival_date) DO NOTHING`,
-            [
-              record.state || null,
-              record.district || null,
-              record.market,
-              record.variety || 'Unknown',
-              minPrice,
-              maxPrice,
-              modalPrice,
-              record.arrival_date,
-              'indianspices.com',
-            ]
-          );
-          insertedCount++;
-        } catch (err) {
-          console.error('Error inserting cardamom price record:', err);
-          errors.push(
-            `Failed to insert ${record.market} ${record.variety}: ${err}`
-          );
-          // Continue with other records
-        }
-      }
-
-      // Cleanup old records (7-day retention)
-      const deleteResult = await query(
-        `DELETE FROM cardamom_prices
-         WHERE arrival_date < CURRENT_DATE - INTERVAL '7 days'
-         RETURNING id`
-      );
-
-      const deletedCount = deleteResult.rowCount || 0;
+      const summary = await persistCardamomRecords(records);
+      const deletedCount = await deleteExpiredCardamomRecords();
 
       console.log(
-        `✅ Refresh complete: ${insertedCount} inserted, ${deletedCount} deleted`
+        `✅ Refresh complete: ${summary.inserted} inserted, ${deletedCount} deleted`
       );
 
-      if (errors.length > 0) {
-        console.warn(`⚠️ ${errors.length} errors occurred during insert`);
+      if (summary.invalid > 0) {
+        console.warn(`⚠️ ${summary.invalid} invalid records skipped during insert`);
       }
 
       res.json({
         message: 'Cardamom prices refreshed successfully',
-        inserted: insertedCount,
+        inserted: summary.inserted,
         deleted: deletedCount,
         totalRecords: records.length,
-        errors: errors.length > 0 ? errors.slice(0, 5) : undefined, // Return first 5 errors
+        skipped: summary.skipped,
+        invalid: summary.invalid,
       });
     } catch (error) {
       console.error('❌ Failed to refresh cardamom prices:', error);

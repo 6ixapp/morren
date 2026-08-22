@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { query } from '../db';
 import { asyncHandler, AppError } from '../utils/errorHandler';
 import { keysToCamel, buildUpdateClause } from '../utils/dbHelpers';
+import { parsePagination } from '../utils/dbHelpers';
 import { Bid, CreateBidRequest } from '../types';
 
 // Helper to generate consistent anonymized seller ID
@@ -60,6 +61,7 @@ const parseBidRow = (row: any, maskSellerInfo: boolean = false) => {
 
 // GET /api/bids
 export const getBids = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const result = await query(`
     SELECT b.*,
            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity,
@@ -71,7 +73,8 @@ export const getBids = asyncHandler(async (req: Request, res: Response) => {
     LEFT JOIN items i ON o.item_id = i.id
     LEFT JOIN users u ON b.seller_id = u.id
     ORDER BY b.created_at DESC
-  `);
+    LIMIT $1 OFFSET $2
+  `, [limit, offset]);
 
   const bids = result.rows.map((row) => parseBidRow(row, false));
 
@@ -130,9 +133,45 @@ export const getBidsByOrder = asyncHandler(async (req: Request, res: Response) =
   res.json(bids);
 });
 
+// GET /api/bids/orders?orderIds=id1,id2
+// Batch equivalent of getBidsByOrder for dashboard list views.
+export const getBidsByOrders = asyncHandler(async (req: Request, res: Response) => {
+  const maskSellerInfo = req.query.maskSellerInfo === 'true';
+  const rawOrderIds = typeof req.query.orderIds === 'string' ? req.query.orderIds.split(',') : [];
+  const orderIds = rawOrderIds
+    .map((id) => id.trim())
+    .filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+    .slice(0, 500);
+
+  if (orderIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>, 500, 1000);
+  const result = await query(
+    `SELECT b.*,
+            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity,
+            o.total_price as order_total_price, o.status as order_status, o.created_at as order_created_at,
+            i.name as order_item_name, i.specifications as order_item_specifications, i.size as order_item_size,
+            u.name as seller_name, u.email as seller_email
+     FROM bids b
+     LEFT JOIN orders o ON b.order_id = o.id
+     LEFT JOIN items i ON o.item_id = i.id
+     LEFT JOIN users u ON b.seller_id = u.id
+     WHERE b.order_id = ANY($1::uuid[])
+     ORDER BY b.order_id, b.bid_amount ASC, b.created_at ASC
+     LIMIT $2 OFFSET $3`,
+    [orderIds, limit, offset]
+  );
+
+  res.json(result.rows.map((row) => parseBidRow(row, maskSellerInfo)));
+});
+
 // GET /api/bids/seller/:sellerId
 export const getBidsBySeller = asyncHandler(async (req: Request, res: Response) => {
   const { sellerId } = req.params;
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
   const result = await query(
     `SELECT b.*,
@@ -145,8 +184,9 @@ export const getBidsBySeller = asyncHandler(async (req: Request, res: Response) 
      LEFT JOIN items i ON o.item_id = i.id
      LEFT JOIN users u ON b.seller_id = u.id
      WHERE b.seller_id = $1
-     ORDER BY b.created_at DESC`,
-    [sellerId]
+     ORDER BY b.created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [sellerId, limit, offset]
   );
 
   const bids = result.rows.map((row) => parseBidRow(row, false));

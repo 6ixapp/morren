@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { query } from '../db';
 import { asyncHandler, AppError } from '../utils/errorHandler';
-import { keysToCamel, buildUpdateClause } from '../utils/dbHelpers';
+import { keysToCamel, buildUpdateClause, parsePagination } from '../utils/dbHelpers';
 import { Order, CreateOrderRequest } from '../types';
 import { createAuctionAndBroadcast, isWhatsappAutomationEnabled } from '../services/whatsappAuctionService';
 
@@ -45,6 +45,7 @@ const parseOrderRow = (row: any) => {
 
 // GET /api/orders
 export const getOrders = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const result = await query(`
     SELECT o.*,
            i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
@@ -53,7 +54,8 @@ export const getOrders = asyncHandler(async (req: Request, res: Response) => {
     LEFT JOIN items i ON o.item_id = i.id
     LEFT JOIN users u ON o.buyer_id = u.id
     ORDER BY o.created_at DESC
-  `);
+    LIMIT $1 OFFSET $2
+  `, [limit, offset]);
 
   const orders = result.rows.map(parseOrderRow);
 
@@ -87,6 +89,7 @@ export const getOrderById = asyncHandler(async (req: Request, res: Response) => 
 // GET /api/orders/buyer/:buyerId
 export const getOrdersByBuyer = asyncHandler(async (req: Request, res: Response) => {
   const { buyerId } = req.params;
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
   const result = await query(
     `SELECT o.*,
@@ -96,8 +99,9 @@ export const getOrdersByBuyer = asyncHandler(async (req: Request, res: Response)
      LEFT JOIN items i ON o.item_id = i.id
      LEFT JOIN users u ON o.buyer_id = u.id
      WHERE o.buyer_id = $1
-     ORDER BY o.created_at DESC`,
-    [buyerId]
+      ORDER BY o.created_at DESC
+      LIMIT $2 OFFSET $3`,
+    [buyerId, limit, offset]
   );
 
   const orders = result.rows.map(parseOrderRow);
@@ -108,6 +112,7 @@ export const getOrdersByBuyer = asyncHandler(async (req: Request, res: Response)
 // GET /api/orders/seller/:sellerId
 export const getOrdersBySeller = asyncHandler(async (req: Request, res: Response) => {
   const { sellerId } = req.params;
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
   // Orders for seller to bid on (status = pending)
   const result = await query(
@@ -118,7 +123,9 @@ export const getOrdersBySeller = asyncHandler(async (req: Request, res: Response
      LEFT JOIN items i ON o.item_id = i.id
      LEFT JOIN users u ON o.buyer_id = u.id
      WHERE o.status = 'pending'
-     ORDER BY o.created_at DESC`
+      ORDER BY o.created_at DESC
+      LIMIT $1 OFFSET $2`,
+    [limit, offset]
   );
 
   const orders = result.rows.map(parseOrderRow);
@@ -129,6 +136,7 @@ export const getOrdersBySeller = asyncHandler(async (req: Request, res: Response
 // GET /api/orders/seller/:sellerId/items
 export const getSellerItemOrders = asyncHandler(async (req: Request, res: Response) => {
   const { sellerId } = req.params;
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
   const result = await query(
     `SELECT o.*,
@@ -138,8 +146,9 @@ export const getSellerItemOrders = asyncHandler(async (req: Request, res: Respon
      JOIN items i ON o.item_id = i.id
      LEFT JOIN users u ON o.buyer_id = u.id
      WHERE i.seller_id = $1
-     ORDER BY o.created_at DESC`,
-    [sellerId]
+      ORDER BY o.created_at DESC
+      LIMIT $2 OFFSET $3`,
+    [sellerId, limit, offset]
   );
 
   const orders = result.rows.map(parseOrderRow);
@@ -149,6 +158,7 @@ export const getSellerItemOrders = asyncHandler(async (req: Request, res: Respon
 
 // GET /api/orders/shipping
 export const getOrdersForShipping = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const result = await query(
     `SELECT o.*,
             i.name as item_name, i.description as item_description, i.image as item_image, i.price as item_price, i.category as item_category, i.specifications as item_specifications,
@@ -157,7 +167,9 @@ export const getOrdersForShipping = asyncHandler(async (req: Request, res: Respo
      LEFT JOIN items i ON o.item_id = i.id
      LEFT JOIN users u ON o.buyer_id = u.id
      WHERE o.status = 'accepted'
-     ORDER BY o.created_at DESC`
+      ORDER BY o.created_at DESC
+      LIMIT $1 OFFSET $2`,
+    [limit, offset]
   );
 
   const orders = result.rows.map(parseOrderRow);

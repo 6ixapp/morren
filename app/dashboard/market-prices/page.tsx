@@ -131,7 +131,10 @@ export default function MarketPricesPage() {
     }
 
     try {
-      await addMarketPrice(newPrice.productName, Number.parseFloat(newPrice.price))
+      await addMarketPrice({
+        productName: newPrice.productName,
+        price: Number.parseFloat(newPrice.price),
+      })
       await fetchData()
       setNewPrice({ productName: "", price: "" })
       setDialogOpen(false)

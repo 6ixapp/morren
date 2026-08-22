@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import {
   getCardamomPrices,
   getCardamomStats,
@@ -34,7 +35,14 @@ import {
 } from "recharts"
 import { RefreshCw, TrendingUp, MapPin, Package, BarChart3 } from "lucide-react"
 import { useTheme } from "@/components/theme-provider"
-import { HistoricalPriceChart, YearComparisonChart } from "@/components/cardamom/historical-charts"
+const HistoricalPriceChart = dynamic(
+  () => import("@/components/cardamom/historical-charts").then((mod) => mod.HistoricalPriceChart),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted" /> }
+)
+const YearComparisonChart = dynamic(
+  () => import("@/components/cardamom/historical-charts").then((mod) => mod.YearComparisonChart),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted" /> }
+)
 
 
 

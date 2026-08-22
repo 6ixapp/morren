@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { query } from '../db';
 import { asyncHandler, AppError } from '../utils/errorHandler';
 import { keysToCamel, buildUpdateClause } from '../utils/dbHelpers';
+import { parsePagination } from '../utils/dbHelpers';
 import { ShippingBid, CreateShippingBidRequest } from '../types';
 
 // Helper to parse shipping bid with order and provider
@@ -47,6 +48,7 @@ const parseShippingBidRow = (row: any, maskProviderInfo: boolean = false) => {
 
 // GET /api/shipping-bids
 export const getShippingBids = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const result = await query(`
     SELECT sb.*,
            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity, 
@@ -58,7 +60,8 @@ export const getShippingBids = asyncHandler(async (req: Request, res: Response) 
     LEFT JOIN items i ON o.item_id = i.id
     LEFT JOIN users u ON sb.shipping_provider_id = u.id
     ORDER BY sb.created_at DESC
-  `);
+    LIMIT $1 OFFSET $2
+  `, [limit, offset]);
 
   const bids = result.rows.map((row) => parseShippingBidRow(row, false));
 
@@ -117,9 +120,45 @@ export const getShippingBidsByOrder = asyncHandler(async (req: Request, res: Res
   res.json(bids);
 });
 
+// GET /api/shipping-bids/orders?orderIds=id1,id2
+// Batch equivalent of getShippingBidsByOrder for dashboard list views.
+export const getShippingBidsByOrders = asyncHandler(async (req: Request, res: Response) => {
+  const maskProviderInfo = req.query.maskProviderInfo === 'true';
+  const rawOrderIds = typeof req.query.orderIds === 'string' ? req.query.orderIds.split(',') : [];
+  const orderIds = rawOrderIds
+    .map((id) => id.trim())
+    .filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id))
+    .slice(0, 500);
+
+  if (orderIds.length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>, 500, 1000);
+  const result = await query(
+    `SELECT sb.*,
+            o.item_id as order_item_id, o.buyer_id as order_buyer_id, o.quantity as order_quantity,
+            o.total_price as order_total_price, o.status as order_status,
+            i.name as order_item_name,
+            u.name as provider_name, u.email as provider_email
+     FROM shipping_bids sb
+     LEFT JOIN orders o ON sb.order_id = o.id
+     LEFT JOIN items i ON o.item_id = i.id
+     LEFT JOIN users u ON sb.shipping_provider_id = u.id
+     WHERE sb.order_id = ANY($1::uuid[])
+     ORDER BY sb.order_id, sb.bid_amount ASC, sb.created_at ASC
+     LIMIT $2 OFFSET $3`,
+    [orderIds, limit, offset]
+  );
+
+  res.json(result.rows.map((row) => parseShippingBidRow(row, maskProviderInfo)));
+});
+
 // GET /api/shipping-bids/provider/:providerId
 export const getShippingBidsByProvider = asyncHandler(async (req: Request, res: Response) => {
   const { providerId } = req.params;
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
 
   const result = await query(
     `SELECT sb.*,
@@ -132,8 +171,9 @@ export const getShippingBidsByProvider = asyncHandler(async (req: Request, res: 
      LEFT JOIN items i ON o.item_id = i.id
      LEFT JOIN users u ON sb.shipping_provider_id = u.id
      WHERE sb.shipping_provider_id = $1
-     ORDER BY sb.created_at DESC`,
-    [providerId]
+     ORDER BY sb.created_at DESC
+     LIMIT $2 OFFSET $3`,
+    [providerId, limit, offset]
   );
 
   const bids = result.rows.map((row) => parseShippingBidRow(row, false));

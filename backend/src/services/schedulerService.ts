@@ -7,6 +7,20 @@ import cron from 'node-cron';
 import { query } from '../db';
 import { fetchCardamomPricesWithRetry } from './dataGovInService';
 import { closeExpiredOrderAuctions } from './whatsappAuctionService';
+import { deleteExpiredCardamomRecords, persistCardamomRecords } from './cardamomPersistence';
+
+// Prevent duplicate cron work when the backend is later run in cluster mode.
+async function withAdvisoryJobLock(lockKey: number, job: () => Promise<void>): Promise<boolean> {
+  const lockResult = await query('SELECT pg_try_advisory_lock($1) AS locked', [lockKey]);
+  if (!lockResult.rows[0]?.locked) return false;
+
+  try {
+    await job();
+    return true;
+  } finally {
+    await query('SELECT pg_advisory_unlock($1)', [lockKey]);
+  }
+}
 
 /**
  * Seed cardamom prices on startup if the table is empty.
@@ -30,39 +44,9 @@ async function seedCardamomPricesIfEmpty() {
       return;
     }
 
-    let insertedCount = 0;
-    for (const record of records) {
-      try {
-        const minPrice = record.min_price ? parseFloat(record.min_price) : null;
-        const maxPrice = record.max_price ? parseFloat(record.max_price) : null;
-        const modalPrice = parseFloat(record.modal_price);
-        if (isNaN(modalPrice)) continue;
+    const summary = await persistCardamomRecords(records);
 
-        const result = await query(
-          `INSERT INTO cardamom_prices
-           (state, district, market, variety, min_price, max_price, modal_price, arrival_date, source)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           ON CONFLICT (market, variety, arrival_date) DO NOTHING
-           RETURNING id`,
-          [
-            record.state || null,
-            record.district || null,
-            record.market,
-            record.variety || 'Unknown',
-            minPrice,
-            maxPrice,
-            modalPrice,
-            record.arrival_date,
-            'indianspices.com',
-          ]
-        );
-        if (result.rowCount && result.rowCount > 0) insertedCount++;
-      } catch (err) {
-        console.error('❌ [SEED] Error inserting record:', err);
-      }
-    }
-
-    console.log(`✅ Initial seed complete: ${insertedCount}/${records.length} cardamom price records inserted.`);
+    console.log(`✅ Initial seed complete: ${summary.inserted}/${records.length} cardamom price records inserted.`);
   } catch (error) {
     console.error('❌ [SEED] Failed to seed cardamom prices:', error instanceof Error ? error.message : error);
     console.log('⚠️  Inserting static fallback cardamom data...');
@@ -94,23 +78,19 @@ async function insertFallbackCardamomData() {
     ['Kumily',        'Kerala',     'Idukki',      'Medium',     820,  1220, 1020, d2],
   ];
 
-  let insertedCount = 0;
-  for (const [market, state, district, variety, minP, maxP, modalP, date] of fallback) {
-    try {
-      const result = await query(
-        `INSERT INTO cardamom_prices
-         (state, district, market, variety, min_price, max_price, modal_price, arrival_date, source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         ON CONFLICT (market, variety, arrival_date) DO NOTHING
-         RETURNING id`,
-        [state, district, market, variety, minP, maxP, modalP, date, 'static-fallback']
-      );
-      if (result.rowCount && result.rowCount > 0) insertedCount++;
-    } catch (err) {
-      console.error('❌ [FALLBACK] Error inserting record:', err);
-    }
-  }
-  console.log(`✅ [FALLBACK] Inserted ${insertedCount} static cardamom price records.`);
+  const fallbackRecords = fallback.map(([market, state, district, variety, minP, maxP, modalP, date]) => ({
+    market: String(market),
+    state: String(state),
+    district: String(district),
+    variety: String(variety),
+    min_price: String(minP),
+    max_price: String(maxP),
+    modal_price: String(modalP),
+    arrival_date: String(date),
+    commodity: 'cardamom',
+  }));
+  const summary = await persistCardamomRecords(fallbackRecords, 'static-fallback');
+  console.log(`✅ [FALLBACK] Inserted ${summary.inserted} static cardamom price records.`);
 }
 
 /**
@@ -120,17 +100,20 @@ export function initScheduledJobs() {
   console.log('⏰ Initializing scheduled jobs...');
 
   // Seed initial data if DB is empty
-  seedCardamomPricesIfEmpty();
+  void withAdvisoryJobLock(73001, seedCardamomPricesIfEmpty).catch((error) => {
+    console.error('❌ Failed to acquire cardamom seed lock:', error);
+  });
 
   // Daily cardamom price refresh - 8:00 PM IST (14:30 UTC)
   // Cron expression: minute hour day month weekday
   cron.schedule(
     '0 20 * * *',
     async () => {
-      console.log('🕒 [CRON] Starting daily cardamom price refresh...');
-      console.log(`📅 Timestamp: ${new Date().toISOString()}`);
+      const acquired = await withAdvisoryJobLock(73002, async () => {
+        console.log('🕒 [CRON] Starting daily cardamom price refresh...');
+        console.log(`📅 Timestamp: ${new Date().toISOString()}`);
 
-      try {
+        try {
         // Fetch from indianspices.com with retry logic
         const records = await fetchCardamomPricesWithRetry(3);
 
@@ -139,78 +122,24 @@ export function initScheduledJobs() {
           return;
         }
 
-        let insertedCount = 0;
-        let skippedCount = 0;
-
-        for (const record of records) {
-          try {
-            // Parse prices, handling potential null/undefined values
-            const minPrice = record.min_price
-              ? parseFloat(record.min_price)
-              : null;
-            const maxPrice = record.max_price
-              ? parseFloat(record.max_price)
-              : null;
-            const modalPrice = parseFloat(record.modal_price);
-
-            // Skip if modal price is invalid
-            if (isNaN(modalPrice)) {
-              skippedCount++;
-              continue;
-            }
-
-            const result = await query(
-              `INSERT INTO cardamom_prices
-               (state, district, market, variety, min_price, max_price, modal_price, arrival_date, source)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-               ON CONFLICT (market, variety, arrival_date) DO NOTHING
-               RETURNING id`,
-              [
-                record.state || null,
-                record.district || null,
-                record.market,
-                record.variety || 'Unknown',
-                minPrice,
-                maxPrice,
-                modalPrice,
-                record.arrival_date,
-                'indianspices.com',
-              ]
-            );
-
-            // Count only actually inserted records (not conflicts)
-            if (result.rowCount && result.rowCount > 0) {
-              insertedCount++;
-            } else {
-              skippedCount++;
-            }
-          } catch (err) {
-            console.error(`❌ [CRON] Error inserting record:`, err);
-            skippedCount++;
-          }
-        }
-
-        // Cleanup old records (7-day retention)
-        const deleteResult = await query(
-          `DELETE FROM cardamom_prices
-           WHERE arrival_date < CURRENT_DATE - INTERVAL '7 days'
-           RETURNING id`
-        );
-
-        const deletedCount = deleteResult.rowCount || 0;
+        const summary = await persistCardamomRecords(records);
+        const deletedCount = await deleteExpiredCardamomRecords();
 
         console.log(`✅ [CRON] Cardamom prices refreshed successfully:`);
         console.log(`   📥 Fetched: ${records.length} records`);
-        console.log(`   ✨ Inserted: ${insertedCount} new records`);
-        console.log(`   ⏭️  Skipped: ${skippedCount} duplicates/invalid`);
+        console.log(`   ✨ Inserted: ${summary.inserted} new records`);
+        console.log(`   ⏭️  Skipped: ${summary.skipped + summary.invalid} duplicates/invalid`);
         console.log(`   🗑️  Deleted: ${deletedCount} old records (>7 days)`);
-      } catch (error) {
-        console.error('❌ [CRON] Failed to refresh cardamom prices:', error);
-        console.error(
-          'Error details:',
-          error instanceof Error ? error.message : error
-        );
-      }
+        } catch (error) {
+          console.error('❌ [CRON] Failed to refresh cardamom prices:', error);
+          console.error(
+            'Error details:',
+            error instanceof Error ? error.message : error
+          );
+        }
+      });
+
+      if (!acquired) console.log('ℹ️ [CRON] Cardamom refresh already running in another instance.');
     },
     {
       timezone: 'Asia/Kolkata', // Indian Standard Time
@@ -219,14 +148,17 @@ export function initScheduledJobs() {
 
   // Close expired WhatsApp auctions every 2 minutes
   cron.schedule('*/2 * * * *', async () => {
-    try {
-      const result = await closeExpiredOrderAuctions();
-      if (result.closedAuctionCount > 0) {
-        console.log(`✅ [CRON] Closed ${result.closedAuctionCount} auctions and sent ${result.notifiedCount} notifications`);
+    const acquired = await withAdvisoryJobLock(73003, async () => {
+      try {
+        const result = await closeExpiredOrderAuctions();
+        if (result.closedAuctionCount > 0) {
+          console.log(`✅ [CRON] Closed ${result.closedAuctionCount} auctions and sent ${result.notifiedCount} notifications`);
+        }
+      } catch (error) {
+        console.error('❌ [CRON] Failed to close expired WhatsApp auctions:', error);
       }
-    } catch (error) {
-      console.error('❌ [CRON] Failed to close expired WhatsApp auctions:', error);
-    }
+    });
+    if (!acquired) console.log('ℹ️ [CRON] Auction close already running in another instance.');
   });
 
   console.log(
@@ -245,45 +177,10 @@ export async function runCardamomRefreshNow() {
     const records = await fetchCardamomPricesWithRetry(3);
     console.log(`Fetched ${records.length} records`);
 
-    let insertedCount = 0;
+    const summary = await persistCardamomRecords(records);
+    const deletedCount = await deleteExpiredCardamomRecords();
 
-    for (const record of records) {
-      try {
-        const minPrice = record.min_price ? parseFloat(record.min_price) : null;
-        const maxPrice = record.max_price ? parseFloat(record.max_price) : null;
-        const modalPrice = parseFloat(record.modal_price);
-
-        if (isNaN(modalPrice)) continue;
-
-        await query(
-          `INSERT INTO cardamom_prices
-           (state, district, market, variety, min_price, max_price, modal_price, arrival_date, source)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-           ON CONFLICT (market, variety, arrival_date) DO NOTHING`,
-          [
-            record.state || null,
-            record.district || null,
-            record.market,
-            record.variety || 'Unknown',
-            minPrice,
-            maxPrice,
-            modalPrice,
-            record.arrival_date,
-            'indianspices.com',
-          ]
-        );
-        insertedCount++;
-      } catch (err) {
-        console.error('Error inserting:', err);
-      }
-    }
-
-    const deleteResult = await query(
-      `DELETE FROM cardamom_prices
-       WHERE arrival_date < CURRENT_DATE - INTERVAL '7 days'`
-    );
-
-    console.log(`✅ Test refresh complete: ${insertedCount} inserted, ${deleteResult.rowCount} deleted`);
+    console.log(`✅ Test refresh complete: ${summary.inserted} inserted, ${deletedCount} deleted`);
   } catch (error) {
     console.error('❌ Test refresh failed:', error);
   }

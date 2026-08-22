@@ -1,20 +1,10 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { LanguageProvider } from "@/contexts/LanguageContext"
 import "./globals.css"
-
-const geist = Geist({ 
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
-})
-const geistMono = Geist_Mono({ 
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-})
 
 export const metadata: Metadata = {
   title: "RFQ Management System | Morera Ventures LLP",
@@ -52,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <LanguageProvider>
             <AuthProvider>

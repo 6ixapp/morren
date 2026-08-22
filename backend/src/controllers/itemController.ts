@@ -1,18 +1,20 @@
 import { Request, Response } from 'express';
 import { query } from '../db';
 import { asyncHandler, AppError } from '../utils/errorHandler';
-import { keysToCamel, buildUpdateClause } from '../utils/dbHelpers';
+import { keysToCamel, buildUpdateClause, parsePagination } from '../utils/dbHelpers';
 import { Item, CreateItemRequest } from '../types';
 
 // GET /api/items
 export const getItems = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const result = await query(`
     SELECT i.*, 
            u.id as seller_id, u.name as seller_name, u.email as seller_email, u.role as seller_role
     FROM items i
     LEFT JOIN users u ON i.seller_id = u.id
     ORDER BY i.created_at DESC
-  `);
+    LIMIT $1 OFFSET $2
+  `, [limit, offset]);
 
   const items = result.rows.map((row) => {
     const item = keysToCamel({
@@ -49,6 +51,7 @@ export const getItems = asyncHandler(async (req: Request, res: Response) => {
 
 // GET /api/items/active
 export const getActiveItems = asyncHandler(async (req: Request, res: Response) => {
+  const { limit, offset } = parsePagination(req.query as Record<string, unknown>);
   const result = await query(`
     SELECT i.*, 
            u.id as seller_id, u.name as seller_name, u.email as seller_email, u.role as seller_role
@@ -56,7 +59,8 @@ export const getActiveItems = asyncHandler(async (req: Request, res: Response) =
     LEFT JOIN users u ON i.seller_id = u.id
     WHERE i.status = 'active'
     ORDER BY i.created_at DESC
-  `);
+    LIMIT $1 OFFSET $2
+  `, [limit, offset]);
 
   const items = result.rows.map((row) => {
     const item = keysToCamel({

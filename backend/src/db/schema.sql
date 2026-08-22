@@ -269,14 +269,20 @@ CREATE INDEX IF NOT EXISTS idx_orders_buyer_id ON orders(buyer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_item_id ON orders(item_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_buyer_created_at ON orders(buyer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_status_created_at ON orders(status, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_bids_order_id ON bids(order_id);
 CREATE INDEX IF NOT EXISTS idx_bids_seller_id ON bids(seller_id);
 CREATE INDEX IF NOT EXISTS idx_bids_status ON bids(status);
+CREATE INDEX IF NOT EXISTS idx_bids_order_amount ON bids(order_id, bid_amount, created_at);
+CREATE INDEX IF NOT EXISTS idx_bids_seller_created_at ON bids(seller_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_shipping_bids_order_id ON shipping_bids(order_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_bids_provider_id ON shipping_bids(shipping_provider_id);
 CREATE INDEX IF NOT EXISTS idx_shipping_bids_status ON shipping_bids(status);
+CREATE INDEX IF NOT EXISTS idx_shipping_bids_order_amount ON shipping_bids(order_id, bid_amount, created_at);
+CREATE INDEX IF NOT EXISTS idx_shipping_bids_provider_created_at ON shipping_bids(shipping_provider_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_rfqs_buyer_id ON rfqs(buyer_id);
 CREATE INDEX IF NOT EXISTS idx_rfqs_status ON rfqs(status);
@@ -301,6 +307,7 @@ CREATE INDEX IF NOT EXISTS idx_notification_logs_order_id ON notification_logs(o
 CREATE INDEX IF NOT EXISTS idx_order_auctions_order_id ON order_auctions(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_auctions_status ON order_auctions(auction_status);
 CREATE INDEX IF NOT EXISTS idx_order_auctions_ends_at ON order_auctions(ends_at);
+CREATE INDEX IF NOT EXISTS idx_order_auctions_status_ends_at ON order_auctions(auction_status, ends_at);
 CREATE INDEX IF NOT EXISTS idx_seller_auction_invites_auction_id ON seller_auction_invites(auction_id);
 CREATE INDEX IF NOT EXISTS idx_seller_auction_invites_seller_id ON seller_auction_invites(seller_id);
 CREATE INDEX IF NOT EXISTS idx_seller_auction_invites_status ON seller_auction_invites(invite_status);
@@ -308,6 +315,13 @@ CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_auction_id ON whatsapp_mess
 CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_order_id ON whatsapp_message_logs(order_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_seller_id ON whatsapp_message_logs(seller_id);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_message_logs_created_at ON whatsapp_message_logs(created_at DESC);
+
+-- The WhatsApp webhook normalizes phone numbers before comparing them. These
+-- functional indexes keep that lookup indexable instead of scanning users.
+CREATE INDEX IF NOT EXISTS idx_users_whatsapp_digits
+  ON users ((regexp_replace(COALESCE(whatsapp_number, ''), '[^0-9]', '', 'g')));
+CREATE INDEX IF NOT EXISTS idx_users_phone_digits
+  ON users ((regexp_replace(COALESCE(phone, ''), '[^0-9]', '', 'g')));
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

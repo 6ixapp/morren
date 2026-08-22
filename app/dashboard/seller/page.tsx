@@ -15,17 +15,25 @@ import { DashboardLayout } from '@/components/dashboard-layout';
 import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { AddressAutocomplete } from '@/components/ui/address-autocomplete';
-import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrder, sendNotificationToUser, getCardamomPrices, getCardamomStats } from '@/lib/api-client';
+import { getOrdersBySeller, getBidsBySeller, createBid, updateBid, getBidsByOrders, sendNotificationToUser, getCardamomPrices, getCardamomStats } from '@/lib/api-client';
 import type { CardamomPrice, CardamomPriceStats } from '@/lib/api-client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Language } from '@/contexts/LanguageContext';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useToast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { HistoricalPriceChart, YearComparisonChart } from '@/components/cardamom/historical-charts';
+const HistoricalPriceChart = dynamic(
+    () => import('@/components/cardamom/historical-charts').then((mod) => mod.HistoricalPriceChart),
+    { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted" /> }
+);
+const YearComparisonChart = dynamic(
+    () => import('@/components/cardamom/historical-charts').then((mod) => mod.YearComparisonChart),
+    { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted" /> }
+);
 import { useTheme } from '@/components/theme-provider';
 
 type LocalizedTerm = readonly [source: string, target: string];
@@ -169,21 +177,13 @@ export default function SellerDashboard() {
             setOrders(ordersData || []);
             setBids(bidsData || []);
 
-            // Fetch all bids for each order to compare
+            // Fetch all bids for the visible orders in one request.
             const orderBidsMap: Record<string, Bid[]> = {};
             if (ordersData && ordersData.length > 0) {
-                await Promise.all(
-                    ordersData.map(async (order) => {
-                        try {
-                            // Pass false to not mask seller info for bid comparison
-                            const orderBids = await getBidsByOrder(order.id, false);
-                            orderBidsMap[order.id] = orderBids || [];
-                        } catch (err) {
-                            console.error(`Error fetching bids for order ${order.id}:`, err);
-                            orderBidsMap[order.id] = [];
-                        }
-                    })
-                );
+                const orderBids = await getBidsByOrders(ordersData.map((order) => order.id), false);
+                for (const bid of orderBids) {
+                    (orderBidsMap[bid.orderId] ||= []).push(bid);
+                }
             }
             setAllOrderBids(orderBidsMap);
         } catch (error: any) {

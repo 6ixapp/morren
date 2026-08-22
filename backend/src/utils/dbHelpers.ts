@@ -77,3 +77,22 @@ export const buildUpdateClause = (updates: Record<string, any>): { clause: strin
     values,
   };
 };
+
+// Keep list endpoints bounded even when callers do not provide pagination.
+export const parsePagination = (
+  query: Record<string, unknown>,
+  defaultLimit = 100,
+  maxLimit = 100
+): { limit: number; offset: number } => {
+  const requestedLimit = Number(query.limit);
+  const requestedOffset = Number(query.offset);
+
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.floor(requestedLimit), 1), maxLimit)
+    : defaultLimit;
+  const offset = Number.isFinite(requestedOffset)
+    ? Math.max(Math.floor(requestedOffset), 0)
+    : 0;
+
+  return { limit, offset };
+};

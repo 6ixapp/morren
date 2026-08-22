@@ -92,10 +92,7 @@ export default function RFQDetailPage() {
       router.push(`/dashboard/${user.role}`)
       return
     }
-    if (user) {
-      loadData()
-    }
-  }, [user, authLoading, router, params.id])
+  }, [user, authLoading, router])
 
   const loadData = useCallback(async () => {
     if (!user || !params.id) return
@@ -134,8 +131,10 @@ export default function RFQDetailPage() {
   useEffect(() => {
     if (user) {
       loadData()
-      // Poll for updates every 5 seconds
-      const interval = setInterval(loadData, 5000)
+      // Poll only while visible; the RFQ page is not a high-frequency stream.
+      const interval = setInterval(() => {
+        if (document.visibilityState === 'visible') void loadData()
+      }, 15000)
       return () => clearInterval(interval)
     }
   }, [loadData, user])

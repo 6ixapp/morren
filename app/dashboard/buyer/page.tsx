@@ -18,9 +18,10 @@ import { BackgroundBeams } from '@/components/ui/aceternity/background-beams';
 import { ClockTimer } from '@/components/ui/clock-timer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getActiveItems, getOrdersByBuyer, getBidsByOrder, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrder, updateShippingBid, getCardamomPrices, getCardamomStats } from '@/lib/api-client';
+import { getActiveItems, getOrdersByBuyer, getBidsByOrders, createOrder, getBuyerStats, updateBid, updateOrder, createItem, deleteBid, getShippingBidsByOrders, updateShippingBid, getCardamomPrices, getCardamomStats } from '@/lib/api-client';
 import type { CardamomPrice, CardamomPriceStats } from '@/lib/api-client';
 import { useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +32,14 @@ import { processAutoAccepts } from '@/lib/auto-accept';
 import { getErrorMessage } from '@/lib/utils';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
-import { HistoricalPriceChart, YearComparisonChart } from '@/components/cardamom/historical-charts';
+const HistoricalPriceChart = dynamic(
+    () => import('@/components/cardamom/historical-charts').then((mod) => mod.HistoricalPriceChart),
+    { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted" /> }
+);
+const YearComparisonChart = dynamic(
+    () => import('@/components/cardamom/historical-charts').then((mod) => mod.YearComparisonChart),
+    { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted" /> }
+);
 import { useTheme } from '@/components/theme-provider';
 import { Language } from '@/contexts/LanguageContext';
 
@@ -1326,28 +1334,19 @@ function BuyerDashboardContent() {
 
                     // **PERFORMANCE IMPROVEMENT**: Fetch bids for all orders
                     // Using API client instead of direct database queries
-                    const bidPromises = orderIds.map(orderId =>
-                        getBidsByOrder(orderId, false).catch(err => {
-                            console.error(`Error fetching bids for order ${orderId}:`, err);
+                    const [allBidsResult, allShippingBidsResult] = await Promise.all([
+                        getBidsByOrders(orderIds, false).catch(err => {
+                            console.error('Error fetching seller bids:', err);
                             return [];
-                        })
-                    );
-
-                    const shippingBidPromises = orderIds.map(orderId =>
-                        getShippingBidsByOrder(orderId, false).catch(err => {
-                            console.error(`Error fetching shipping bids for order ${orderId}:`, err);
+                        }),
+                        getShippingBidsByOrders(orderIds, false).catch(err => {
+                            console.error('Error fetching shipping bids:', err);
                             return [];
-                        })
-                    );
-
-                    const [bidArrays, shippingBidArrays] = await Promise.all([
-                        Promise.all(bidPromises),
-                        Promise.all(shippingBidPromises)
+                        }),
                     ]);
 
-                    // Flatten arrays (each promise returned an array of bids for one order)
-                    allBids = bidArrays.flat();
-                    allShippingBids = shippingBidArrays.flat();
+                    allBids = allBidsResult;
+                    allShippingBids = allShippingBidsResult;
 
                     console.log(`fetchData: Batch fetched ${allBids.length} seller bids and ${allShippingBids.length} shipping bids`);
                 } catch (err) {
@@ -1411,8 +1410,10 @@ function BuyerDashboardContent() {
         if (!user || user.role !== 'buyer') return;
 
         const intervalId = setInterval(() => {
-            console.log('Auto-refreshing data for new bids...');
-            fetchData(false); // Soft refresh (uses cache for some data)
+            if (document.visibilityState === 'visible') {
+                console.log('Auto-refreshing data for new bids...');
+                fetchData(false); // Soft refresh (uses cache for some data)
+            }
         }, 30000); // 30 seconds
 
         return () => clearInterval(intervalId);

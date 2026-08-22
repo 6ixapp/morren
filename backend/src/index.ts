@@ -54,9 +54,20 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging
+// Request logging: avoid synchronous log I/O for every request in production.
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
+  if (req.path === '/health' && process.env.NODE_ENV === 'production') {
+    next();
+    return;
+  }
+
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - startedAt;
+    if (process.env.NODE_ENV !== 'production' || duration >= 500) {
+      console.log(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+    }
+  });
   next();
 });
 

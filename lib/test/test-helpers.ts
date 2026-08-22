@@ -6,7 +6,7 @@ class TestDataGenerator {
     return Math.floor(Math.random() * (max - min + 1)) + min
   }
 
-  private static getRandomElement<T>(array: T[]): T {
+  private static getRandomElement<T>(array: readonly T[]): T {
     return array[TestDataGenerator.getRandomInt(0, array.length - 1)]
   }
 
