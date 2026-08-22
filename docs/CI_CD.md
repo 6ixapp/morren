@@ -1,6 +1,6 @@
 # CI/CD Pipeline
 
-Morren uses GitHub Actions for validation and production deployment.
+Morren uses GitHub Actions for validation and production deployment to a DigitalOcean Droplet.
 
 ## Continuous integration
 
@@ -16,19 +16,20 @@ It performs:
 
 Create a GitHub Environment named `production`, then add these environment secrets:
 
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-- `RAILWAY_DEPLOY_HOOK_URL`
+- `DIGITALOCEAN_HOST` — Droplet IP address or hostname.
+- `DIGITALOCEAN_USER` — SSH deployment user, normally `morren`.
+- `DIGITALOCEAN_SSH_KEY` — private key for that user.
+- `DIGITALOCEAN_KNOWN_HOSTS` — the pinned `known_hosts` entry for the Droplet.
+- `DIGITALOCEAN_PORT` — optional; defaults to `22`.
 
-The Vercel steps deploy a prebuilt production artifact. The Railway step calls the project’s deploy hook, allowing Railway to build and deploy the backend using `backend/railway.json`.
+The workflow connects to the Droplet over SSH and runs `/opt/morren/deploy/deploy.sh` (or the configured app directory). That existing script creates a pre-deployment database backup, pulls `origin/main`, installs backend dependencies, builds TypeScript, runs migrations, reloads PM2, checks `/health`, and rolls back the application if the health check fails.
 
-Add these optional environment variables for post-deployment smoke tests:
+Add these optional production variables for post-deployment smoke tests and custom paths:
 
-- `FRONTEND_URL`, for example `https://your-frontend.vercel.app`
-- `BACKEND_HEALTHCHECK_URL`, for example `https://your-backend.up.railway.app/health`
+- `DIGITALOCEAN_APP_DIR`, defaults to `/opt/morren`.
+- `DIGITALOCEAN_HEALTH_URL`, for example `https://api.example.com/health`.
 
-If a provider’s secrets are not configured, that provider’s deployment is skipped with a clear message. This keeps pull requests and initial repository setup safe while still making the pipeline ready for production once the environment is configured.
+If the DigitalOcean secrets are not configured, deployment is skipped with a clear message. This keeps pull requests and initial repository setup safe while making the pipeline ready for production once the environment is configured.
 
 ## Recommended protection
 

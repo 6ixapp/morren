@@ -4,7 +4,7 @@ A B2B marketplace with four roles (buyer, seller, shipping provider, admin), cus
 
 **🚀 [Deploy to Digital Ocean](DIGITALOCEAN_DEPLOYMENT_GUIDE.md)** | **📖 [Full Documentation](DOCUMENTATION_INDEX.md)** | **💻 [Local Dev Setup](GETTING_STARTED.md)**
 
-**CI/CD:** See [docs/CI_CD.md](docs/CI_CD.md) for GitHub Actions validation and Vercel/Railway production deployment setup.
+**CI/CD:** See [docs/CI_CD.md](docs/CI_CD.md) for GitHub Actions validation and DigitalOcean production deployment setup.
 
 ## 🚀 Quick Deploy to Digital Ocean Droplet
 
